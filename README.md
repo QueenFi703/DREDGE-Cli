@@ -22,3 +22,10 @@ pytest
 - Edit code in src/dredge
 - Update version in pyproject.toml
 - Tag releases with v<version> and push tags
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on:
+- Branch naming conventions
+- Development workflow
+- Submitting pull requests
