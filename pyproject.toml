@@ -7,6 +7,8 @@ name = "dredge"
 version = "0.1.0"
 description = "DREDGE: A lightweight system for lifting, preserving, and releasing insights"
 readme = "README.md"
+# Python version constraint as specified in requirements
+# Note: Can be updated to include newer Python versions as they are tested
 requires-python = ">=3.10,<3.13"
 license = {text = "MIT"}
 authors = [

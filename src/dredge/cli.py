@@ -18,9 +18,9 @@ def main():
     
     args = parser.parse_args()
     
-    # If no arguments provided, show help
-    if not any(vars(args).values()):
-        parser.print_help()
+    # Future: Add subcommands and functionality here
+    # For now, if no arguments, show help
+    parser.print_help()
 
 
 if __name__ == "__main__":
