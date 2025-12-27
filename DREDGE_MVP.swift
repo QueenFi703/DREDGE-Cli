@@ -126,9 +126,9 @@ struct DredgeEngine {
         let score = Double(sentiment?.rawValue ?? "0") ?? 0
 
         switch score {
-        case let s where s > 0.3:
+        case let sentimentScore where sentimentScore > 0.3:
             return "A gentle clarity is forming."
-        case let s where s < -0.3:
+        case let sentimentScore where sentimentScore < -0.3:
             return "Something beneath asks for rest."
         default:
             return "Balance holds."
@@ -141,8 +141,8 @@ struct DredgeEngine {
 final class VoiceDredger {
     private let audioEngine = AVAudioEngine()
     private let recognizer = SFSpeechRecognizer()
-    private var request: SFSpeechAudioBufferRecognitionRequest?
-    private var task: SFSpeechRecognitionTask?
+    private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
+    private var recognitionTask: SFSpeechRecognitionTask?
 
     var latestTranscription: String?
 
@@ -152,20 +152,20 @@ final class VoiceDredger {
 
     func start() {
         latestTranscription = nil
-        request = SFSpeechAudioBufferRecognitionRequest()
-        guard let request = request else { return }
+        recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
+        guard let recognitionRequest = recognitionRequest else { return }
 
         let inputNode = audioEngine.inputNode
         let format = inputNode.outputFormat(forBus: 0)
 
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) {
-            buffer, _ in request.append(buffer)
+            buffer, _ in recognitionRequest.append(buffer)
         }
 
         audioEngine.prepare()
         try? audioEngine.start()
 
-        task = recognizer?.recognitionTask(with: request) { result, _ in
+        recognitionTask = recognizer?.recognitionTask(with: recognitionRequest) { result, _ in
             if let result = result {
                 self.latestTranscription = result.bestTranscription.formattedString
             }
@@ -175,8 +175,8 @@ final class VoiceDredger {
     func stop() {
         audioEngine.stop()
         audioEngine.inputNode.removeTap(onBus: 0)
-        request?.endAudio()
-        task?.cancel()
+        recognitionRequest?.endAudio()
+        recognitionTask?.cancel()
     }
 }
 
