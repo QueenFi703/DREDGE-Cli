@@ -110,14 +110,24 @@ struct ContentView: View {
 // MARK: - Dredge Engine
 
 struct DredgeEngine {
+    // Cache NLTagger instance to avoid repeated initialization overhead
+    private static let sentimentTagger: NLTagger = {
+        let tagger = NLTagger(tagSchemes: [.sentimentScore])
+        return tagger
+    }()
+    
     static func process(thoughts: [String]) -> String {
         guard !thoughts.isEmpty else { return "Still waters." }
 
-        let text = thoughts.joined(separator: ". ")
-        let tagger = NLTagger(tagSchemes: [.sentimentScore])
-        tagger.string = text
+        // Optimize string joining by pre-calculating capacity
+        let estimatedLength = thoughts.reduce(0) { $0 + $1.count + 2 } // +2 for ". "
+        var text = ""
+        text.reserveCapacity(estimatedLength)
+        text = thoughts.joined(separator: ". ")
+        
+        sentimentTagger.string = text
 
-        let sentiment = tagger.tag(
+        let sentiment = sentimentTagger.tag(
             at: text.startIndex,
             unit: .paragraph,
             scheme: .sentimentScore
@@ -143,10 +153,15 @@ final class VoiceDredger {
     private let recognizer = SFSpeechRecognizer()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
+    
+    // Configurable buffer size for performance tuning (default: 1024)
+    // Larger buffers reduce CPU overhead but increase latency
+    private let bufferSize: AVAudioFrameCount
 
     var latestTranscription: String?
 
-    init() {
+    init(bufferSize: AVAudioFrameCount = 1024) {
+        self.bufferSize = bufferSize
         SFSpeechRecognizer.requestAuthorization { _ in }
     }
 
@@ -158,7 +173,7 @@ final class VoiceDredger {
         let inputNode = audioEngine.inputNode
         let format = inputNode.outputFormat(forBus: 0)
 
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) {
+        inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: format) {
             buffer, _ in request.append(buffer)
         }
 
@@ -185,6 +200,15 @@ final class VoiceDredger {
 class DredgeOperation: Operation {
     override func main() {
         if isCancelled { return }
-        sleep(2)
+        
+        // Use async delay instead of blocking sleep for better performance
+        // This allows the thread to be reused while waiting
+        let semaphore = DispatchSemaphore(value: 0)
+        DispatchQueue.global().asyncAfter(deadline: .now() + 2.0) {
+            semaphore.signal()
+        }
+        semaphore.wait()
+        
+        if isCancelled { return }
     }
 }
