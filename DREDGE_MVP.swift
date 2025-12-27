@@ -119,11 +119,8 @@ struct DredgeEngine {
     static func process(thoughts: [String]) -> String {
         guard !thoughts.isEmpty else { return "Still waters." }
 
-        // Optimize string joining by pre-calculating capacity
-        let estimatedLength = thoughts.reduce(0) { $0 + $1.count + 2 } // +2 for ". "
-        var text = ""
-        text.reserveCapacity(estimatedLength)
-        text = thoughts.joined(separator: ". ")
+        // Efficient string joining - joined() is optimized internally
+        let text = thoughts.joined(separator: ". ")
         
         sentimentTagger.string = text
 
@@ -201,13 +198,13 @@ class DredgeOperation: Operation {
     override func main() {
         if isCancelled { return }
         
-        // Use async delay instead of blocking sleep for better performance
-        // This allows the thread to be reused while waiting
-        let semaphore = DispatchSemaphore(value: 0)
-        DispatchQueue.global().asyncAfter(deadline: .now() + 2.0) {
-            semaphore.signal()
-        }
-        semaphore.wait()
+        // TODO: Replace with actual background processing work
+        // Current implementation is a placeholder that simulates processing time
+        // For real work, this should process thoughts, sync data, or perform maintenance
+        // Example: DredgeEngine.process(thoughts: loadCachedThoughts())
+        
+        // Placeholder delay - in production, replace with actual work
+        Thread.sleep(forTimeInterval: 2.0)
         
         if isCancelled { return }
     }
