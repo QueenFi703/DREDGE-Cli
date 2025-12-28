@@ -18,8 +18,7 @@ logger = logging.getLogger(__name__)
 mcp = FastMCP(
     name="dredge-mcp-server",
     host="0.0.0.0",
-    port=3001,
-    timeout=30
+    port=3001
 )
 
 
@@ -64,8 +63,9 @@ def main():
     """Main entry point for the MCP server."""
     logger.info("Starting DREDGE MCP server on 0.0.0.0:3001...")
     logger.info("Available tools: get_version, hello_world, get_server_info")
+    logger.info("Using SSE (Server-Sent Events) transport")
     try:
-        mcp.run()
+        mcp.run(transport="sse")
     except KeyboardInterrupt:
         logger.info("Shutting down MCP server...")
     except Exception as e:
