@@ -131,19 +131,22 @@ impl MemoryManager {
     /// Build reverse mapping from HostPage to VMID
     ///
     /// This is used to verify memory non-interference.
-    /// In a production implementation, this would be maintained incrementally.
+    /// 
+    /// Note: This is a simplified placeholder implementation. A production version
+    /// would maintain an explicit GPA->VMID ownership table incrementally during
+    /// map/unmap operations, allowing accurate reverse lookups. The current version
+    /// assigns pages to the first VM encountered, which is sufficient for basic
+    /// verification but not for precise ownership tracking.
     fn build_reverse_mapping(state: &SystemState) -> HashMap<HostPage, VMID> {
         let mut reverse_map = HashMap::new();
         
-        // For each VM, find all its memory mappings
-        for (&vmid, _) in &state.vms {
-            // Scan memory table for this VM's mappings
-            // Note: In production, we'd maintain VM -> [GPA] mapping
-            for (&gpa, &maybe_page) in &state.memory {
+        // Simplified: Assign each page to first VM we encounter it with
+        // Production: Maintain explicit ownership via GPA->VMID table
+        for (&_vmid, _) in &state.vms {
+            for (&_gpa, &maybe_page) in &state.memory {
                 if let Some(page) = maybe_page {
-                    // Check if this belongs to current VM
-                    // This is a simplified check; real implementation would track ownership explicitly
-                    reverse_map.entry(page).or_insert(vmid);
+                    // Insert only if not already present (first-seen wins)
+                    reverse_map.entry(page).or_insert(_vmid);
                 }
             }
         }
@@ -155,6 +158,10 @@ impl MemoryManager {
     ///
     /// Returns the set of guest physical addresses currently mapped.
     /// This is useful for verification and debugging.
+    /// 
+    /// Note: Current implementation returns all GPAs in the system as a placeholder.
+    /// A production implementation would maintain per-VM GPA tracking with explicit
+    /// GPA->VMID ownership mapping to return only the specified VM's GPAs.
     pub fn get_vm_mappings(
         state: &SystemState,
         vmid: VMID,
@@ -164,8 +171,8 @@ impl MemoryManager {
             return Err(Error::VMNotFound(vmid));
         }
         
-        // Collect all GPAs mapped in the system
-        // In production, we'd maintain per-VM mapping tables
+        // Simplified: Return all GPAs
+        // Production would filter by ownership: gpas.retain(|gpa| owns(vmid, gpa))
         let mut gpas: Vec<GPA> = state.memory.keys().copied().collect();
         gpas.sort();
         

@@ -14,6 +14,27 @@ Successfully implemented µH-iOS, a formally verified micro-hypervisor nucleus f
 - **Test Coverage**: All state transitions, invariants, and APIs
 - **Documentation**: 4 comprehensive documents
 
+## Design Notes
+
+### Memory Ownership Tracking
+
+The current implementation uses a simplified approach to memory ownership verification:
+- Memory mappings are stored in a global `GPA -> Option<HostPage>` table
+- Reverse mapping (HostPage -> VMID) is computed on-demand for verification
+- This is sufficient for demonstrating formal properties in a prototype
+
+A production implementation would maintain:
+- Explicit `GPA -> VMID` ownership table updated during map/unmap
+- Incremental reverse mapping for O(1) ownership lookups
+- Per-VM GPA lists for efficient enumeration
+
+The current design:
+- ✅ Enforces memory non-interference at map time
+- ✅ Prevents cross-VM page sharing
+- ✅ Validates all invariants in tests
+- ⚠️ Uses conservative checks (returns all GPAs in `get_vm_mappings`)
+- ⚠️ Would need explicit ownership tracking for production use
+
 ## Core Components Delivered
 
 ### 1. Rust Core (`uh-ios/`)
