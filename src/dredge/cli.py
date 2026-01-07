@@ -30,6 +30,15 @@ def main(argv=None):
         help="Enable debug mode"
     )
     
+    # Print command
+    print_parser = subparsers.add_parser("print", help="Print a message or newline")
+    print_parser.add_argument(
+        "text",
+        nargs="?",
+        default=None,
+        help="Text to print (if omitted, prints a clean newline)"
+    )
+    
     args = parser.parse_args(argv)
     
     if args.version:
@@ -39,6 +48,15 @@ def main(argv=None):
     if args.command == "serve":
         from .server import run_server
         run_server(host=args.host, port=args.port, debug=args.debug)
+        return 0
+    
+    if args.command == "print":
+        if args.text is None:
+            # Print just a newline - "a quiet pause in the program"
+            print()
+        else:
+            # Print the message
+            print(args.text)
         return 0
     
     parser.print_help()
