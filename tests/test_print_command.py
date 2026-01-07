@@ -1,6 +1,5 @@
 """Tests for the print command."""
-import io
-import sys
+import pytest
 from dredge.cli import main
 
 
@@ -33,7 +32,6 @@ def test_print_with_multiword_text(capsys):
 
 def test_print_help(capsys):
     """Test print command help."""
-    import pytest
     with pytest.raises(SystemExit) as exc_info:
         main(["print", "--help"])
     
