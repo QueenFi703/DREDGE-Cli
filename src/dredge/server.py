@@ -24,9 +24,9 @@ def create_app():
     app = Flask(__name__)
     
     # Use compact JSON encoding for smaller response sizes
-    # Use canonical Flask pattern: set class, let Flask instantiate
+    # Set provider class and explicitly instantiate for Flask 3.x compatibility
     app.json_provider_class = CompactJSONProvider
-    app.json = app.json_provider_class(app)
+    app.json = CompactJSONProvider(app)
     
     @app.route('/')
     def index():
