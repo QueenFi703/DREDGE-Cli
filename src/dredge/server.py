@@ -64,9 +64,13 @@ def create_app():
         
         insight_text = data['insight_text']
         
-        # Fast hash-based ID generation using Python's built-in hash
-        # This is much faster than SHA-256 and sufficient for non-cryptographic IDs
-        insight_id = format(hash(insight_text) & 0xFFFFFFFFFFFFFFFF, '016x')
+        # Fast hash-based ID generation using a simple but consistent hash
+        # For non-cryptographic IDs, we use a lightweight deterministic approach
+        # Based on the string's bytes to ensure consistency across sessions
+        hash_value = 0
+        for char in insight_text:
+            hash_value = (hash_value * 31 + ord(char)) & 0xFFFFFFFFFFFFFFFF
+        insight_id = format(hash_value, '016x')
         
         # Basic insight structure
         # Note: Full Dolly GPU integration would require PyTorch

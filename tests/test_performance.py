@@ -87,8 +87,10 @@ def test_compact_json_response(client):
     # Compact JSON should not have spaces after colons or commas
     response_text = response.data.decode('utf-8')
     
-    # Check that JSON is compact (no space after colon)
-    assert '": "' not in response_text or ': "' not in response_text
+    # Check that JSON is compact (no space after colon or comma)
+    # Compact format uses ",:" while non-compact uses ", " and ": "
+    assert '": "' not in response_text and ', "' not in response_text, \
+        "Response should use compact JSON encoding (no spaces after separators)"
     
     # Verify the response is still valid JSON
     data = json.loads(response_text)
