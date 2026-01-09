@@ -66,10 +66,12 @@ def create_app():
         
         # Fast hash-based ID generation using a simple but consistent hash
         # For non-cryptographic IDs, we use a lightweight deterministic approach
-        # Based on the string's bytes to ensure consistency across sessions
+        # Based on polynomial rolling hash (similar to Java's String.hashCode())
+        # The mask ensures we stay within 64-bit range (0 to 2^64-1)
         hash_value = 0
         for char in insight_text:
             hash_value = (hash_value * 31 + ord(char)) & 0xFFFFFFFFFFFFFFFF
+        # Format as 16-character hexadecimal string (64 bits = 16 hex chars)
         insight_id = format(hash_value, '016x')
         
         # Basic insight structure
