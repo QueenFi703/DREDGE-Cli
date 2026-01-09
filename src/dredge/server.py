@@ -2,16 +2,29 @@
 DREDGE x Dolly Server
 A lightweight web server for the DREDGE x Dolly integration.
 """
-import hashlib
 import os
 from flask import Flask, jsonify, request
+from flask.json.provider import DefaultJSONProvider
 
 from . import __version__
+
+
+class CompactJSONProvider(DefaultJSONProvider):
+    """Custom JSON provider that uses compact encoding for better performance."""
+    
+    def dumps(self, obj, **kwargs):
+        """Serialize object to JSON with compact encoding (no extra whitespace)."""
+        # Override to use compact separators by default for smaller responses
+        kwargs.setdefault('separators', (',', ':'))
+        return super().dumps(obj, **kwargs)
 
 
 def create_app():
     """Create and configure the Flask application."""
     app = Flask(__name__)
+    
+    # Use compact JSON encoding for smaller response sizes
+    app.json = CompactJSONProvider(app)
     
     @app.route('/')
     def index():
@@ -51,8 +64,15 @@ def create_app():
         
         insight_text = data['insight_text']
         
-        # Simple hash-based ID generation
-        insight_id = hashlib.sha256(insight_text.encode()).hexdigest()
+        # Fast hash-based ID generation using a simple but consistent hash
+        # For non-cryptographic IDs, we use a lightweight deterministic approach
+        # Based on polynomial rolling hash (similar to Java's String.hashCode())
+        # The mask ensures we stay within 64-bit range (0 to 2^64-1)
+        hash_value = 0
+        for char in insight_text:
+            hash_value = (hash_value * 31 + ord(char)) & 0xFFFFFFFFFFFFFFFF
+        # Format as 16-character hexadecimal string (64 bits = 16 hex chars)
+        insight_id = format(hash_value, '016x')
         
         # Basic insight structure
         # Note: Full Dolly GPU integration would require PyTorch
