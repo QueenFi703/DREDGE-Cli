@@ -24,7 +24,9 @@ def create_app():
     app = Flask(__name__)
     
     # Use compact JSON encoding for smaller response sizes
-    app.json = CompactJSONProvider(app)
+    # Use canonical Flask pattern: set class, let Flask instantiate
+    app.json_provider_class = CompactJSONProvider
+    app.json = app.json_provider_class(app)
     
     @app.route('/')
     def index():
@@ -67,6 +69,13 @@ def create_app():
         # Fast hash-based ID generation using a simple but consistent hash
         # For non-cryptographic IDs, we use a lightweight deterministic approach
         # Based on the string's bytes to ensure consistency across sessions
+        #
+        # Identity contract:
+        # - IDs are content-derived labels, not cryptographic proofs
+        # - 64-bit space (~1.8e19) provides collision resistance for modest scale
+        # - Collision behavior: Last write wins (IDs overwrite on collision)
+        # - Suitable for small to medium deployments; consider upgrading to
+        #   128-bit hash or BLAKE2s for high-scale infrastructure
         hash_value = 0
         for char in insight_text:
             hash_value = (hash_value * 31 + ord(char)) & 0xFFFFFFFFFFFFFFFF
