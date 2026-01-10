@@ -18,5 +18,8 @@ classifiers = [
 ]
 dependencies = []
 
+[project.scripts]
+dredge = "dredge.cli:main"
+
 [project.urls]
 Homepage = "https://github.com/QueenFi703/DREDGE"
