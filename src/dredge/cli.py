@@ -30,6 +30,343 @@ def discover_plugins():
         return {}
 
 
+# Configuration management
+def get_config_path():
+    """Get the path to the DREDGE configuration file.
+    
+    Looks for config in this order:
+    1. ./dredge.toml (project-local)
+    2. ~/.config/dredge/config.toml (user-level)
+    3. ~/.dredge/config.toml (legacy)
+    
+    Returns the first found path, or the preferred path if none exist.
+    """
+    paths = [
+        os.path.join(os.getcwd(), 'dredge.toml'),
+        os.path.expanduser('~/.config/dredge/config.toml'),
+        os.path.expanduser('~/.dredge/config.toml')
+    ]
+    
+    for path in paths:
+        if os.path.exists(path):
+            return path
+    
+    # Return preferred path for creation
+    return os.path.expanduser('~/.config/dredge/config.toml')
+
+
+def load_config():
+    """Load DREDGE configuration from file.
+    
+    Returns a dict with configuration values, or empty dict if no config file exists.
+    """
+    config_path = get_config_path()
+    
+    if not os.path.exists(config_path):
+        return {}
+    
+    try:
+        # Try to use tomllib (Python 3.11+) or tomli
+        try:
+            import tomllib
+            with open(config_path, 'rb') as f:
+                return tomllib.load(f)
+        except ImportError:
+            # Fallback: parse simple TOML manually
+            config = {}
+            with open(config_path, 'r') as f:
+                current_section = None
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue
+                    if line.startswith('[') and line.endswith(']'):
+                        current_section = line[1:-1]
+                        # Handle dotted sections like [server.logging]
+                        # Build nested structure
+                        parts = current_section.split('.')
+                        current_dict = config
+                        for i, part in enumerate(parts):
+                            if part not in current_dict:
+                                current_dict[part] = {}
+                            if i == len(parts) - 1:
+                                # Last part - this is where values go
+                                current_dict = current_dict[part]
+                            else:
+                                current_dict = current_dict[part]
+                        # Store reference to current section dict
+                        config['__current__'] = current_dict
+                    elif '=' in line:
+                        key, value = line.split('=', 1)
+                        key = key.strip()
+                        value = value.strip().strip('"\'')
+                        # Try to convert to appropriate type
+                        if value.lower() == 'true':
+                            value = True
+                        elif value.lower() == 'false':
+                            value = False
+                        elif value.isdigit():
+                            value = int(value)
+                        
+                        if '__current__' in config:
+                            config['__current__'][key] = value
+                        else:
+                            config[key] = value
+                
+                # Remove temporary reference
+                config.pop('__current__', None)
+            
+            return config
+    except Exception as e:
+        print(f"⚠ Warning: Could not load config: {e}")
+        return {}
+
+
+def save_config(config):
+    """Save configuration to file."""
+    config_path = get_config_path()
+    
+    # Create directory if it doesn't exist
+    config_dir = os.path.dirname(config_path)
+    if config_dir and not os.path.exists(config_dir):
+        os.makedirs(config_dir, exist_ok=True)
+    
+    # Flatten config to handle nested sections properly
+    flat_sections = {}
+    
+    def flatten(data, prefix=""):
+        """Flatten nested config into TOML sections."""
+        simple_values = {}
+        nested_sections = {}
+        
+        for key, value in data.items():
+            if isinstance(value, dict):
+                nested_key = f"{prefix}.{key}" if prefix else key
+                nested_sections[nested_key] = value
+            else:
+                simple_values[key] = value
+        
+        if simple_values and prefix:
+            flat_sections[prefix] = simple_values
+        elif simple_values:
+            # Top-level values (if any)
+            for k, v in simple_values.items():
+                flat_sections[k] = v
+        
+        # Recursively flatten nested sections
+        for section_name, section_data in nested_sections.items():
+            flatten(section_data, section_name)
+    
+    # Flatten the config
+    flatten(config)
+    
+    # Write TOML format
+    with open(config_path, 'w') as f:
+        for section, values in sorted(flat_sections.items()):
+            if isinstance(values, dict):
+                f.write(f"[{section}]\n")
+                for key, value in values.items():
+                    if isinstance(value, bool):
+                        value_str = str(value).lower()
+                    elif isinstance(value, str):
+                        value_str = f'"{value}"'
+                    else:
+                        value_str = str(value)
+                    f.write(f"{key} = {value_str}\n")
+                f.write("\n")
+            else:
+                # Top-level value
+                if isinstance(values, bool):
+                    value_str = str(values).lower()
+                elif isinstance(values, str):
+                    value_str = f'"{values}"'
+                else:
+                    value_str = str(values)
+                f.write(f"{section} = {value_str}\n")
+
+
+def get_default_config():
+    """Get default configuration values."""
+    return {
+        'server': {
+            'host': '0.0.0.0',
+            'port': 3001,
+            'debug': False,
+            'reload': False
+        },
+        'server.logging': {
+            'level': 'info',
+            'quiet': False,
+            'verbose': False
+        },
+        'server.performance': {
+            'json_compact': True,
+            'hash_strategy': 'fast',
+            'metrics_window': 1000
+        },
+        'id': {
+            'default_strategy': 'fast',
+            'default_count': 1
+        },
+        'output': {
+            'default_format': 'text'
+        },
+        'plugins': {
+            'discover': True,
+            'entry_point': 'dredge.plugins'
+        },
+        'diagnostics': {
+            'verbose': False,
+            'check_dependencies': True,
+            'check_ports': True,
+            'check_python_version': True
+        }
+    }
+
+
+def cmd_config_list(format_type="text"):
+    """List all configuration."""
+    config = load_config()
+    
+    if not config:
+        config = get_default_config()
+        print("⚠ No config file found. Showing defaults:")
+    
+    if format_type == "text":
+        for section, values in config.items():
+            print(f"\n[{section}]")
+            if isinstance(values, dict):
+                for key, value in values.items():
+                    print(f"  {key} = {value}")
+            else:
+                print(f"  {values}")
+    elif format_type == "json":
+        print(json.dumps(config, indent=2))
+    elif format_type == "yaml":
+        # Simple YAML output
+        for section, values in config.items():
+            print(f"{section}:")
+            if isinstance(values, dict):
+                for key, value in values.items():
+                    print(f"  {key}: {value}")
+            else:
+                print(f"  {values}")
+    
+    return 0
+
+
+def cmd_config_get(key):
+    """Get a configuration value."""
+    config = load_config()
+    
+    # Parse nested key (e.g., "server.port")
+    parts = key.split('.')
+    value = config
+    
+    try:
+        for part in parts:
+            value = value[part]
+        print(value)
+        return 0
+    except (KeyError, TypeError):
+        print(f"✗ Configuration key not found: {key}")
+        print(f"  Try: dredge config list")
+        return 1
+
+
+def cmd_config_set(key, value):
+    """Set a configuration value."""
+    config = load_config()
+    
+    # Don't load defaults - start with empty if no config exists
+    if not config:
+        config = {}
+    
+    # Parse nested key
+    parts = key.split('.')
+    
+    # Navigate to the right section
+    current = config
+    for part in parts[:-1]:
+        if part not in current:
+            current[part] = {}
+        current = current[part]
+    
+    # Convert value to appropriate type
+    if value.lower() == 'true':
+        value = True
+    elif value.lower() == 'false':
+        value = False
+    elif value.isdigit():
+        value = int(value)
+    
+    # Set the value
+    current[parts[-1]] = value
+    
+    # Save config
+    save_config(config)
+    
+    print(f"✓ Set {key} = {value}")
+    print(f"  Config file: {get_config_path()}")
+    return 0
+
+
+def cmd_config_reset(confirm=False):
+    """Reset configuration to defaults."""
+    if not confirm:
+        print("⚠ This will reset all configuration to defaults.")
+        print("  Run with --confirm to proceed:")
+        print("  dredge config reset --confirm")
+        return 1
+    
+    config_path = get_config_path()
+    
+    if os.path.exists(config_path):
+        os.remove(config_path)
+        print(f"✓ Configuration reset to defaults")
+        print(f"  Removed: {config_path}")
+    else:
+        print("✓ No configuration file to reset")
+    
+    return 0
+
+
+def cmd_config_path():
+    """Show configuration file path."""
+    config_path = get_config_path()
+    
+    if os.path.exists(config_path):
+        print(f"✓ Configuration file: {config_path}")
+    else:
+        print(f"⚠ No configuration file found")
+        print(f"  Would be created at: {config_path}")
+    
+    return 0
+
+
+def discover_plugins():
+    """Discover installed DREDGE plugins via entry points.
+    
+    Uses importlib.metadata to find plugins registered via entry_points.
+    Returns a dict of plugin_name -> entry_point.
+    """
+    try:
+        from importlib.metadata import entry_points
+        
+        # Look for 'dredge.plugins' entry point group
+        if hasattr(entry_points(), 'select'):
+            # Python 3.10+ API
+            plugins = entry_points().select(group='dredge.plugins')
+        else:
+            # Python 3.9 API
+            plugins = entry_points().get('dredge.plugins', [])
+        
+        return {ep.name: ep for ep in plugins}
+    except ImportError:
+        # Fallback for older Python versions
+        return {}
+
+
 def cmd_plugin(action, plugin_name=None):
     """Manage DREDGE plugins."""
     if action == "list":
@@ -458,6 +795,34 @@ def main(argv=None):
         help="ID generation strategy: fast (64-bit), infrastructure (128-bit), timestamp, uuid4"
     )
     
+    # Config command
+    config_parser = subparsers.add_parser("config", help="Manage DREDGE configuration")
+    config_subparsers = config_parser.add_subparsers(dest="config_action", help="Config actions")
+    
+    list_config = config_subparsers.add_parser("list", help="List all configuration")
+    list_config.add_argument(
+        "--format",
+        choices=["text", "json", "yaml"],
+        default="text",
+        help="Output format (default: text)"
+    )
+    
+    get_config = config_subparsers.add_parser("get", help="Get configuration value")
+    get_config.add_argument("key", help="Configuration key (e.g., server.port)")
+    
+    set_config = config_subparsers.add_parser("set", help="Set configuration value")
+    set_config.add_argument("key", help="Configuration key (e.g., server.port)")
+    set_config.add_argument("value", help="Configuration value")
+    
+    reset_config = config_subparsers.add_parser("reset", help="Reset configuration to defaults")
+    reset_config.add_argument(
+        "--confirm",
+        action="store_true",
+        help="Confirm reset action"
+    )
+    
+    path_config = config_subparsers.add_parser("path", help="Show configuration file path")
+    
     # Plugin command (simple implementation)
     plugin_parser = subparsers.add_parser("plugin", help="Manage DREDGE plugins")
     plugin_subparsers = plugin_parser.add_subparsers(dest="plugin_action", help="Plugin actions")
@@ -529,6 +894,23 @@ def main(argv=None):
     
     if args.command == "id":
         return cmd_id(count=args.count, format_type=args.format, strategy=args.strategy)
+    
+    if args.command == "config":
+        if args.config_action:
+            if args.config_action == "list":
+                format_type = args.format if hasattr(args, 'format') else "text"
+                return cmd_config_list(format_type=format_type)
+            elif args.config_action == "get":
+                return cmd_config_get(key=args.key)
+            elif args.config_action == "set":
+                return cmd_config_set(key=args.key, value=args.value)
+            elif args.config_action == "reset":
+                return cmd_config_reset(confirm=args.confirm)
+            elif args.config_action == "path":
+                return cmd_config_path()
+        else:
+            print("Usage: dredge config {list|get|set|reset|path}")
+            return 1
     
     if args.command == "plugin":
         if args.plugin_action:
