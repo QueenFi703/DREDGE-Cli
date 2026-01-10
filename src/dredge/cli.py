@@ -256,6 +256,11 @@ def main(argv=None):
         action="store_true",
         help="Verbose mode: timings, decisions, chosen paths"
     )
+    server_parser.add_argument(
+        "--reload",
+        action="store_true",
+        help="Enable hot reload (watches source files for changes)"
+    )
     
     # Print command
     print_parser = subparsers.add_parser("print", help="Print a message or newline")
@@ -330,12 +335,22 @@ def main(argv=None):
             # Verbose mode - detailed output
             import logging
             logging.basicConfig(level=logging.INFO)
-            print(f"🔧 Starting in verbose mode")
-            print(f"   Host: {args.host}")
-            print(f"   Port: {args.port}")
-            print(f"   Debug: {args.debug}")
+            if not args.reload:  # Don't print twice if reload prints it
+                print(f"🔧 Starting in verbose mode")
+                print(f"   Host: {args.host}")
+                print(f"   Port: {args.port}")
+                print(f"   Debug: {args.debug}")
+                if args.reload:
+                    print(f"   Reload: {args.reload}")
         
-        run_server(host=args.host, port=args.port, debug=args.debug)
+        run_server(
+            host=args.host, 
+            port=args.port, 
+            debug=args.debug,
+            reload=args.reload,
+            quiet=args.quiet,
+            verbose=args.verbose
+        )
         return 0
     
     if args.command == "print":
