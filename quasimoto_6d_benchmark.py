@@ -11,10 +11,11 @@ import matplotlib.pyplot as plt
 # 6D Extension: 5D Spatial + Temporal Dimensions
 # ----------------
 
-# Import base classes from extended benchmark
-import sys
-sys.path.insert(0, '.')
-exec(open('quasimoto_extended_benchmark.py').read().split('if __name__')[0])
+# Import classes from extended benchmark module
+from quasimoto_extended_benchmark import (
+    QuasimotoWave6D, QuasimotoEnsemble6D,
+    generate_6d_data, train_model_6d
+)
 
 print("=" * 70)
 print("QUASIMOTO 6D BENCHMARK")
