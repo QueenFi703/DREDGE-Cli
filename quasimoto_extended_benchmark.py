@@ -3,10 +3,11 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 
 # --- CREDITS ---
 # Quasimoto Wave Function Architecture by: QueenFi703
-# Extended with RFF baseline, visualization, and 4D support
+# Extended with RFF baseline, visualization, 4D/6D support, and Interference Basis
 # ----------------
 
 class QuasimotoWave(nn.Module):
@@ -132,6 +133,90 @@ class QuasimotoWave6D(nn.Module):
                                                        self.lmbda_5 * x5))
         psi_real = self.A * torch.cos(phase) * envelope * modulation
         return psi_real
+
+class QuasimotoInterferenceBasis(nn.Module):
+    """
+    Author: QueenFi703
+    Coupled complex-valued quasiperiodic wave basis with:
+    - exp(i Σ kᵢxᵢ) interference
+    - anisotropic Gaussian locality (σᵢ)
+    - shared envelopes across fields
+    - learned superposition weights
+    """
+
+    def __init__(self, dim, num_fields, out_features):
+        super().__init__()
+        self.dim = dim
+        self.num_fields = num_fields
+        self.out_features = out_features
+
+        # ── Shared anisotropic envelope ─────────────────────────────
+        self.log_sigma = nn.Parameter(torch.zeros(dim))
+        self.v = nn.Parameter(torch.randn(dim))
+
+        # ── Per-field wave parameters ───────────────────────────────
+        self.A = nn.Parameter(torch.ones(num_fields))
+        self.k = nn.Parameter(torch.randn(num_fields, dim))
+        self.omega = nn.Parameter(torch.randn(num_fields))
+
+        self.phi = nn.Parameter(torch.zeros(num_fields))
+        self.epsilon = nn.Parameter(torch.full((num_fields,), 0.1))
+        self.lmbda = nn.Parameter(torch.randn(num_fields, dim))
+
+        # ── Learned superposition ───────────────────────────────────
+        # Maps num_fields complex ψ → out_features real
+        self.superposition = nn.Linear(2 * num_fields, out_features, bias=False)
+
+    def forward(self, x, t):
+        """
+        x: [N, dim] or [N, 1]
+        t: [N] or [N, 1] or scalar
+        returns: [N, out_features]
+        """
+        # Ensure proper shapes
+        if x.dim() == 2 and x.shape[1] == 1:
+            # x is [N, 1], which is correct for dim=1
+            pass
+        elif x.dim() == 1:
+            x = x.unsqueeze(-1)  # [N] → [N, 1]
+        
+        N = x.shape[0]
+        
+        if t.dim() == 0:
+            t = t.expand(N)  # scalar → [N]
+        elif t.dim() == 2:
+            t = t.squeeze(-1)  # [N, 1] → [N]
+        
+        # Now x: [N, dim], t: [N]
+        
+        # ── Anisotropic Gaussian envelope (shared) ──────────────────
+        sigma = torch.exp(self.log_sigma).clamp(min=1e-3)  # [dim]
+        # Compute z for envelope: [N, dim]
+        z = (x - self.v * t.unsqueeze(-1)) / sigma
+        envelope_val = torch.exp(-0.5 * torch.sum(z**2, dim=-1))  # [N]
+
+        # Normalize for dimensionality
+        norm = torch.prod(sigma * math.sqrt(2 * math.pi))
+        envelope = envelope_val / norm  # [N]
+
+        # ── exp(i Σ kᵢxᵢ − iωt) interference ─────────────────────────
+        # self.k: [num_fields, dim], x: [N, dim]
+        # Result: [N, num_fields]
+        phase = (x @ self.k.T) - self.omega * t.unsqueeze(-1)  # [N, num_fields]
+        carrier = torch.exp(1j * phase)  # [N, num_fields]
+
+        # ── Quasiperiodic phase distortion ──────────────────────────
+        # self.lmbda: [num_fields, dim]
+        distortion = x @ self.lmbda.T  # [N, num_fields]
+        modulation = torch.sin(self.phi + self.epsilon * torch.cos(distortion))  # [N, num_fields]
+
+        # ── Coupled ψ fields ────────────────────────────────────────
+        # Broadcast envelope [N] with other terms [N, num_fields]
+        psi = self.A * carrier * envelope.unsqueeze(-1) * modulation   # [N, num_fields]
+
+        # ── Real-valued learned superposition ───────────────────────
+        psi_real = torch.cat([psi.real, psi.imag], dim=-1)  # [N, 2*num_fields]
+        return self.superposition(psi_real)  # [N, out_features]
 
 class RandomFourierFeatures(nn.Module):
     """
