@@ -16,7 +16,10 @@ classifiers = [
   "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
 ]
-dependencies = []
+dependencies = ["flask>=3.0.0"]
 
 [project.urls]
 Homepage = "https://github.com/QueenFi703/DREDGE"
+
+[tool.setuptools.packages.find]
+where = ["src"]
