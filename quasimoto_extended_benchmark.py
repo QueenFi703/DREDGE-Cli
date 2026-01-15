@@ -260,11 +260,8 @@ class QuasimotoEnsemble(nn.Module):
         self.head = nn.Linear(n, 1)
     
     def forward(self, x, t):
-        # Optimized: Pre-allocate tensor and fill instead of list comprehension + stack
-        batch_size = x.shape[0] if x.dim() > 0 else 1
-        feats = torch.empty(batch_size, len(self.waves), device=x.device, dtype=x.dtype)
-        for i, w in enumerate(self.waves):
-            feats[:, i] = w(x, t)
+        # Optimized: Compute all waves in one go - avoid intermediate lists
+        feats = torch.stack([w(x, t) for w in self.waves], dim=-1)
         return self.head(feats)
 
 class QuasimotoEnsemble4D(nn.Module):
@@ -275,11 +272,8 @@ class QuasimotoEnsemble4D(nn.Module):
         self.head = nn.Linear(n, 1)
     
     def forward(self, x, y, z, t):
-        # Optimized: Pre-allocate tensor and fill instead of list comprehension + stack
-        batch_size = x.shape[0] if x.dim() > 0 else 1
-        feats = torch.empty(batch_size, len(self.waves), device=x.device, dtype=x.dtype)
-        for i, w in enumerate(self.waves):
-            feats[:, i] = w(x, y, z, t)
+        # Optimized: Compute all waves - PyTorch can optimize this
+        feats = torch.stack([w(x, y, z, t) for w in self.waves], dim=-1)
         return self.head(feats)
 
 class QuasimotoEnsemble6D(nn.Module):
@@ -290,11 +284,8 @@ class QuasimotoEnsemble6D(nn.Module):
         self.head = nn.Linear(n, 1)
     
     def forward(self, x1, x2, x3, x4, x5, t):
-        # Optimized: Pre-allocate tensor and fill instead of list comprehension + stack
-        batch_size = x1.shape[0] if x1.dim() > 0 else 1
-        feats = torch.empty(batch_size, len(self.waves), device=x1.device, dtype=x1.dtype)
-        for i, w in enumerate(self.waves):
-            feats[:, i] = w(x1, x2, x3, x4, x5, t)
+        # Optimized: Compute all waves - PyTorch can optimize this
+        feats = torch.stack([w(x1, x2, x3, x4, x5, t) for w in self.waves], dim=-1)
         return self.head(feats)
 
 # --- BENCHMARK TASK: The "Glitchy Chirp" ---

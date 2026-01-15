@@ -93,11 +93,8 @@ if __name__ == "__main__":
             self.waves = nn.ModuleList([QuasimotoWave() for _ in range(n)])
             self.head = nn.Linear(n, 1)
         def forward(self, x, t):
-            # Optimized: Pre-allocate tensor and fill instead of list comprehension + stack
-            batch_size = x.shape[0] if x.dim() > 0 else 1
-            feats = torch.empty(batch_size, len(self.waves), device=x.device, dtype=x.dtype)
-            for i, w in enumerate(self.waves):
-                feats[:, i] = w(x, t)
+            # Compute all waves efficiently
+            feats = torch.stack([w(x, t) for w in self.waves], dim=-1)
             return self.head(feats)
 
     quasimoto_net = QuasimotoEnsemble(n=16)
