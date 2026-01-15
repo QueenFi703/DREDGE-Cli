@@ -4,9 +4,16 @@ A lightweight web server for the DREDGE x Dolly integration.
 """
 import hashlib
 import os
+from functools import lru_cache
 from flask import Flask, jsonify, request
 
 from . import __version__
+
+
+@lru_cache(maxsize=1024)
+def _compute_insight_hash(insight_text: str) -> str:
+    """Compute SHA256 hash of insight text with caching for repeated insights."""
+    return hashlib.sha256(insight_text.encode()).hexdigest()
 
 
 def create_app():
@@ -51,8 +58,8 @@ def create_app():
         
         insight_text = data['insight_text']
         
-        # Simple hash-based ID generation
-        insight_id = hashlib.sha256(insight_text.encode()).hexdigest()
+        # Optimized: Use cached hash computation for duplicate insights
+        insight_id = _compute_insight_hash(insight_text)
         
         # Basic insight structure
         # Note: Full Dolly GPU integration would require PyTorch

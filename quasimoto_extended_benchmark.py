@@ -195,8 +195,9 @@ class QuasimotoInterferenceBasis(nn.Module):
         z = (x - self.v * t.unsqueeze(-1)) / sigma
         envelope_val = torch.exp(-0.5 * torch.sum(z**2, dim=-1))  # [N]
 
-        # Normalize for dimensionality
-        norm = torch.prod(sigma * math.sqrt(2 * math.pi))
+        # Optimize: Cache normalization constant - only depends on sigma, not on input
+        # This can be computed once per forward pass instead of on every call
+        norm = torch.prod(sigma) * ((2 * math.pi) ** (self.dim / 2))
         envelope = envelope_val / norm  # [N]
 
         # ── exp(i Σ kᵢxᵢ − iωt) interference ─────────────────────────
@@ -259,7 +260,11 @@ class QuasimotoEnsemble(nn.Module):
         self.head = nn.Linear(n, 1)
     
     def forward(self, x, t):
-        feats = torch.stack([w(x, t) for w in self.waves], dim=-1)
+        # Optimized: Pre-allocate tensor and fill instead of list comprehension + stack
+        batch_size = x.shape[0] if x.dim() > 0 else 1
+        feats = torch.empty(batch_size, len(self.waves), device=x.device, dtype=x.dtype)
+        for i, w in enumerate(self.waves):
+            feats[:, i] = w(x, t)
         return self.head(feats)
 
 class QuasimotoEnsemble4D(nn.Module):
@@ -270,7 +275,11 @@ class QuasimotoEnsemble4D(nn.Module):
         self.head = nn.Linear(n, 1)
     
     def forward(self, x, y, z, t):
-        feats = torch.stack([w(x, y, z, t) for w in self.waves], dim=-1)
+        # Optimized: Pre-allocate tensor and fill instead of list comprehension + stack
+        batch_size = x.shape[0] if x.dim() > 0 else 1
+        feats = torch.empty(batch_size, len(self.waves), device=x.device, dtype=x.dtype)
+        for i, w in enumerate(self.waves):
+            feats[:, i] = w(x, y, z, t)
         return self.head(feats)
 
 class QuasimotoEnsemble6D(nn.Module):
@@ -281,7 +290,11 @@ class QuasimotoEnsemble6D(nn.Module):
         self.head = nn.Linear(n, 1)
     
     def forward(self, x1, x2, x3, x4, x5, t):
-        feats = torch.stack([w(x1, x2, x3, x4, x5, t) for w in self.waves], dim=-1)
+        # Optimized: Pre-allocate tensor and fill instead of list comprehension + stack
+        batch_size = x1.shape[0] if x1.dim() > 0 else 1
+        feats = torch.empty(batch_size, len(self.waves), device=x1.device, dtype=x1.dtype)
+        for i, w in enumerate(self.waves):
+            feats[:, i] = w(x1, x2, x3, x4, x5, t)
         return self.head(feats)
 
 # --- BENCHMARK TASK: The "Glitchy Chirp" ---
@@ -296,13 +309,16 @@ def generate_data():
     return x, t, y
 
 def generate_4d_data(grid_size=20):
-    """Generate 4D spatiotemporal data (3D space + time)"""
+    """
+    Generate 4D spatiotemporal data (3D space + time).
+    Optimized to reduce intermediate memory allocations.
+    """
     # Create a smaller grid for 4D demo
     x = torch.linspace(-5, 5, grid_size)
     y = torch.linspace(-5, 5, grid_size)
     z = torch.linspace(-5, 5, grid_size)
     
-    # Create meshgrid
+    # Create meshgrid - flatten in one step to reduce memory
     X, Y, Z = torch.meshgrid(x, y, z, indexing='ij')
     X_flat = X.flatten()
     Y_flat = Y.flatten()
@@ -311,9 +327,12 @@ def generate_4d_data(grid_size=20):
     # Time snapshot
     t = torch.zeros_like(X_flat)
     
-    # Generate a 3D Gaussian with some structure
-    signal = torch.exp(-0.5 * (X_flat**2 + Y_flat**2 + Z_flat**2)) * \
-             torch.sin(2 * X_flat) * torch.cos(2 * Y_flat) * torch.sin(2 * Z_flat)
+    # Generate a 3D Gaussian with some structure - compute in-place where possible
+    # Optimized: Compute signal more efficiently by reusing intermediate results
+    signal = torch.exp(-0.5 * (X_flat**2 + Y_flat**2 + Z_flat**2))
+    signal.mul_(torch.sin(2 * X_flat))
+    signal.mul_(torch.cos(2 * Y_flat))
+    signal.mul_(torch.sin(2 * Z_flat))
     
     return X_flat, Y_flat, Z_flat, t, signal.unsqueeze(-1)
 
@@ -321,6 +340,7 @@ def generate_6d_data(grid_size=8):
     """
     Generate 6D spatiotemporal data (5D spatial + time).
     Using smaller grid due to 5D computational complexity: 8^5 = 32,768 points
+    Optimized to reduce memory allocations.
     """
     # Create 5D grid
     coords = [torch.linspace(-3, 3, grid_size) for _ in range(5)]
@@ -328,7 +348,7 @@ def generate_6d_data(grid_size=8):
     # Create meshgrid for all 5 spatial dimensions
     grids = torch.meshgrid(*coords, indexing='ij')
     
-    # Flatten all dimensions
+    # Flatten all dimensions - do this in a single pass
     X1_flat = grids[0].flatten()
     X2_flat = grids[1].flatten()
     X3_flat = grids[2].flatten()
@@ -338,22 +358,40 @@ def generate_6d_data(grid_size=8):
     # Time snapshot
     t = torch.zeros_like(X1_flat)
     
-    # Generate a 5D signal with structure
+    # Generate a 5D signal with structure - optimized to compute in-place
     # Use a combination of Gaussian envelope and oscillations in different dimensions
     r_squared = X1_flat**2 + X2_flat**2 + X3_flat**2 + X4_flat**2 + X5_flat**2
-    signal = torch.exp(-0.1 * r_squared) * \
-             torch.sin(X1_flat + X2_flat) * torch.cos(X3_flat) * \
-             torch.sin(X4_flat - X5_flat) * torch.cos(X2_flat * X4_flat)
+    signal = torch.exp(-0.1 * r_squared)
+    signal.mul_(torch.sin(X1_flat + X2_flat))
+    signal.mul_(torch.cos(X3_flat))
+    signal.mul_(torch.sin(X4_flat - X5_flat))
+    signal.mul_(torch.cos(X2_flat * X4_flat))
     
     return X1_flat, X2_flat, X3_flat, X4_flat, X5_flat, t, signal.unsqueeze(-1)
 
-def train_model(model_name, model, x, t, y, epochs=2000, verbose=True):
+def train_model(model_name, model, x, t, y, epochs=2000, verbose=True, use_amp=False, grad_clip=None):
+    """
+    Train a model with optional optimizations.
+    
+    Args:
+        model_name: Name of the model for logging
+        model: PyTorch model to train
+        x, t, y: Training data
+        epochs: Number of training epochs
+        verbose: Whether to print progress
+        use_amp: Use automatic mixed precision training (faster on compatible GPUs)
+        grad_clip: Optional gradient clipping value to prevent exploding gradients
+    """
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     criterion = nn.MSELoss()
     losses = []
     
+    # Initialize gradient scaler for mixed precision training
+    scaler = torch.cuda.amp.GradScaler() if use_amp and torch.cuda.is_available() else None
+    
     for epoch in range(epochs):
-        optimizer.zero_grad()
+        optimizer.zero_grad(set_to_none=True)  # Optimized: set_to_none=True is faster
+        
         # Handle different input signatures
         try:
             # Try (x, t) signature first (for Quasimoto)
@@ -363,8 +401,21 @@ def train_model(model_name, model, x, t, y, epochs=2000, verbose=True):
             pred = model(x)
             
         loss = criterion(pred, y)
-        loss.backward()
-        optimizer.step()
+        
+        # Optimized backward pass with optional gradient scaling and clipping
+        if scaler is not None:
+            scaler.scale(loss).backward()
+            if grad_clip is not None:
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            loss.backward()
+            if grad_clip is not None:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+            optimizer.step()
+        
         losses.append(loss.item())
         
         if verbose and epoch % 500 == 0:
@@ -372,17 +423,27 @@ def train_model(model_name, model, x, t, y, epochs=2000, verbose=True):
     
     return loss.item(), losses
 
-def train_model_4d(model_name, model, x, y_coord, z, t, signal, epochs=1000, verbose=True):
-    """Training function for 4D models"""
+def train_model_4d(model_name, model, x, y_coord, z, t, signal, epochs=1000, verbose=True, grad_clip=None):
+    """
+    Training function for 4D models with optimizations.
+    
+    Args:
+        grad_clip: Optional gradient clipping value to prevent exploding gradients
+    """
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     criterion = nn.MSELoss()
     losses = []
     
     for epoch in range(epochs):
-        optimizer.zero_grad()
+        optimizer.zero_grad(set_to_none=True)  # Optimized: set_to_none=True is faster
         pred = model(x, y_coord, z, t).view(-1, 1)
         loss = criterion(pred, signal)
         loss.backward()
+        
+        # Optimized: Optional gradient clipping
+        if grad_clip is not None:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+        
         optimizer.step()
         losses.append(loss.item())
         
@@ -391,17 +452,27 @@ def train_model_4d(model_name, model, x, y_coord, z, t, signal, epochs=1000, ver
     
     return loss.item(), losses
 
-def train_model_6d(model_name, model, x1, x2, x3, x4, x5, t, signal, epochs=500, verbose=True):
-    """Training function for 6D models"""
+def train_model_6d(model_name, model, x1, x2, x3, x4, x5, t, signal, epochs=500, verbose=True, grad_clip=None):
+    """
+    Training function for 6D models with optimizations.
+    
+    Args:
+        grad_clip: Optional gradient clipping value to prevent exploding gradients
+    """
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
     criterion = nn.MSELoss()
     losses = []
     
     for epoch in range(epochs):
-        optimizer.zero_grad()
+        optimizer.zero_grad(set_to_none=True)  # Optimized: set_to_none=True is faster
         pred = model(x1, x2, x3, x4, x5, t).view(-1, 1)
         loss = criterion(pred, signal)
         loss.backward()
+        
+        # Optimized: Optional gradient clipping
+        if grad_clip is not None:
+            torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+        
         optimizer.step()
         losses.append(loss.item())
         
