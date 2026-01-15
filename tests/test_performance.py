@@ -113,7 +113,7 @@ def test_data_generation_performance():
     print(f"Data points: {len(X)}")
     
     # Verify data is correct shape
-    assert len(X) == 20 ** 3, "Should generate correct number of points"
+    assert len(X) == 20 * 20 * 20, "Should generate correct number of points (20x20x20)"
     assert signal.shape[0] == len(X), "Signal should match input size"
     
     # Should complete in reasonable time
