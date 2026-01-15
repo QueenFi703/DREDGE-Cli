@@ -13,7 +13,24 @@ build/
 dist/
 *.egg-info/
 
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
 # Editor directories and files
 .vscode/
 .idea/
 *.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Non-Python project files
+*.swift
+*.strings
+*.zip
+*.torrent
+*.docx
+*.doc
