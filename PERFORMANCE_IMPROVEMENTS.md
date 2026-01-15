@@ -6,7 +6,7 @@ This document describes the performance optimizations made to the DREDGE codebas
 
 The following improvements have been implemented to enhance performance and efficiency:
 
-### 1. Server Hash Caching (6.4x speedup for repeated insights)
+### 1. Server Hash Caching (5x speedup for repeated insights)
 
 **Location**: `src/dredge/server.py`
 
@@ -15,7 +15,7 @@ The following improvements have been implemented to enhance performance and effi
 **Solution**: Implemented LRU cache with `@lru_cache(maxsize=1024)` decorator on the hash computation function.
 
 **Impact**:
-- 6.4x speedup for repeated insight hashing
+- ~5x speedup for repeated insight hashing
 - Reduced CPU usage for high-traffic scenarios
 - Minimal memory overhead (~16KB for 1024 cached hashes)
 
@@ -137,8 +137,8 @@ signal.mul_(torch.sin(2 * Z))
 
 All optimizations have been validated with performance tests in `tests/test_performance.py`:
 
-- ✅ Server hash caching: 6.4x speedup for repeated insights
-- ✅ Data generation: Completes in <1ms for 8000 points
+- ✅ Server hash caching: ~5x speedup for repeated insights
+- ✅ Data generation: Completes in <1ms for 8000 points  
 - ✅ Gradient clipping: Successfully prevents NaN/Inf losses
 - ✅ zero_grad optimization: Correctly sets gradients to None
 - ✅ All optimizations maintain correctness

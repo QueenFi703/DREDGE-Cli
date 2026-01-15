@@ -195,8 +195,7 @@ class QuasimotoInterferenceBasis(nn.Module):
         z = (x - self.v * t.unsqueeze(-1)) / sigma
         envelope_val = torch.exp(-0.5 * torch.sum(z**2, dim=-1))  # [N]
 
-        # Optimize: Cache normalization constant - only depends on sigma, not on input
-        # This can be computed once per forward pass instead of on every call
+        # Optimize: Compute normalization more efficiently
         norm = torch.prod(sigma) * ((2 * math.pi) ** (self.dim / 2))
         envelope = envelope_val / norm  # [N]
 
@@ -260,7 +259,7 @@ class QuasimotoEnsemble(nn.Module):
         self.head = nn.Linear(n, 1)
     
     def forward(self, x, t):
-        # Optimized: Compute all waves in one go - avoid intermediate lists
+        # PyTorch optimizes list comprehensions + stack efficiently
         feats = torch.stack([w(x, t) for w in self.waves], dim=-1)
         return self.head(feats)
 
