@@ -3,7 +3,7 @@ name: Release to PyPI
 on:
   push:
     tags:
-      - "refs/tags/v*"
+      - "v*"
   workflow_dispatch:
 
 jobs:
