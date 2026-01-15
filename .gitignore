@@ -23,3 +23,8 @@ target/
 Cargo.lock
 **/*.rs.bk
 *.pdb
+
+# Swift build artifacts
+.build/
+*.swiftmodule
+*.swiftdoc

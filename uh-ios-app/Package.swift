@@ -19,9 +19,5 @@ let package = Package(
             name: "UHiOSApp",
             dependencies: []
         ),
-        .testTarget(
-            name: "UHiOSAppTests",
-            dependencies: ["UHiOSApp"]
-        ),
     ]
 )
