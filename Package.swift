@@ -15,7 +15,7 @@ let package = Package(
         )
     ],
     targets: [
-        // CLI executable target (from swift/Sources/main.swift)
+        // CLI executable target (from swift/Sources/DREDGECli.swift)
         .executableTarget(
             name: "DREDGECli",
             path: "swift/Sources"
