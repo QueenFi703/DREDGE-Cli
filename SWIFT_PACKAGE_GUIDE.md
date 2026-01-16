@@ -97,7 +97,7 @@ Both Package.swift configurations:
 
 ```swift
 targets: [
-    // CLI executable (from swift/Sources/main.swift)
+    // CLI executable (from swift/Sources/DREDGECli.swift)
     .executableTarget(
         name: "DREDGECli",
         path: "swift/Sources"
@@ -115,7 +115,7 @@ targets: [
 
 ```swift
 targets: [
-    // CLI executable (from Sources/main.swift)
+    // CLI executable (from Sources/DREDGECli.swift)
     .executableTarget(
         name: "DREDGECli",
         path: "Sources"
@@ -176,7 +176,7 @@ Both Package.swift files produce:
 
 ## Version Information
 
-- **Swift CLI Version:** 0.1.0 (as defined in Sources/main.swift)
+- **Swift CLI Version:** 0.1.0 (as defined in Sources/DREDGECli.swift)
 - **Python CLI Version:** 0.1.4 (as defined in pyproject.toml)
 - **Swift Tools Version:** 5.9+
 
@@ -184,12 +184,12 @@ Both Package.swift files produce:
 
 ### Build Fails from Root
 - Ensure you're in the repository root directory
-- Check that `swift/Sources/main.swift` exists
+- Check that `swift/Sources/DREDGECli.swift` exists
 - Verify Swift toolchain is installed: `swift --version`
 
 ### Build Fails from swift/
 - Ensure you're in the `swift/` subdirectory
-- Check that `Sources/main.swift` exists
+- Check that `Sources/DREDGECli.swift` exists
 - Verify Swift toolchain is installed: `swift --version`
 
 ### Test Import Errors
