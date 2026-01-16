@@ -1,8 +1,10 @@
-# Root Package.swift Guide
+# Swift Development Guide
 
 ## Overview
 
 The DREDGE-Cli repository includes a root-level `Package.swift` that allows building the Swift CLI directly from the repository root. This provides a more convenient developer experience while maintaining compatibility with the self-contained Swift project in the `swift/` subdirectory.
+
+Additionally, the repository includes an Xcode workspace (`DREDGE-Cli.xcworkspace`) for developers who prefer working with Xcode IDE.
 
 ## Structure
 
@@ -20,7 +22,30 @@ The repository has two Package.swift files:
 - Allows building and testing from within `swift/`
 - **Target naming:** `DREDGECli` (executable) - aligned with root
 
+### 3. Xcode Workspace (`/DREDGE-Cli.xcworkspace`)
+- Located at the repository root
+- Contains references to both Swift packages
+- Enables development using Xcode IDE
+- Includes shared workspace settings
+
 ## Usage
+
+### Using Xcode Workspace
+
+```bash
+# Open the workspace in Xcode
+open DREDGE-Cli.xcworkspace
+```
+
+The workspace includes:
+- Root Package.swift for building from repository root
+- swift/ subdirectory for self-contained Swift package development
+
+**Benefits:**
+- Full Xcode IDE features (code completion, debugging, refactoring)
+- Unified view of both Swift package configurations
+- Xcode build system integration
+- Source control integration
 
 ### Building from Root
 
@@ -119,11 +144,19 @@ Both Package.swift files produce:
 
 ## When to Use Which?
 
+### Use Xcode Workspace when:
+- Developing with Xcode IDE
+- Need advanced IDE features (debugging, refactoring, UI design)
+- Prefer graphical interface for project navigation
+- Want integrated build and test workflows
+- Working on multiple packages simultaneously
+
 ### Use Root Package.swift when:
 - Working on the entire repository (Python + Swift)
 - Building all components from a single location
 - Integrating Swift build into repository-wide automation
 - Prefer a single build command from root
+- Using command-line tools
 
 ### Use Swift Subdirectory Package.swift when:
 - Focusing only on Swift development

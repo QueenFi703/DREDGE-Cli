@@ -9,6 +9,7 @@ DREDGE — small Python package scaffold.
 - **docs/** - Documentation files
 - **benchmarks/** - Benchmark scripts and results
 - **swift/** - Swift implementation files
+- **DREDGE-Cli.xcworkspace** - Xcode workspace for Swift development
 - **archives/** - Archived files (excluded from version control)
 
 ## Install
@@ -108,6 +109,29 @@ curl -X POST http://localhost:3002/mcp \
 ### GitHub Codespaces
 
 The repository includes `.devcontainer/devcontainer.json` configured to automatically forward ports 3001 and 3002 when running in GitHub Codespaces.
+
+## Swift Development
+
+DREDGE includes a Swift CLI implementation. You can develop using:
+
+### Xcode Workspace
+```bash
+open DREDGE-Cli.xcworkspace
+```
+
+### Swift Package Manager
+```bash
+# Build from root
+swift build
+swift run dredge-cli
+
+# Or build from swift/ directory
+cd swift
+swift build
+swift run dredge-cli
+```
+
+See [SWIFT_PACKAGE_GUIDE.md](SWIFT_PACKAGE_GUIDE.md) for detailed Swift development information.
 
 ## Test
 
