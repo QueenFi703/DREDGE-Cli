@@ -1,20 +1,61 @@
 # DREDGE
 
-DREDGE — small Python package scaffold.
+**DREDGE** — Distill, Recall, Emerge, Detect, Guide, Evolve
 
-## Install
+A modular, event-driven architecture combining Swift (iOS/macOS) and Python implementations for digital memory and insight processing.
+
+## Architecture
+
+```
+App -> DredgeCore -> SharedStore -> App Group Container
+                        |
+                     Widget
+```
+
+## Swift Implementation (iOS/macOS)
+
+### Building with Swift Package Manager
+
+```bash
+swift build
+swift run dredge-cli
+```
+
+### Running Tests
+
+```bash
+swift test
+```
+
+### Modules
+
+- **DredgeCore** - Core processing engine with voice recognition and sentiment analysis
+  - `DredgeEngine.swift` - Natural language sentiment processing
+  - `VoiceDredger.swift` - Speech recognition and transcription
+  - `SharedStore.swift` - App Group data persistence
+  - `DredgeOperation.swift` - Background task processing
+
+- **DredgeApp** - iOS SwiftUI application with voice capture and background tasks
+
+- **DredgeCLI** - Command-line interface for testing and automation
+
+## Python Implementation (Server/API)
+
+### Install
 
 Create a virtual environment and install:
 
+```bash
 python -m venv .venv
 source .venv/bin/activate  # or .venv\Scripts\activate on Windows
 pip install -e .
+```
 
-## Server Usage
+### Server Usage
 
-DREDGE x Dolly now includes a web server for API-based interaction. The server is configured to run on **port 3001** by default, making it perfect for GitHub Codespaces.
+DREDGE x Dolly includes a web server for API-based interaction. The server is configured to run on **port 3001** by default, making it perfect for GitHub Codespaces.
 
-### Starting the Server
+#### Starting the Server
 
 Run the server with:
 
@@ -28,7 +69,7 @@ Or with custom options:
 python -m dredge serve --host 0.0.0.0 --port 3001 --debug
 ```
 
-### API Endpoints
+#### API Endpoints
 
 Once the server is running, you can interact with the following endpoints:
 
@@ -51,32 +92,44 @@ curl -X POST http://localhost:3001/lift \
   -d '{"insight_text": "Digital memory must be human-reachable."}'
 ```
 
-### GitHub Codespaces
-
-The repository includes `.devcontainer/devcontainer.json` configured to automatically forward port 3001 when running in GitHub Codespaces. Simply start the server and the port will be accessible.
-
-## Test
+### Python Tests
 
 Run tests with pytest:
 
+```bash
 pip install -U pytest
 pytest
+```
 
 ## Development
 
-- Edit code in src/dredge
-- Update version in pyproject.toml
+### Swift Development
+- Edit code in `Sources/DredgeCore`, `Sources/DredgeApp`, or `Sources/DredgeCLI`
+- Update `Package.swift` for new dependencies or targets
+- Run `swift build` to compile
+- Run `swift test` for unit tests
+
+### Python Development
+- Edit code in `src/dredge`
+- Update version in `pyproject.toml`
 - Tag releases with v<version> and push tags
 
 ## Repository Structure
 
 ```
 DREDGE-Cli/
-├── src/dredge/          # Main Python package source code
-├── tests/               # Test suite
+├── Sources/
+│   ├── DredgeCore/      # Swift core module (shared library)
+│   ├── DredgeApp/       # iOS/macOS SwiftUI application
+│   └── DredgeCLI/       # Swift command-line tool
+├── Tests/
+│   └── DredgeCoreTests/ # Swift unit tests
+├── src/dredge/          # Python package source code
+├── tests/               # Python test suite
 ├── docs/                # Documentation and guides
 │   ├── assets/          # Images and visual assets
 │   └── papers/          # Research papers (LaTeX)
 ├── benchmarks/          # Performance benchmarks and scripts
-└── legacy/              # Legacy Swift implementation files
+├── Package.swift        # Swift Package Manager manifest
+└── pyproject.toml       # Python package configuration
 ```
