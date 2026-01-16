@@ -1,0 +1,8 @@
+/* AboutStrings.strings
+   DREDGE / NanoGPT (124M)
+*/
+
+"about_title" = "About DREDGE";
+"about_subtitle" = "Small model. Deep pull.";
+
+"about_body" = "DREDGE is powered by NanoGPT (124M), a compact intelligence designed to surface meaning from noise.\n\nWorking alongside train_switch, Dolly, and DREDGE agents, it listens closely, reasons carefully, and returns only what matters.\n\nNo scale theater. Just clarity—locally, securely, intentionally.";
