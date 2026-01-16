@@ -11,7 +11,7 @@ def test_cli_entry_point():
         text=True
     )
     assert result.returncode == 0
-    assert "0.1.0" in result.stdout
+    assert "0.1.4" in result.stdout
 
 
 def test_cli_help():
@@ -47,4 +47,4 @@ def test_cli_module_invocation():
         text=True
     )
     assert result.returncode == 0
-    assert "0.1.0" in result.stdout
+    assert "0.1.4" in result.stdout
