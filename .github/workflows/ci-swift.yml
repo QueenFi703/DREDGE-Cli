@@ -1,5 +1,5 @@
-# Swift CI — macOS runner, builds and tests using Swift Package Manager
-# Adjust commands if your project uses an Xcode workspace / scheme instead of SPM.
+name: Swift CI
+
 on:
   push:
     branches:
@@ -9,8 +9,10 @@ on:
       - '**'
 
 jobs:
-  swift-test:
+  swift-build-and-test:
     runs-on: macos-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -18,22 +20,8 @@ jobs:
       - name: Show Swift version
         run: swift --version
 
-      - name: Cache SwiftPM build artifacts
-        uses: actions/cache@v3
-        with:
-          # cache SPM build folder and package checkouts
-          path: |
-            .build
-            .swiftpm
-          key: ${{ runner.os }}-swift-${{ hashFiles('**/Package.resolved') }}
-          restore-keys: |
-            ${{ runner.os }}-swift-
-
-      - name: Resolve dependencies
-        run: swift package resolve
-
       - name: Build
-        run: swift build --configuration release
+        run: swift build
 
       - name: Run tests
         run: swift test
