@@ -1,0 +1,183 @@
+client:
+  name: basic
+  file-system: device-agnostic
+tools: {}
+targets:
+  "DREDGE-Cli-x86_64-unknown-linux-gnu-debug.module": ["<DREDGE-Cli-x86_64-unknown-linux-gnu-debug.module>"]
+  "DREDGE-CliPackageDiscoveredTests-x86_64-unknown-linux-gnu-debug.module": ["<DREDGE-CliPackageDiscoveredTests-x86_64-unknown-linux-gnu-debug.module>"]
+  "DREDGE-CliPackageTests-x86_64-unknown-linux-gnu-debug.module": ["<DREDGE-CliPackageTests-x86_64-unknown-linux-gnu-debug.module>"]
+  "DREDGE-CliPackageTests-x86_64-unknown-linux-gnu-debug.test": ["<DREDGE-CliPackageTests-x86_64-unknown-linux-gnu-debug.test>"]
+  "DREDGE-CliTests-x86_64-unknown-linux-gnu-debug.module": ["<DREDGE-CliTests-x86_64-unknown-linux-gnu-debug.module>"]
+  "PackageStructure": ["<PackageStructure>"]
+  "dredge-cli-x86_64-unknown-linux-gnu-debug.exe": ["<dredge-cli-x86_64-unknown-linux-gnu-debug.exe>"]
+  "main": ["<DREDGE-Cli-x86_64-unknown-linux-gnu-debug.module>","<dredge-cli-x86_64-unknown-linux-gnu-debug.exe>"]
+  "test": ["<DREDGE-Cli-x86_64-unknown-linux-gnu-debug.module>","<DREDGE-CliPackageTests-x86_64-unknown-linux-gnu-debug.test>","<DREDGE-CliTests-x86_64-unknown-linux-gnu-debug.module>","<dredge-cli-x86_64-unknown-linux-gnu-debug.exe>"]
+default: "main"
+nodes:
+  "/home/runner/work/DREDGE-Cli/DREDGE-Cli/Sources/DREDGE-Cli/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+  "/home/runner/work/DREDGE-Cli/DREDGE-Cli/Tests/DREDGE-CliTests/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+commands:
+  "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageDiscoveredTests.derived/all-discovered-tests.swift":
+    tool: test-discovery-tool
+    inputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/DREDGECliTests.swift.o"]
+    outputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageDiscoveredTests.derived/DREDGE-CliTests.swift","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageDiscoveredTests.derived/all-discovered-tests.swift"]
+
+  "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageTests.derived/runner.swift":
+    tool: test-entry-point-tool
+    inputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliPackageDiscoveredTests.swiftmodule"]
+    outputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageTests.derived/runner.swift"]
+
+  "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageTests.product/Objects.LinkFileList":
+    tool: write-auxiliary-file
+    inputs: ["<link-file-list>","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/DREDGE_Cli.swiftmodule.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/main.swift.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/DREDGE-CliTests.swift.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/DREDGE_CliPackageDiscoveredTests.swiftmodule.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/all-discovered-tests.swift.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/DREDGE_CliPackageTests.swiftmodule.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/runner.swift.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/DREDGECliTests.swift.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/DREDGE_CliTests.swiftmodule.o"]
+    outputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageTests.product/Objects.LinkFileList"]
+    description: "Write auxiliary file /home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageTests.product/Objects.LinkFileList"
+
+  "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/DREDGE_Cli.swiftmodule.o":
+    tool: shell
+    inputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_Cli.swiftmodule"]
+    outputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/DREDGE_Cli.swiftmodule.o"]
+    description: "Wrapping AST for DREDGE-Cli for debugging"
+    args: ["/usr/share/swift/usr/bin/swiftc","-modulewrap","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_Cli.swiftmodule","-o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/DREDGE_Cli.swiftmodule.o","-target","x86_64-unknown-linux-gnu"]
+
+  "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/home/runner/work/DREDGE-Cli/DREDGE-Cli/Sources/DREDGE-Cli/main.swift"]
+    outputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/sources"]
+    description: "Write auxiliary file /home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/sources"
+
+  "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/DREDGE_CliPackageDiscoveredTests.swiftmodule.o":
+    tool: shell
+    inputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliPackageDiscoveredTests.swiftmodule"]
+    outputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/DREDGE_CliPackageDiscoveredTests.swiftmodule.o"]
+    description: "Wrapping AST for DREDGE-CliPackageDiscoveredTests for debugging"
+    args: ["/usr/share/swift/usr/bin/swiftc","-modulewrap","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliPackageDiscoveredTests.swiftmodule","-o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/DREDGE_CliPackageDiscoveredTests.swiftmodule.o","-target","x86_64-unknown-linux-gnu"]
+
+  "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageDiscoveredTests.derived/DREDGE-CliTests.swift","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageDiscoveredTests.derived/all-discovered-tests.swift"]
+    outputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/sources"]
+    description: "Write auxiliary file /home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/sources"
+
+  "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/DREDGE_CliPackageTests.swiftmodule.o":
+    tool: shell
+    inputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliPackageTests.swiftmodule"]
+    outputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/DREDGE_CliPackageTests.swiftmodule.o"]
+    description: "Wrapping AST for DREDGE-CliPackageTests for debugging"
+    args: ["/usr/share/swift/usr/bin/swiftc","-modulewrap","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliPackageTests.swiftmodule","-o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/DREDGE_CliPackageTests.swiftmodule.o","-target","x86_64-unknown-linux-gnu"]
+
+  "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageTests.derived/runner.swift"]
+    outputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/sources"]
+    description: "Write auxiliary file /home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/sources"
+
+  "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/DREDGE_CliTests.swiftmodule.o":
+    tool: shell
+    inputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliTests.swiftmodule"]
+    outputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/DREDGE_CliTests.swiftmodule.o"]
+    description: "Wrapping AST for DREDGE-CliTests for debugging"
+    args: ["/usr/share/swift/usr/bin/swiftc","-modulewrap","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliTests.swiftmodule","-o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/DREDGE_CliTests.swiftmodule.o","-target","x86_64-unknown-linux-gnu"]
+
+  "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/home/runner/work/DREDGE-Cli/DREDGE-Cli/Tests/DREDGE-CliTests/DREDGECliTests.swift"]
+    outputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/sources"]
+    description: "Write auxiliary file /home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/sources"
+
+  "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/dredge-cli.product/Objects.LinkFileList":
+    tool: write-auxiliary-file
+    inputs: ["<link-file-list>","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/DREDGE_Cli.swiftmodule.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/main.swift.o"]
+    outputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/dredge-cli.product/Objects.LinkFileList"]
+    description: "Write auxiliary file /home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/dredge-cli.product/Objects.LinkFileList"
+
+  "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/swift-version--1BFCD5C06E9F820A.txt":
+    tool: write-auxiliary-file
+    inputs: ["<swift-get-version>","/usr/share/swift/usr/bin/swiftc"]
+    outputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/swift-version--1BFCD5C06E9F820A.txt"]
+    always-out-of-date: "true"
+    description: "Write auxiliary file /home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/swift-version--1BFCD5C06E9F820A.txt"
+
+  "<DREDGE-Cli-x86_64-unknown-linux-gnu-debug.module>":
+    tool: phony
+    inputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/main.swift.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_Cli.swiftmodule"]
+    outputs: ["<DREDGE-Cli-x86_64-unknown-linux-gnu-debug.module>"]
+
+  "<DREDGE-CliPackageDiscoveredTests-x86_64-unknown-linux-gnu-debug.module>":
+    tool: phony
+    inputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/DREDGE-CliTests.swift.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/all-discovered-tests.swift.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliPackageDiscoveredTests.swiftmodule"]
+    outputs: ["<DREDGE-CliPackageDiscoveredTests-x86_64-unknown-linux-gnu-debug.module>"]
+
+  "<DREDGE-CliPackageTests-x86_64-unknown-linux-gnu-debug.module>":
+    tool: phony
+    inputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/runner.swift.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliPackageTests.swiftmodule"]
+    outputs: ["<DREDGE-CliPackageTests-x86_64-unknown-linux-gnu-debug.module>"]
+
+  "<DREDGE-CliPackageTests-x86_64-unknown-linux-gnu-debug.test>":
+    tool: phony
+    inputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageTests.xctest"]
+    outputs: ["<DREDGE-CliPackageTests-x86_64-unknown-linux-gnu-debug.test>"]
+
+  "<DREDGE-CliTests-x86_64-unknown-linux-gnu-debug.module>":
+    tool: phony
+    inputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/DREDGECliTests.swift.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliTests.swiftmodule"]
+    outputs: ["<DREDGE-CliTests-x86_64-unknown-linux-gnu-debug.module>"]
+
+  "<dredge-cli-x86_64-unknown-linux-gnu-debug.exe>":
+    tool: phony
+    inputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/dredge-cli"]
+    outputs: ["<dredge-cli-x86_64-unknown-linux-gnu-debug.exe>"]
+
+  "C.DREDGE-Cli-x86_64-unknown-linux-gnu-debug.module":
+    tool: shell
+    inputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/Sources/DREDGE-Cli/main.swift","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/swift-version--1BFCD5C06E9F820A.txt","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/sources"]
+    outputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/main.swift.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_Cli.swiftmodule"]
+    description: "Compiling Swift Module 'DREDGE_Cli' (1 sources)"
+    args: ["/usr/share/swift/usr/bin/swiftc","-module-name","DREDGE_Cli","-emit-dependencies","-emit-module","-emit-module-path","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_Cli.swiftmodule","-output-file-map","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/output-file-map.json","-incremental","-c","@/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/sources","-I","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules","-target","x86_64-unknown-linux-gnu","-incremental","-enable-batch-mode","-serialize-diagnostics","-index-store-path","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/index/store","-Onone","-enable-testing","-j4","-DSWIFT_PACKAGE","-DDEBUG","-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE","-module-cache-path","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/ModuleCache","-parseable-output","-Xfrontend","-entry-point-function-name","-Xfrontend","DREDGE_Cli_main","-color-diagnostics","-swift-version","5","-g","-Xcc","-fPIC","-Xcc","-g","-package-name","dredge_cli","-Xcc","-fno-omit-frame-pointer"]
+
+  "C.DREDGE-CliPackageDiscoveredTests-x86_64-unknown-linux-gnu-debug.module":
+    tool: shell
+    inputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageDiscoveredTests.derived/DREDGE-CliTests.swift","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageDiscoveredTests.derived/all-discovered-tests.swift","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/swift-version--1BFCD5C06E9F820A.txt","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliTests.swiftmodule","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/sources"]
+    outputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/DREDGE-CliTests.swift.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/all-discovered-tests.swift.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliPackageDiscoveredTests.swiftmodule"]
+    description: "Compiling Swift Module 'DREDGE_CliPackageDiscoveredTests' (2 sources)"
+    args: ["/usr/share/swift/usr/bin/swiftc","-module-name","DREDGE_CliPackageDiscoveredTests","-emit-dependencies","-emit-module","-emit-module-path","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliPackageDiscoveredTests.swiftmodule","-output-file-map","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/output-file-map.json","-parse-as-library","-incremental","-c","@/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/sources","-I","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules","-target","x86_64-unknown-linux-gnu","-incremental","-enable-batch-mode","-serialize-diagnostics","-index-store-path","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/index/store","-Onone","-enable-testing","-Xfrontend","-enable-cross-import-overlays","-j4","-DSWIFT_PACKAGE","-DDEBUG","-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE","-module-cache-path","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/ModuleCache","-parseable-output","-parse-as-library","-emit-objc-header","-emit-objc-header-path","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/include/DREDGE-CliPackageDiscoveredTests-Swift.h","-color-diagnostics","-g","-Xcc","-fPIC","-Xcc","-g","-package-name","dredge_cli","-Xcc","-fno-omit-frame-pointer"]
+
+  "C.DREDGE-CliPackageTests-x86_64-unknown-linux-gnu-debug.module":
+    tool: shell
+    inputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageTests.derived/runner.swift","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/swift-version--1BFCD5C06E9F820A.txt","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliTests.swiftmodule","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliPackageDiscoveredTests.swiftmodule","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/sources"]
+    outputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/runner.swift.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliPackageTests.swiftmodule"]
+    description: "Compiling Swift Module 'DREDGE_CliPackageTests' (1 sources)"
+    args: ["/usr/share/swift/usr/bin/swiftc","-module-name","DREDGE_CliPackageTests","-emit-dependencies","-emit-module","-emit-module-path","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliPackageTests.swiftmodule","-output-file-map","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/output-file-map.json","-parse-as-library","-incremental","-c","@/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/sources","-I","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules","-target","x86_64-unknown-linux-gnu","-incremental","-enable-batch-mode","-serialize-diagnostics","-index-store-path","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/index/store","-Onone","-enable-testing","-Xfrontend","-enable-cross-import-overlays","-j4","-DSWIFT_PACKAGE","-DDEBUG","-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE","-module-cache-path","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/ModuleCache","-parseable-output","-parse-as-library","-emit-objc-header","-emit-objc-header-path","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/include/DREDGE-CliPackageTests-Swift.h","-color-diagnostics","-g","-Xcc","-fPIC","-Xcc","-g","-package-name","dredge_cli","-Xcc","-fno-omit-frame-pointer"]
+
+  "C.DREDGE-CliPackageTests-x86_64-unknown-linux-gnu-debug.test":
+    tool: shell
+    inputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/DREDGE_Cli.swiftmodule.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/main.swift.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/DREDGE-CliTests.swift.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/DREDGE_CliPackageDiscoveredTests.swiftmodule.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/all-discovered-tests.swift.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/DREDGE_CliPackageTests.swiftmodule.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/runner.swift.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/DREDGECliTests.swift.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/DREDGE_CliTests.swiftmodule.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageTests.product/Objects.LinkFileList"]
+    outputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageTests.xctest"]
+    description: "Linking ./.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageTests.xctest"
+    args: ["/usr/share/swift/usr/bin/swiftc","-L","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug","-o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageTests.xctest","-module-name","DREDGE_CliPackageTests","-emit-executable","-Xlinker","-rpath=$ORIGIN","@/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageTests.product/Objects.LinkFileList","-target","x86_64-unknown-linux-gnu","-g"]
+
+  "C.DREDGE-CliTests-x86_64-unknown-linux-gnu-debug.module":
+    tool: shell
+    inputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/Tests/DREDGE-CliTests/DREDGECliTests.swift","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/swift-version--1BFCD5C06E9F820A.txt","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/dredge-cli","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/sources"]
+    outputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/DREDGECliTests.swift.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliTests.swiftmodule"]
+    description: "Compiling Swift Module 'DREDGE_CliTests' (1 sources)"
+    args: ["/usr/share/swift/usr/bin/swiftc","-module-name","DREDGE_CliTests","-emit-dependencies","-emit-module","-emit-module-path","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliTests.swiftmodule","-output-file-map","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/output-file-map.json","-parse-as-library","-incremental","-c","@/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/sources","-I","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules","-target","x86_64-unknown-linux-gnu","-incremental","-enable-batch-mode","-serialize-diagnostics","-index-store-path","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/index/store","-Onone","-enable-testing","-Xfrontend","-enable-cross-import-overlays","-j4","-DSWIFT_PACKAGE","-DDEBUG","-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE","-module-cache-path","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/ModuleCache","-parseable-output","-parse-as-library","-color-diagnostics","-swift-version","5","-g","-Xcc","-fPIC","-Xcc","-g","-package-name","dredge_cli","-Xcc","-fno-omit-frame-pointer"]
+
+  "C.dredge-cli-x86_64-unknown-linux-gnu-debug.exe":
+    tool: shell
+    inputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/DREDGE_Cli.swiftmodule.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/main.swift.o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/dredge-cli.product/Objects.LinkFileList"]
+    outputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/dredge-cli"]
+    description: "Linking ./.build/x86_64-unknown-linux-gnu/debug/dredge-cli"
+    args: ["/usr/share/swift/usr/bin/swiftc","-L","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug","-o","/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/dredge-cli","-module-name","dredge_cli","-emit-executable","-Xlinker","--defsym","-Xlinker","main=DREDGE_Cli_main","-Xlinker","-rpath=$ORIGIN","@/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/dredge-cli.product/Objects.LinkFileList","-target","x86_64-unknown-linux-gnu","-g"]
+
+  "PackageStructure":
+    tool: package-structure-tool
+    inputs: ["/home/runner/work/DREDGE-Cli/DREDGE-Cli/Sources/DREDGE-Cli/","/home/runner/work/DREDGE-Cli/DREDGE-Cli/Tests/DREDGE-CliTests/","/home/runner/work/DREDGE-Cli/DREDGE-Cli/Package.swift","/home/runner/work/DREDGE-Cli/DREDGE-Cli/Package.resolved"]
+    outputs: ["<PackageStructure>"]
+    description: "Planning build"
+    allow-missing-inputs: true
+

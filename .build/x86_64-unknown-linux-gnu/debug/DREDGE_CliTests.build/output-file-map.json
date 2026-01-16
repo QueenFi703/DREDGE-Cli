@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/master.swiftdeps"
+  },
+  "/home/runner/work/DREDGE-Cli/DREDGE-Cli/Tests/DREDGE-CliTests/DREDGECliTests.swift": {
+    "dependencies": "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/DREDGECliTests.d",
+    "object": "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/DREDGECliTests.swift.o",
+    "swiftmodule": "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/DREDGECliTests~partial.swiftmodule",
+    "swift-dependencies": "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/DREDGECliTests.swiftdeps",
+    "diagnostics": "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/DREDGECliTests.dia"
+  }
+}

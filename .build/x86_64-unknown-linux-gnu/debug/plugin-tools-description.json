@@ -1,0 +1,737 @@
+{
+  "builtTestProducts" : [
+    {
+      "binaryPath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageTests.xctest",
+      "packagePath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli",
+      "productName" : "DREDGE-CliPackageTests"
+    }
+  ],
+  "copyCommands" : {
+
+  },
+  "explicitTargetDependencyImportCheckingMode" : {
+    "none" : {
+
+    }
+  },
+  "generatedSourceTargetSet" : [
+    "DREDGE_CliPackageDiscoveredTests"
+  ],
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.DREDGE-Cli-x86_64-unknown-linux-gnu-debug.module" : {
+      "executable" : "/usr/share/swift/usr/bin/swiftc",
+      "fileList" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/sources",
+      "importPath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/Sources/DREDGE-Cli/main.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/swift-version--1BFCD5C06E9F820A.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/sources"
+        }
+      ],
+      "isLibrary" : false,
+      "moduleName" : "DREDGE_Cli",
+      "moduleOutputPath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_Cli.swiftmodule",
+      "objects" : [
+        "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/main.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "x86_64-unknown-linux-gnu",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j4",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/ModuleCache",
+        "-parseable-output",
+        "-Xfrontend",
+        "-entry-point-function-name",
+        "-Xfrontend",
+        "DREDGE_Cli_main",
+        "-color-diagnostics",
+        "-swift-version",
+        "5",
+        "-g",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "dredge_cli",
+        "-Xcc",
+        "-fno-omit-frame-pointer"
+      ],
+      "outputFileMapPath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/main.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_Cli.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/home/runner/work/DREDGE-Cli/DREDGE-Cli/Sources/DREDGE-Cli/main.swift"
+      ],
+      "tempsPath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.DREDGE-CliPackageDiscoveredTests-x86_64-unknown-linux-gnu-debug.module" : {
+      "executable" : "/usr/share/swift/usr/bin/swiftc",
+      "fileList" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/sources",
+      "importPath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageDiscoveredTests.derived/DREDGE-CliTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageDiscoveredTests.derived/all-discovered-tests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/swift-version--1BFCD5C06E9F820A.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliTests.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "DREDGE_CliPackageDiscoveredTests",
+      "moduleOutputPath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliPackageDiscoveredTests.swiftmodule",
+      "objects" : [
+        "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/DREDGE-CliTests.swift.o",
+        "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/all-discovered-tests.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "x86_64-unknown-linux-gnu",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j4",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/include/DREDGE-CliPackageDiscoveredTests-Swift.h",
+        "-color-diagnostics",
+        "-g",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "dredge_cli",
+        "-Xcc",
+        "-fno-omit-frame-pointer"
+      ],
+      "outputFileMapPath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/DREDGE-CliTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/all-discovered-tests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliPackageDiscoveredTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageDiscoveredTests.derived/DREDGE-CliTests.swift",
+        "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageDiscoveredTests.derived/all-discovered-tests.swift"
+      ],
+      "tempsPath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.DREDGE-CliPackageTests-x86_64-unknown-linux-gnu-debug.module" : {
+      "executable" : "/usr/share/swift/usr/bin/swiftc",
+      "fileList" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/sources",
+      "importPath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageTests.derived/runner.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/swift-version--1BFCD5C06E9F820A.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliTests.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliPackageDiscoveredTests.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "DREDGE_CliPackageTests",
+      "moduleOutputPath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliPackageTests.swiftmodule",
+      "objects" : [
+        "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/runner.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "x86_64-unknown-linux-gnu",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j4",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/include/DREDGE-CliPackageTests-Swift.h",
+        "-color-diagnostics",
+        "-g",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "dredge_cli",
+        "-Xcc",
+        "-fno-omit-frame-pointer"
+      ],
+      "outputFileMapPath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/runner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliPackageTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageTests.derived/runner.swift"
+      ],
+      "tempsPath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.DREDGE-CliTests-x86_64-unknown-linux-gnu-debug.module" : {
+      "executable" : "/usr/share/swift/usr/bin/swiftc",
+      "fileList" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/sources",
+      "importPath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/Tests/DREDGE-CliTests/DREDGECliTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/swift-version--1BFCD5C06E9F820A.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/dredge-cli"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "DREDGE_CliTests",
+      "moduleOutputPath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliTests.swiftmodule",
+      "objects" : [
+        "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/DREDGECliTests.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "x86_64-unknown-linux-gnu",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j4",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-color-diagnostics",
+        "-swift-version",
+        "5",
+        "-g",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "dredge_cli",
+        "-Xcc",
+        "-fno-omit-frame-pointer"
+      ],
+      "outputFileMapPath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/DREDGECliTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/home/runner/work/DREDGE-Cli/DREDGE-Cli/Tests/DREDGE-CliTests/DREDGECliTests.swift"
+      ],
+      "tempsPath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build",
+      "wholeModuleOptimization" : false
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "swiftTargetScanArgs" : {
+    "DREDGE_Cli" : [
+      "/usr/share/swift/usr/bin/swiftc",
+      "-module-name",
+      "DREDGE_Cli",
+      "-package-name",
+      "dredge_cli",
+      "-c",
+      "/home/runner/work/DREDGE-Cli/DREDGE-Cli/Sources/DREDGE-Cli/main.swift",
+      "-I",
+      "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules",
+      "-target",
+      "x86_64-unknown-linux-gnu",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j4",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/ModuleCache",
+      "-parseable-output",
+      "-Xfrontend",
+      "-entry-point-function-name",
+      "-Xfrontend",
+      "DREDGE_Cli_main",
+      "-color-diagnostics",
+      "-swift-version",
+      "5",
+      "-g",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "dredge_cli",
+      "-Xcc",
+      "-fno-omit-frame-pointer",
+      "-driver-use-frontend-path",
+      "/usr/share/swift/usr/bin/swiftc"
+    ],
+    "DREDGE_CliPackageDiscoveredTests" : [
+      "/usr/share/swift/usr/bin/swiftc",
+      "-module-name",
+      "DREDGE_CliPackageDiscoveredTests",
+      "-package-name",
+      "dredge_cli",
+      "-c",
+      "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageDiscoveredTests.derived/DREDGE-CliTests.swift",
+      "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageDiscoveredTests.derived/all-discovered-tests.swift",
+      "-I",
+      "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules",
+      "-target",
+      "x86_64-unknown-linux-gnu",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j4",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/include/DREDGE-CliPackageDiscoveredTests-Swift.h",
+      "-color-diagnostics",
+      "-g",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "dredge_cli",
+      "-Xcc",
+      "-fno-omit-frame-pointer",
+      "-driver-use-frontend-path",
+      "/usr/share/swift/usr/bin/swiftc"
+    ],
+    "DREDGE_CliPackageTests" : [
+      "/usr/share/swift/usr/bin/swiftc",
+      "-module-name",
+      "DREDGE_CliPackageTests",
+      "-package-name",
+      "dredge_cli",
+      "-c",
+      "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageTests.derived/runner.swift",
+      "-I",
+      "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules",
+      "-target",
+      "x86_64-unknown-linux-gnu",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j4",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/include/DREDGE-CliPackageTests-Swift.h",
+      "-color-diagnostics",
+      "-g",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "dredge_cli",
+      "-Xcc",
+      "-fno-omit-frame-pointer",
+      "-driver-use-frontend-path",
+      "/usr/share/swift/usr/bin/swiftc"
+    ],
+    "DREDGE_CliTests" : [
+      "/usr/share/swift/usr/bin/swiftc",
+      "-module-name",
+      "DREDGE_CliTests",
+      "-package-name",
+      "dredge_cli",
+      "-c",
+      "/home/runner/work/DREDGE-Cli/DREDGE-Cli/Tests/DREDGE-CliTests/DREDGECliTests.swift",
+      "-I",
+      "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules",
+      "-target",
+      "x86_64-unknown-linux-gnu",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j4",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-color-diagnostics",
+      "-swift-version",
+      "5",
+      "-g",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "dredge_cli",
+      "-Xcc",
+      "-fno-omit-frame-pointer",
+      "-driver-use-frontend-path",
+      "/usr/share/swift/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap" : {
+    "DREDGE_Cli" : [
+
+    ],
+    "DREDGE_CliPackageDiscoveredTests" : [
+      "DREDGE_CliTests",
+      "DREDGE_Cli"
+    ],
+    "DREDGE_CliPackageTests" : [
+      "DREDGE_CliPackageDiscoveredTests",
+      "DREDGE_CliTests",
+      "DREDGE_Cli"
+    ],
+    "DREDGE_CliTests" : [
+      "DREDGE_Cli"
+    ]
+  },
+  "testDiscoveryCommands" : {
+    "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageDiscoveredTests.derived/all-discovered-tests.swift" : {
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/DREDGECliTests.swift.o"
+        }
+      ],
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageDiscoveredTests.derived/DREDGE-CliTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageDiscoveredTests.derived/all-discovered-tests.swift"
+        }
+      ]
+    }
+  },
+  "testEntryPointCommands" : {
+    "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageTests.derived/runner.swift" : {
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/Modules/DREDGE_CliPackageDiscoveredTests.swiftmodule"
+        }
+      ],
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageTests.derived/runner.swift"
+        }
+      ]
+    }
+  },
+  "traitConfiguration" : {
+    "default" : {
+
+    }
+  },
+  "writeCommands" : {
+    "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageTests.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/DREDGE_Cli.swiftmodule.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/main.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/DREDGE-CliTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/DREDGE_CliPackageDiscoveredTests.swiftmodule.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/all-discovered-tests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/DREDGE_CliPackageTests.swiftmodule.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/runner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/DREDGECliTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/DREDGE_CliTests.swiftmodule.o"
+        }
+      ],
+      "outputFilePath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageTests.product/Objects.LinkFileList"
+    },
+    "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/Sources/DREDGE-Cli/main.swift"
+        }
+      ],
+      "outputFilePath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/sources"
+    },
+    "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageDiscoveredTests.derived/DREDGE-CliTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageDiscoveredTests.derived/all-discovered-tests.swift"
+        }
+      ],
+      "outputFilePath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/sources"
+    },
+    "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageTests.derived/runner.swift"
+        }
+      ],
+      "outputFilePath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageTests.build/sources"
+    },
+    "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/Tests/DREDGE-CliTests/DREDGECliTests.swift"
+        }
+      ],
+      "outputFilePath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliTests.build/sources"
+    },
+    "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/dredge-cli.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/DREDGE_Cli.swiftmodule.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_Cli.build/main.swift.o"
+        }
+      ],
+      "outputFilePath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/dredge-cli.product/Objects.LinkFileList"
+    },
+    "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/swift-version--1BFCD5C06E9F820A.txt" : {
+      "alwaysOutOfDate" : true,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<swift-get-version>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/usr/share/swift/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath" : "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/swift-version--1BFCD5C06E9F820A.txt"
+    }
+  }
+}

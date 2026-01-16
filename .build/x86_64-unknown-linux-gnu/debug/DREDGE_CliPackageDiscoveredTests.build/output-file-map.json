@@ -1,0 +1,19 @@
+{
+  "": {
+    "swift-dependencies": "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/master.swiftdeps"
+  },
+  "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageDiscoveredTests.derived/DREDGE-CliTests.swift": {
+    "dependencies": "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/DREDGE-CliTests.d",
+    "object": "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/DREDGE-CliTests.swift.o",
+    "swiftmodule": "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/DREDGE-CliTests~partial.swiftmodule",
+    "swift-dependencies": "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/DREDGE-CliTests.swiftdeps",
+    "diagnostics": "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/DREDGE-CliTests.dia"
+  },
+  "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE-CliPackageDiscoveredTests.derived/all-discovered-tests.swift": {
+    "dependencies": "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/all-discovered-tests.d",
+    "object": "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/all-discovered-tests.swift.o",
+    "swiftmodule": "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/all-discovered-tests~partial.swiftmodule",
+    "swift-dependencies": "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/all-discovered-tests.swiftdeps",
+    "diagnostics": "/home/runner/work/DREDGE-Cli/DREDGE-Cli/.build/x86_64-unknown-linux-gnu/debug/DREDGE_CliPackageDiscoveredTests.build/all-discovered-tests.dia"
+  }
+}

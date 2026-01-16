@@ -14,8 +14,7 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "DREDGE-Cli",
-            path: "Sources"
+            name: "DREDGE-Cli"
         ),
         .testTarget(
             name: "DREDGE-CliTests",
