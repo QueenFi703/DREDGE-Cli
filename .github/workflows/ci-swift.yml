@@ -146,7 +146,7 @@ jobs:
 
       - name: Build for testing (xcodebuild)
         run: |
-          set -o pipefail
+          set -euo pipefail
           # Prefer workspace if detected
           if [[ -n "${{ steps.detect.outputs.workspace }}" ]]; then
             TARGET=(-workspace "${{ steps.detect.outputs.workspace }}" -scheme "${{ steps.detect.outputs.scheme }}")
@@ -160,7 +160,7 @@ jobs:
 
       - name: Run tests (xcodebuild)
         run: |
-          set -o pipefail
+          set -euo pipefail
           if [[ -n "${{ steps.detect.outputs.workspace }}" ]]; then
             TARGET=(-workspace "${{ steps.detect.outputs.workspace }}" -scheme "${{ steps.detect.outputs.scheme }}")
           else
