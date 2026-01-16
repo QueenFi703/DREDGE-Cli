@@ -8,19 +8,30 @@ let package = Package(
         .iOS(.v15)
     ],
     products: [
-        // Executable CLI tool
+        // CLI executable
         .executable(
             name: "dredge-cli",
             targets: ["DREDGECli"]
+        ),
+        // Shared core library
+        .library(
+            name: "DredgeCore",
+            targets: ["DredgeCore"]
         )
     ],
     targets: [
-        // CLI executable target (from swift/Sources/main.swift)
+        // CLI executable - ONLY includes swift/Sources/main.swift
         .executableTarget(
             name: "DREDGECli",
-            path: "swift/Sources"
+            path: "swift/Sources",
+            exclude: []
         ),
-        // Test target
+        // Shared core library
+        .target(
+            name: "DredgeCore",
+            path: "dredge-x-dolly/DredgeCore"
+        ),
+        // Tests
         .testTarget(
             name: "DREDGE-CliTests",
             dependencies: ["DREDGECli"],
