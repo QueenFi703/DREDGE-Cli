@@ -24,3 +24,9 @@ dist/
 *.xcworkspace
 DerivedData/
 .swiftpm/
+
+# Archives and temporary files
+archives/
+*.zip
+*.torrent
+*.docx

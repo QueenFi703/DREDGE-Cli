@@ -2,6 +2,15 @@
 
 DREDGE — small Python package scaffold.
 
+## Repository Structure
+
+- **src/dredge/** - Python package source code
+- **tests/** - Test files
+- **docs/** - Documentation files
+- **benchmarks/** - Benchmark scripts and results
+- **swift/** - Swift implementation files
+- **archives/** - Archived files (excluded from version control)
+
 ## Install
 
 Create a virtual environment and install:
