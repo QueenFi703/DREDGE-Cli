@@ -4,9 +4,9 @@ import sys
 
 
 def test_cli_entry_point():
-    """Test that the dredge command is available as an entry point."""
+    """Test that the dredge-cli command is available as an entry point."""
     result = subprocess.run(
-        ["dredge", "--version"],
+        ["dredge-cli", "--version"],
         capture_output=True,
         text=True
     )
@@ -15,9 +15,9 @@ def test_cli_entry_point():
 
 
 def test_cli_help():
-    """Test that the dredge command shows help."""
+    """Test that the dredge-cli command shows help."""
     result = subprocess.run(
-        ["dredge", "--help"],
+        ["dredge-cli", "--help"],
         capture_output=True,
         text=True
     )
@@ -27,9 +27,9 @@ def test_cli_help():
 
 
 def test_cli_serve_help():
-    """Test that the dredge serve command shows help."""
+    """Test that the dredge-cli serve command shows help."""
     result = subprocess.run(
-        ["dredge", "serve", "--help"],
+        ["dredge-cli", "serve", "--help"],
         capture_output=True,
         text=True
     )

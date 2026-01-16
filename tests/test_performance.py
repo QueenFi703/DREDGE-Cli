@@ -2,9 +2,14 @@
 Performance tests for DREDGE optimizations.
 These tests verify that the optimized code provides performance improvements.
 """
+import sys
+import os
 import time
 import torch
 import pytest
+
+# Add benchmarks directory to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'benchmarks'))
 
 
 def test_ensemble_forward_performance():
