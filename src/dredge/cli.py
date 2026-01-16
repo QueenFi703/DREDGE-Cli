@@ -21,8 +21,8 @@ def main(argv=None):
         "serve", help="Start the DREDGE x Dolly web server")
     server_parser.add_argument(
         "--host",
-        default="0.0.0.0",
-        help="Host to bind to (default: 0.0.0.0)"
+        default="127.0.0.1",
+        help="Host to bind to (default: 127.0.0.1 for localhost only)"
     )
     server_parser.add_argument(
         "--port",
@@ -41,8 +41,8 @@ def main(argv=None):
         "mcp", help="Start the DREDGE MCP server (Quasimoto models)")
     mcp_parser.add_argument(
         "--host",
-        default="0.0.0.0",
-        help="Host to bind to (default: 0.0.0.0)"
+        default="127.0.0.1",
+        help="Host to bind to (default: 127.0.0.1 for localhost only)"
     )
     mcp_parser.add_argument(
         "--port",

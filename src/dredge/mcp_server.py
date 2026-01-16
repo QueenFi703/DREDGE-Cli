@@ -367,12 +367,12 @@ def create_mcp_app():
     return app
 
 
-def run_mcp_server(host='0.0.0.0', port=3002, debug=False):
+def run_mcp_server(host='127.0.0.1', port=3002, debug=False):
     """
     Run the DREDGE MCP server.
 
     Args:
-        host: Host to bind to (default: 0.0.0.0)
+        host: Host to bind to (default: 127.0.0.1 for localhost only)
         port: Port to listen on (default: 3002)
         debug: Enable debug mode (default: False)
     """

@@ -74,12 +74,12 @@ def create_app():
     return app
 
 
-def run_server(host='0.0.0.0', port=3001, debug=False):
+def run_server(host='127.0.0.1', port=3001, debug=False):
     """
     Run the DREDGE x Dolly server.
 
     Args:
-        host: Host to bind to (default: 0.0.0.0 for codespaces)
+        host: Host to bind to (default: 127.0.0.1 for localhost only)
         port: Port to listen on (default: 3001)
         debug: Enable debug mode (default: False)
     """
