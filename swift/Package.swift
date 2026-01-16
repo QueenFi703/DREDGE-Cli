@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "DREDGE-Cli",
     platforms: [
-        .macOS(. v12)
+        .macOS(.v12)
     ],
     products: [
         .executable(
