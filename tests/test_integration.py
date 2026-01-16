@@ -4,7 +4,6 @@ Tests CLI commands, MCP tools, and core functionality.
 """
 import pytest
 import json
-import sys
 from pathlib import Path
 
 # Test signal data
@@ -29,7 +28,7 @@ def test_create_processor():
         assert processor is not None
         assert processor.n_waves == 8
         assert processor.device == "cpu"
-        assert processor.fitted == False
+        assert processor.fitted is False
     except ImportError:
         pytest.skip("PyTorch not available")
 
@@ -44,7 +43,7 @@ def test_fit_signal():
         assert 'final_loss' in result
         assert 'epochs' in result
         assert result['epochs'] == 100
-        assert processor.fitted == True
+        assert processor.fitted is True
     except ImportError:
         pytest.skip("PyTorch not available")
 
