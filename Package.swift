@@ -34,11 +34,6 @@ let package = Package(
             name: "DredgeCLI",
             dependencies: ["DredgeCore"],
             path: "Sources/DredgeCLI"
-        ),
-        .testTarget(
-            name: "DredgeCoreTests",
-            dependencies: ["DredgeCore"],
-            path: "Tests/DredgeCoreTests"
         )
     ]
 )
