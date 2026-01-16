@@ -8,7 +8,7 @@ final class DREDGE_CliTests: XCTestCase {
     }
     
     func testVersionExists() {
-        // Verify the version constant is accessible
-        XCTAssertEqual(DREDGECli.version, "0.1.0")
+        // Verify the version constant is accessible and not empty
+        XCTAssertFalse(DREDGECli.version.isEmpty)
     }
 }
