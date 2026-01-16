@@ -24,7 +24,7 @@ jobs:
         run: swift --version
 
       - name: Build with SPM
-        run: swift build
+        run: swift build --product dredge-cli
 
       - name: Run tests with SPM
         run: swift test
