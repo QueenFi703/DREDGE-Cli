@@ -67,3 +67,16 @@ pytest
 - Edit code in src/dredge
 - Update version in pyproject.toml
 - Tag releases with v<version> and push tags
+
+## Repository Structure
+
+```
+DREDGE-Cli/
+├── src/dredge/          # Main Python package source code
+├── tests/               # Test suite
+├── docs/                # Documentation and guides
+│   ├── assets/          # Images and visual assets
+│   └── papers/          # Research papers (LaTeX)
+├── benchmarks/          # Performance benchmarks and scripts
+└── legacy/              # Legacy Swift implementation files
+```
