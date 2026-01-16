@@ -15,8 +15,6 @@ env:
   # WORKSPACE: "MyApp.xcworkspace"
   # SCHEME: "MyApp"
   # If you leave WORKSPACE empty, workflow attempts to auto-detect a workspace or project.
-  DESTINATION_1: "platform=iOS Simulator,name=iPhone 14,OS=17.2"
-  DESTINATION_2: "platform=iOS Simulator,name=iPhone 14 Pro,OS=17.2"
   DOLLY_PACKAGE_PATH: "Packages/Dolly"
 
 jobs:
@@ -130,7 +128,7 @@ jobs:
             # Try to pull a usable scheme name from JSON output (best-effort)
             if [[ -n "$SCHEMES" ]]; then
               # Extract first scheme name from JSON using jq for robust parsing
-              DETECTED=$(echo "$SCHEMES" | jq -r '.workspace.schemes[0] // .project.schemes[0] // .schemes[0] // empty' 2>/dev/null || echo "")
+              DETECTED=$(echo "$SCHEMES" | jq -r '.workspace.schemes[0] // .project.schemes[0] // empty' 2>/dev/null || echo "")
               if [[ -n "$DETECTED" ]]; then
                 echo "Detected scheme: $DETECTED"
                 echo "scheme=$DETECTED" >> $GITHUB_OUTPUT
