@@ -66,9 +66,6 @@ jobs:
           xcodebuild -version
           xcodebuild -showsdks
 
-      - name: Install jq for JSON parsing
-        run: brew install jq
-
       - name: Install xcpretty for nicer logs
         run: |
           set -euo pipefail
@@ -113,12 +110,12 @@ jobs:
             echo "scheme=${SCHEME}" >> $GITHUB_OUTPUT
           else
             # If workspace was found, list schemes
-            if [[ -n "${workspace-}" || -n "${WS-}" ]]; then
-              TARGET_WS="${WS:-${WORKSPACE:-}}"
+            if [[ -n "${WS-}" ]]; then
+              TARGET_WS="${WS}"
               echo "Listing schemes for workspace ${TARGET_WS}"
               SCHEMES=$(xcodebuild -workspace "${TARGET_WS}" -list -json 2>/dev/null || true)
-            elif [[ -n "${project-}" || -n "${PJ-}" ]]; then
-              TARGET_PJ="${PJ:-${project:-}}"
+            elif [[ -n "${PJ-}" ]]; then
+              TARGET_PJ="${PJ}"
               echo "Listing schemes for project ${TARGET_PJ}"
               SCHEMES=$(xcodebuild -project "${TARGET_PJ}" -list -json 2>/dev/null || true)
             else
