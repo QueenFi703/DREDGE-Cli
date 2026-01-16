@@ -5,10 +5,12 @@ This directory contains Swift-related files for the DREDGE project.
 ## Contents
 
 - **Package.swift** - Swift Package Manager configuration
-- **Sources/** - Swift source code
-- **DREDGE_MVP.swift** - MVP implementation
-- **SharedStore.swift** - Shared store implementation
-- **AboutStrings.strings** - Localized strings
+- **Sources/** - CLI executable source code (main.swift)
+- **Tests/** - Test files
+- **DREDGE_MVP_App/** - iOS MVP app implementation
+  - DREDGE_MVP.swift - iOS app with SwiftUI
+  - SharedStore.swift - Shared store implementation
+  - AboutStrings.strings - Localized strings
 
 ## Building
 
