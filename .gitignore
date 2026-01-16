@@ -17,3 +17,10 @@ dist/
 .vscode/
 .idea/
 *.swp
+
+# Swift build artifacts
+.build/
+*.xcodeproj
+*.xcworkspace
+DerivedData/
+.swiftpm/

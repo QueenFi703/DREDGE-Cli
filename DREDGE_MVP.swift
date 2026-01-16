@@ -110,14 +110,21 @@ struct ContentView: View {
 // MARK: - Dredge Engine
 
 struct DredgeEngine {
+    // Cache NLTagger instance to avoid repeated initialization overhead
+    private static let sentimentTagger: NLTagger = {
+        let tagger = NLTagger(tagSchemes: [.sentimentScore])
+        return tagger
+    }()
+    
     static func process(thoughts: [String]) -> String {
         guard !thoughts.isEmpty else { return "Still waters." }
 
+        // Efficient string joining - joined() is optimized internally
         let text = thoughts.joined(separator: ". ")
-        let tagger = NLTagger(tagSchemes: [.sentimentScore])
-        tagger.string = text
+        
+        sentimentTagger.string = text
 
-        let sentiment = tagger.tag(
+        let sentiment = sentimentTagger.tag(
             at: text.startIndex,
             unit: .paragraph,
             scheme: .sentimentScore
@@ -143,10 +150,15 @@ final class VoiceDredger {
     private let recognizer = SFSpeechRecognizer()
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
+    
+    // Configurable buffer size for performance tuning (default: 1024)
+    // Larger buffers reduce CPU overhead but increase latency
+    private let bufferSize: AVAudioFrameCount
 
     var latestTranscription: String?
 
-    init() {
+    init(bufferSize: AVAudioFrameCount = 1024) {
+        self.bufferSize = bufferSize
         SFSpeechRecognizer.requestAuthorization { _ in }
     }
 
@@ -158,7 +170,7 @@ final class VoiceDredger {
         let inputNode = audioEngine.inputNode
         let format = inputNode.outputFormat(forBus: 0)
 
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) {
+        inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: format) {
             buffer, _ in request.append(buffer)
         }
 
@@ -185,6 +197,18 @@ final class VoiceDredger {
 class DredgeOperation: Operation {
     override func main() {
         if isCancelled { return }
-        sleep(2)
+        
+        // ⚠️ PERFORMANCE NOTE: This is placeholder code
+        // Thread.sleep() is used here only to simulate processing time for demonstration
+        // In production, this entire operation should be replaced with actual work:
+        //   - Process cached thoughts: DredgeEngine.process(thoughts: loadCachedThoughts())
+        //   - Sync data to SharedStore or cloud services
+        //   - Perform maintenance tasks (cleanup, optimization)
+        //   - Pre-load or cache resources
+        // The actual work will determine the appropriate threading model
+        
+        Thread.sleep(forTimeInterval: 2.0)  // Placeholder - replace entire implementation
+        
+        if isCancelled { return }
     }
 }

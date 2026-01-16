@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "dredge"
-version = "0.1.0"
+name = "dredge-cli"
+version = "0.1.4"
 description = "DREDGE — A small Python utility (scaffold)."
 readme = "README.md"
 license = { text = "MIT" }
@@ -17,6 +17,9 @@ classifiers = [
   "Operating System :: OS Independent",
 ]
 dependencies = []
+
+[project.scripts]
+dredge-cli = "dredge.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/QueenFi703/DREDGE"
