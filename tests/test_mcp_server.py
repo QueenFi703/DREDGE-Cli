@@ -1,0 +1,174 @@
+"""Tests for the DREDGE MCP server."""
+import pytest
+import json
+from dredge.mcp_server import QuasimotoMCPServer, create_mcp_app
+
+
+def test_mcp_server_creation():
+    """Test that MCP server can be created."""
+    server = QuasimotoMCPServer()
+    assert server is not None
+    assert isinstance(server.models, dict)
+    assert len(server.models) == 0
+
+
+def test_list_capabilities():
+    """Test listing MCP server capabilities."""
+    server = QuasimotoMCPServer()
+    capabilities = server.list_capabilities()
+    
+    assert capabilities["name"] == "DREDGE Quasimoto MCP Server"
+    assert "version" in capabilities
+    assert "protocol" in capabilities
+    assert "capabilities" in capabilities
+    assert "models" in capabilities["capabilities"]
+    assert "operations" in capabilities["capabilities"]
+
+
+def test_load_quasimoto_1d():
+    """Test loading 1D Quasimoto model."""
+    server = QuasimotoMCPServer()
+    result = server.load_model("quasimoto_1d")
+    
+    assert result["success"] is True
+    assert "model_id" in result
+    assert result["model_type"] == "quasimoto_1d"
+    assert result["n_parameters"] == 8
+
+
+def test_load_quasimoto_ensemble():
+    """Test loading Quasimoto ensemble model."""
+    server = QuasimotoMCPServer()
+    result = server.load_model("quasimoto_ensemble", {"n_waves": 8})
+    
+    assert result["success"] is True
+    assert "model_id" in result
+    assert result["model_type"] == "quasimoto_ensemble"
+    assert result["n_parameters"] > 0
+
+
+def test_inference_1d():
+    """Test inference on 1D model."""
+    server = QuasimotoMCPServer()
+    load_result = server.load_model("quasimoto_1d")
+    model_id = load_result["model_id"]
+    
+    inference_result = server.inference(model_id, {"x": [0.5], "t": [0.0]})
+    
+    assert inference_result["success"] is True
+    assert "output" in inference_result
+    assert isinstance(inference_result["output"], list)
+
+
+def test_get_parameters():
+    """Test getting model parameters."""
+    server = QuasimotoMCPServer()
+    load_result = server.load_model("quasimoto_1d")
+    model_id = load_result["model_id"]
+    
+    params_result = server.get_parameters(model_id)
+    
+    assert params_result["success"] is True
+    assert "parameters" in params_result
+    assert "A" in params_result["parameters"]
+    assert params_result["n_parameters"] == 8
+
+
+def test_benchmark():
+    """Test running a benchmark."""
+    server = QuasimotoMCPServer()
+    result = server.benchmark("quasimoto_1d", {"epochs": 10})
+    
+    assert result["success"] is True
+    assert result["epochs"] == 10
+    assert "final_loss" in result
+    assert "initial_loss" in result
+    assert result["final_loss"] < result["initial_loss"]  # Training should reduce loss
+
+
+def test_handle_request():
+    """Test handling MCP requests."""
+    server = QuasimotoMCPServer()
+    
+    # Test list capabilities
+    response = server.handle_request({"operation": "list_capabilities"})
+    assert "name" in response
+    
+    # Test load model
+    response = server.handle_request({
+        "operation": "load_model",
+        "params": {"model_type": "quasimoto_1d"}
+    })
+    assert response["success"] is True
+
+
+def test_mcp_app_creation():
+    """Test that the Flask app can be created."""
+    app = create_mcp_app()
+    assert app is not None
+    
+    with app.test_client() as client:
+        # Test root endpoint
+        response = client.get('/')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert "name" in data
+        
+        # Test MCP endpoint
+        response = client.post('/mcp', 
+                              json={"operation": "list_capabilities"},
+                              content_type='application/json')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert "capabilities" in data
+
+
+def test_mcp_endpoint_load_and_inference():
+    """Test full workflow via MCP endpoint."""
+    app = create_mcp_app()
+    
+    with app.test_client() as client:
+        # Load model
+        response = client.post('/mcp',
+                              json={
+                                  "operation": "load_model",
+                                  "params": {"model_type": "quasimoto_1d"}
+                              },
+                              content_type='application/json')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data["success"] is True
+        model_id = data["model_id"]
+        
+        # Run inference
+        response = client.post('/mcp',
+                              json={
+                                  "operation": "inference",
+                                  "params": {
+                                      "model_id": model_id,
+                                      "inputs": {"x": [0.5], "t": [0.0]}
+                                  }
+                              },
+                              content_type='application/json')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data["success"] is True
+        assert "output" in data
+
+
+def test_invalid_model_type():
+    """Test handling of invalid model type."""
+    server = QuasimotoMCPServer()
+    result = server.load_model("invalid_model")
+    
+    assert result["success"] is False
+    assert "error" in result
+
+
+def test_inference_on_nonexistent_model():
+    """Test inference on non-existent model."""
+    server = QuasimotoMCPServer()
+    result = server.inference("nonexistent", {"x": [0.0], "t": [0.0]})
+    
+    assert result["success"] is False
+    assert "error" in result
