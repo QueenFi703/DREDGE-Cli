@@ -1,6 +1,7 @@
 """
 DREDGE x Dolly Server
 A lightweight web server for the DREDGE x Dolly integration.
+Includes MCP tools for Quasimoto wave processing.
 """
 import hashlib
 import os
@@ -8,6 +9,7 @@ from functools import lru_cache
 from flask import Flask, jsonify, request
 
 from . import __version__
+from . import mcp_server
 
 
 @lru_cache(maxsize=1024)
@@ -31,6 +33,8 @@ def create_app():
                 "/": "API information",
                 "/health": "Health check",
                 "/lift": "Lift an insight (POST)",
+                "/mcp/tools": "List available MCP tools",
+                "/mcp/call": "Call an MCP tool (POST)",
             }
         })
     
@@ -72,6 +76,35 @@ def create_app():
         
         return jsonify(result)
     
+    @app.route('/mcp/tools')
+    def mcp_tools():
+        """List available MCP tools."""
+        return jsonify(mcp_server.get_tool_info())
+    
+    @app.route('/mcp/call', methods=['POST'])
+    def mcp_call():
+        """
+        Call an MCP tool.
+        
+        Expected JSON payload:
+        {
+            "tool": "tool_name",
+            "parameters": {...}
+        }
+        """
+        data = request.get_json()
+        
+        if not data or 'tool' not in data:
+            return jsonify({
+                "error": "Missing required field: tool"
+            }), 400
+        
+        tool_name = data['tool']
+        parameters = data.get('parameters', {})
+        
+        result = mcp_server.call_tool(tool_name, **parameters)
+        return jsonify(result)
+    
     return app
 
 
@@ -88,6 +121,7 @@ def run_server(host='0.0.0.0', port=3001, debug=False):
     print(f"🚀 Starting DREDGE x Dolly server on http://{host}:{port}")
     print(f"📡 API Version: {__version__}")
     print(f"🔧 Debug mode: {debug}")
+    print(f"🌊 MCP Tools: {len(mcp_server.MCP_TOOLS)} available")
     app.run(host=host, port=port, debug=debug)
 
 
