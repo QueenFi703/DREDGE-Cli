@@ -130,6 +130,10 @@ Test Suite 'DREDGE_CliTests' passed
 
 6. ✅ **Synchronized version numbers** - Updated code version from 0.1.0 to 0.1.4 to match pyproject.toml
 
+7. ✅ **Added root Package.swift** - Created properly configured root Package.swift that references swift/ subdirectory structure
+
+8. ✅ **Fixed Swift test imports** - Updated test to import `DREDGECli` instead of `DREDGE_Cli`
+
 ## Dependencies
 
 ### Python (requirements.txt)

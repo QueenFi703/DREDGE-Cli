@@ -4,23 +4,27 @@ import PackageDescription
 let package = Package(
     name: "DREDGE-Cli",
     platforms: [
-        .macOS(.v12)
+        .macOS(.v12),
+        .iOS(.v15)
     ],
     products: [
+        // Executable CLI tool
         .executable(
             name: "dredge-cli",
             targets: ["DREDGECli"]
         )
     ],
     targets: [
+        // CLI executable target (from swift/Sources/main.swift)
         .executableTarget(
             name: "DREDGECli",
-            path: "Sources"
+            path: "swift/Sources"
         ),
+        // Test target
         .testTarget(
             name: "DREDGE-CliTests",
             dependencies: ["DREDGECli"],
-            path: "Tests/DREDGE-CliTests"
+            path: "swift/Tests/DREDGE-CliTests"
         )
     ]
 )

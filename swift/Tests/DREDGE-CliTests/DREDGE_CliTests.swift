@@ -1,5 +1,5 @@
 import XCTest
-@testable import DREDGE_Cli
+@testable import DREDGECli
 
 final class DREDGE_CliTests: XCTestCase {
     func testVersion() {

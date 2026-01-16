@@ -87,6 +87,24 @@ pytest
 ```
 
 ### Swift
+
+The repository includes two Package.swift configurations:
+
+#### Option 1: Build from root directory (recommended)
+```bash
+# Build
+swift build
+
+# Run
+swift run dredge-cli
+# or
+./.build/debug/dredge-cli
+
+# Test
+swift test
+```
+
+#### Option 2: Build from swift/ subdirectory
 ```bash
 # Build
 cd swift
@@ -94,10 +112,14 @@ swift build
 
 # Run
 swift run dredge-cli
+# or
+./.build/debug/dredge-cli
 
 # Test
 swift test
 ```
+
+Both configurations produce the same executable and are fully interchangeable.
 
 ## Adding New Files
 
@@ -115,8 +137,24 @@ This reorganization was performed to clean up the main branch architecture. File
 
 ### Recent Changes (2026-01-16)
 
-- **Removed** conflicting root `Package.swift` that referenced non-existent directories
+- **Removed** conflicting root `Package.swift` that referenced non-existent directories (initially)
 - **Moved** `Tests/` directory into `swift/Tests/` to properly organize Swift tests
 - **Updated** `swift/Package.swift` to include test targets
 - **Fixed** Python test command names to use `dredge-cli` instead of `dredge`
 - **Fixed** Python performance tests to properly import benchmark modules
+- **Added** root `Package.swift` that properly references the swift/ subdirectory structure
+- **Fixed** Swift test imports to use correct module name (`DREDGECli`)
+
+### Package.swift Structure
+
+The repository now has two working Package.swift files:
+
+1. **Root Package.swift** (`/Package.swift`) - References code in `swift/` subdirectory
+   - Targets: `DREDGECli` (executable), `DREDGE-CliTests` (tests)
+   - Can build from root: `swift build`
+
+2. **Swift subdirectory Package.swift** (`/swift/Package.swift`) - Self-contained
+   - Same targets and functionality
+   - Can build from swift/: `cd swift && swift build`
+
+Both configurations are maintained and produce identical executables.
