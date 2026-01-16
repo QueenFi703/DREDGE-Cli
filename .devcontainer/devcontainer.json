@@ -8,11 +8,15 @@
     }
   },
   
-  "forwardPorts": [3001],
+  "forwardPorts": [3001, 3002],
   
   "portsAttributes": {
     "3001": {
       "label": "DREDGE x Dolly Server",
+      "onAutoForward": "notify"
+    },
+    "3002": {
+      "label": "DREDGE MCP Server (Quasimoto)",
       "onAutoForward": "notify"
     }
   },
