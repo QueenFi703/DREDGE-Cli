@@ -23,6 +23,8 @@ dist/
 *.xcodeproj
 DerivedData/
 .swiftpm/
+# But allow shared Xcode schemes
+!.swiftpm/xcode/xcshareddata/
 
 # Xcode workspace: allow DREDGE-Cli.xcworkspace but exclude user-specific data
 *.xcworkspace
