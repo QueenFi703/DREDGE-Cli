@@ -21,9 +21,17 @@ dist/
 # Swift build artifacts
 .build/
 *.xcodeproj
-*.xcworkspace
 DerivedData/
 .swiftpm/
+
+# Allow the main workspace but exclude SPM-generated ones
+*.xcworkspace/*
+!DREDGE-Cli.xcworkspace/
+DREDGE-Cli.xcworkspace/*
+!DREDGE-Cli.xcworkspace/contents.xcworkspacedata
+!DREDGE-Cli.xcworkspace/xcshareddata/
+DREDGE-Cli.xcworkspace/xcshareddata/*
+!DREDGE-Cli.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
 
 # Archives and temporary files
 archives/
