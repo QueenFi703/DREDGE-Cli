@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software or Quasimoto architecture in your research, please cite it as below."
+authors:
+  - family-names: "QueenFi703"
+    given-names: "Fi"
+title: "DREDGE-Cli: Quasimoto Wave Function Architecture for Non-Stationary Signal Processing"
+version: 0.1.4
+date-released: 2026-01-16
+url: "https://github.com/QueenFi703/DREDGE-Cli"
+repository-code: "https://github.com/QueenFi703/DREDGE-Cli"
+keywords:
+  - neural-networks
+  - wave-functions
+  - signal-processing
+  - machine-learning
+  - pytorch
+  - swift
+  - continuous-function-representation
+license: MIT
+abstract: "Quasimoto is a family of neural network architectures based on learnable wave functions with Gaussian envelopes and phase modulation for continuous function representation. Unlike global frequency models such as SIREN or Random Fourier Features, Quasimoto enables localized activation and adaptive frequency warping, providing significant advantages for signals with spatial or temporal irregularities."
