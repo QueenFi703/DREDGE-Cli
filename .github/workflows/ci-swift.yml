@@ -25,13 +25,13 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Show Swift version
         run: swift --version
 
       - name: Cache SwiftPM build artifacts
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             .build
@@ -61,7 +61,7 @@ jobs:
         # You can extend matrix with different Xcode versions or destinations later
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Show Xcode / xcodebuild version
         run: |
@@ -69,13 +69,25 @@ jobs:
           xcodebuild -showsdks
 
       - name: Install xcpretty for nicer logs
-        run: gem install xcpretty
+        run: |
+          set -euo pipefail
+          if ! gem install xcpretty; then
+            echo "Error: Failed to install xcpretty via gem." >&2
+            exit 1
+          fi
 
       - name: Install CocoaPods (if Podfile exists)
         run: |
+          set -euo pipefail
           if [ -f Podfile ]; then
-            gem install cocoapods
-            pod install --repo-update
+            if ! gem install cocoapods; then
+              echo "Error: Failed to install CocoaPods via gem." >&2
+              exit 1
+            fi
+            if ! pod install --repo-update; then
+              echo "Error: 'pod install --repo-update' failed." >&2
+              exit 1
+            fi
           fi
 
       - name: Auto-detect workspace/project and scheme (if not provided)
@@ -123,8 +135,8 @@ jobs:
 
             # Try to pull a usable scheme name from JSON output (best-effort)
             if [[ -n "$SCHEMES" ]]; then
-              # Extract first scheme name from JSON using grep (portable approach)
-              DETECTED=$(echo "$SCHEMES" | tr -d '\r\n' | sed -n 's/.*"schemes":[^[]*\[\([^]]*\)\].*/\1/p' | sed 's/"//g' | awk -F, '{print $1}' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+              # Extract first scheme name from JSON using jq for robust parsing
+              DETECTED=$(echo "$SCHEMES" | jq -r '.workspace.schemes[0] // .project.schemes[0] // .schemes[0] // empty' 2>/dev/null || echo "")
               if [[ -n "$DETECTED" ]]; then
                 echo "Detected scheme: $DETECTED"
                 echo "scheme=$DETECTED" >> $GITHUB_OUTPUT
@@ -173,7 +185,7 @@ jobs:
       - ios-simulator-tests
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Final integration gate
         run: |
