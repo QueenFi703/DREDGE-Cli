@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  dredge-server:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      - FLASK_ENV=production
+    command: dredge-cli serve --host 0.0.0.0 --port 3001
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  dredge-mcp:
+    build: .
+    ports:
+      - "3002:3002"
+    environment:
+      - FLASK_ENV=production
+    command: dredge-cli mcp --host 0.0.0.0 --port 3002
+    restart: unless-stopped
