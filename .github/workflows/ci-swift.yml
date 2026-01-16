@@ -1,4 +1,4 @@
-# Swift Package Manager CI
+# Swift CI - Builds using both SPM and Xcode
 name: Swift CI
 
 on:
@@ -13,7 +13,8 @@ permissions:
   contents: read
 
 jobs:
-  swift-build-and-test:
+  swift-spm-build:
+    name: SPM Build and Test
     runs-on: macos-latest
     permissions:
       contents: read
@@ -24,8 +25,36 @@ jobs:
       - name: Show Swift version
         run: swift --version
 
-      - name: Build
+      - name: Build with SPM
         run: swift build
 
-      - name: Run tests
+      - name: Run tests with SPM
         run: swift test
+
+  xcode-build:
+    name: Xcode Build and Test
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build with Xcode
+        run: |
+          xcodebuild clean build \
+            -scheme dredge-cli \
+            -destination 'platform=macOS' \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Test with Xcode
+        run: |
+          xcodebuild test \
+            -scheme dredge-cli \
+            -destination 'platform=macOS' \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO
