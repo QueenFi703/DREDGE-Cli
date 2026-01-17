@@ -20,7 +20,7 @@ code DREDGE-Cli
 
 - **src/dredge/** - Python package source code
 - **tests/** - Test files
-- **docs/** - Documentation files
+- **docs/** - Documentation files (see [docs/mobile-optimization.md](docs/mobile-optimization.md) for mobile guidance)
 - **benchmarks/** - Benchmark scripts and results
 - **swift/** - Swift implementation files
 - **DREDGE-Cli.xcworkspace** - Xcode workspace for Swift development
