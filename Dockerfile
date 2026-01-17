@@ -1,6 +1,12 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # DREDGE-Cli Multi-Stage Dockerfile
 # Optimized for CPU (Flask) and GPU (PyTorch/Dolly) workloads
+# 
+# Platform Support:
+# - Linux with NVIDIA GPU: Use gpu-build stage (CUDA 11.8)
+# - Linux CPU-only: Use cpu-build stage
+# - macOS with Apple Silicon (M1/M2/M3): MPS support not available in Docker
+#   For macOS/MPS: Install locally with `pip install -e .` (PyTorch >=2.0 includes MPS)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # ─────────────────────────────────────────────────────────────────────

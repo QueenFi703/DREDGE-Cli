@@ -97,6 +97,12 @@ def main(argv=None):
         default=1 if ctx["is_mobile"] else 0,
         help="Worker threads (mobile-safe default: 1; set >1 to override)",
     )
+    mcp_parser.add_argument(
+        "--device",
+        choices=["auto", "cpu", "cuda", "mps"],
+        default="auto",
+        help="Device to use for computation (default: auto-detect)"
+    )
     
     args = parser.parse_args(argv)
     
@@ -111,7 +117,7 @@ def main(argv=None):
     
     if args.command == "mcp":
         from .mcp_server import run_mcp_server
-        run_mcp_server(host=args.host, port=args.port, debug=args.debug)
+        run_mcp_server(host=args.host, port=args.port, debug=args.debug, device=args.device)
         return 0
     
     parser.print_help()

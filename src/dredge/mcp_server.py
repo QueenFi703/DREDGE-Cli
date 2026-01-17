@@ -63,16 +63,41 @@ class QuasimotoMCPServer:
     via the Model Context Protocol with caching, monitoring, and GPU support.
     """
     
-    def __init__(self, use_cache: bool = True, enable_metrics: bool = True):
+    def __init__(self, use_cache: bool = True, enable_metrics: bool = True, device: str = 'auto'):
         self.logger = get_logger("MCPServer")
+        
+        # Determine device from parameter, env var, or auto-detect
+        import os
+        if device == 'auto':
+            device = os.getenv('DEVICE', 'auto')
+        
+        # Get device info before initialization
+        device_info_early = get_device_info()
+        
+        # Resolve 'auto' to actual device
+        if device == 'auto':
+            self.device = device_info_early['optimal_device']
+        else:
+            self.device = device
+        
+        # Warn if requested device is not available
+        if self.device == 'cuda' and not device_info_early['cuda_available']:
+            self.logger.warning("CUDA requested but not available, falling back to CPU")
+            self.device = 'cpu'
+        elif self.device == 'mps' and not device_info_early['mps_available']:
+            self.logger.warning("MPS requested but not available, falling back to CPU")
+            self.device = 'cpu'
+        
         self.logger.info("Initializing Quasimoto MCP Server", extra={
             "version": __version__,
             "cache_enabled": use_cache,
-            "metrics_enabled": enable_metrics
+            "metrics_enabled": enable_metrics,
+            "device": self.device,
+            "device_info": device_info_early
         })
         self.models: Dict[str, nn.Module] = {}
         self.model_configs: Dict[str, Dict[str, Any]] = {}
-        self.string_theory_server = DREDGEStringTheoryServer(use_cache=use_cache)
+        self.string_theory_server = DREDGEStringTheoryServer(use_cache=use_cache, device=self.device)
         
         # Initialize metrics and caching
         self.enable_metrics = enable_metrics
@@ -188,6 +213,10 @@ class QuasimotoMCPServer:
                     "error": f"Unknown model type: {model_type}"
                 }
             
+            # Move model to the configured device
+            model = model.to(self.device)
+            self.logger.debug(f"Moved model to device", extra={"device": self.device})
+            
             # Count parameters
             n_params = sum(p.numel() for p in model.parameters())
             
@@ -195,7 +224,8 @@ class QuasimotoMCPServer:
             self.model_configs[model_id] = {
                 "type": model_type,
                 "config": config,
-                "n_parameters": n_params
+                "n_parameters": n_params,
+                "device": self.device
             }
             
             self.logger.info(f"Model loaded successfully", extra={
@@ -232,9 +262,9 @@ class QuasimotoMCPServer:
             keys: List of keys to extract from inputs
             
         Returns:
-            List of tensors
+            List of tensors on the correct device
         """
-        return [torch.tensor(inputs.get(key, [0.0])) for key in keys]
+        return [torch.tensor(inputs.get(key, [0.0]), device=self.device) for key in keys]
     
     def inference(self, model_id: str, inputs: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -389,11 +419,16 @@ class QuasimotoMCPServer:
                 # Generate 1D test data
                 x, t, y = generate_data()
                 
+                # Move data to device
+                x = x.to(self.device)
+                t = t.to(self.device)
+                y = y.to(self.device)
+                
                 if model_type == "quasimoto_1d":
-                    model = QuasimotoWave()
+                    model = QuasimotoWave().to(self.device)
                 else:
                     n_waves = config.get("n_waves", 16)
-                    model = QuasimotoEnsemble(n=n_waves)
+                    model = QuasimotoEnsemble(n=n_waves).to(self.device)
                 
                 # Simple training loop
                 optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
@@ -413,7 +448,8 @@ class QuasimotoMCPServer:
                     "epochs": epochs,
                     "final_loss": losses[-1],
                     "initial_loss": losses[0],
-                    "losses": losses[::max(1, epochs // 10)]  # Sample 10 points
+                    "losses": losses[::max(1, epochs // 10)],  # Sample 10 points
+                    "device": self.device
                 }
             else:
                 return {
@@ -628,12 +664,12 @@ class QuasimotoMCPServer:
             }
 
 
-def create_mcp_app():
+def create_mcp_app(device='auto'):
     """Create Flask app for MCP server."""
     from flask import Flask, jsonify, request
     
     app = Flask(__name__)
-    server = QuasimotoMCPServer()
+    server = QuasimotoMCPServer(device=device)
     
     @app.route('/')
     def index():
@@ -656,7 +692,7 @@ def create_mcp_app():
     return app
 
 
-def run_mcp_server(host='0.0.0.0', port=3002, debug=False):
+def run_mcp_server(host='0.0.0.0', port=3002, debug=False, device='auto'):
     """
     Run the DREDGE MCP server.
     
@@ -664,12 +700,21 @@ def run_mcp_server(host='0.0.0.0', port=3002, debug=False):
         host: Host to bind to (default: 0.0.0.0)
         port: Port to listen on (default: 3002)
         debug: Enable debug mode (default: False)
+        device: Device to use for computation ('auto', 'cpu', 'cuda', 'mps')
     """
-    app = create_mcp_app()
+    app = create_mcp_app(device=device)
+    device_info = get_device_info()
     print(f"🚀 Starting DREDGE MCP Server on http://{host}:{port}")
     print(f"📡 MCP Version: {__version__}")
     print(f"🌊 Quasimoto models available")
     print(f"🔧 Debug mode: {debug}")
+    print(f"⚡ Device: {device_info['optimal_device']} (requested: {device})")
+    if device_info['cuda_available']:
+        print(f"   ✓ CUDA available: {device_info.get('cuda_device_name', 'Unknown')}")
+    if device_info['mps_available']:
+        print(f"   ✓ MPS (Apple Metal) available")
+    if not device_info['cuda_available'] and not device_info['mps_available']:
+        print(f"   ⚠ Running on CPU only (no GPU acceleration)")
     app.run(host=host, port=port, debug=debug)
 
 

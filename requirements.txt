@@ -2,6 +2,22 @@
 # Example:
 # requests
 flask>=3.0.0
+
+# PyTorch - Platform-specific installations:
+# 
+# For CUDA (Linux with NVIDIA GPU):
+#   pip install torch>=2.0.0 --index-url https://download.pytorch.org/whl/cu118
+# 
+# For MPS (macOS with Apple Silicon M1/M2/M3):
+#   pip install torch>=2.0.0
+#   Note: MPS support requires macOS 12.3+ and is included in standard PyTorch wheels
+#   Verify MPS availability: python -c "import torch; print(torch.backends.mps.is_available())"
+# 
+# For CPU-only (any platform):
+#   pip install torch>=2.0.0
+# 
+# Default installation (auto-detects platform):
 torch>=2.0.0
+
 numpy>=1.24.0
 matplotlib>=3.5.0
