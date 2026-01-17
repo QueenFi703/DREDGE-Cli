@@ -2,6 +2,7 @@
 // MVP iOS Dredge Agent
 // SwiftUI + Background Tasks + Voice + Lock Screen Widget
 
+#if os(iOS) || os(macOS)
 import SwiftUI
 #if os(iOS)
 import BackgroundTasks
@@ -218,3 +219,4 @@ class DredgeOperation: Operation {
         if isCancelled { return }
     }
 }
+#endif
