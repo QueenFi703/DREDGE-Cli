@@ -4,10 +4,23 @@ Model Context Protocol server for serving Quasimoto wave function models.
 Integrates Quasimoto benchmarks with MCP protocol for external applications.
 """
 import json
+import logging
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 import torch
 import torch.nn as nn
+
+# Configure structured logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] [%(levelname)s] [%(name)s] %(message)s',
+    datefmt='%Y-%m-%dT%H:%M:%SZ'
+)
+
+def get_logger(component: str) -> logging.Logger:
+    """Get a logger for a specific component."""
+    return logging.getLogger(f"DREDGE.{component}")
 
 # Import from benchmarks - assumes benchmarks are in Python path or installed
 try:
@@ -47,12 +60,18 @@ class QuasimotoMCPServer:
     """
     
     def __init__(self):
+        self.logger = get_logger("MCPServer")
+        self.logger.info("Initializing Quasimoto MCP Server", extra={
+            "version": __version__
+        })
         self.models: Dict[str, nn.Module] = {}
         self.model_configs: Dict[str, Dict[str, Any]] = {}
         self.string_theory_server = DREDGEStringTheoryServer()
+        self.logger.info("MCP Server initialized successfully")
         
     def list_capabilities(self) -> Dict[str, Any]:
         """List available MCP server capabilities."""
+        self.logger.debug("Listing capabilities")
         return {
             "name": "DREDGE Quasimoto String Theory MCP Server",
             "version": __version__,
@@ -88,6 +107,11 @@ class QuasimotoMCPServer:
         Returns:
             Model information and status
         """
+        self.logger.info(f"Loading model", extra={
+            "model_type": model_type,
+            "config": config
+        })
+        
         config = config or {}
         model_id = f"{model_type}_{len(self.models)}"
         
@@ -101,17 +125,28 @@ class QuasimotoMCPServer:
             elif model_type == "quasimoto_ensemble":
                 n_waves = config.get("n_waves", 16)
                 model = QuasimotoEnsemble(n=n_waves)
+                self.logger.debug(f"Created ensemble", extra={"n_waves": n_waves})
             elif model_type == "string_theory":
                 dimensions = config.get("dimensions", 10)
                 hidden_size = config.get("hidden_size", 64)
+                self.logger.debug(f"Loading string theory model", extra={
+                    "dimensions": dimensions,
+                    "hidden_size": hidden_size
+                })
                 result = self.string_theory_server.load_string_model(
                     dimensions=dimensions,
                     hidden_size=hidden_size
                 )
                 if result["success"]:
                     result["config"] = config
+                    self.logger.info(f"String theory model loaded successfully")
+                else:
+                    self.logger.error(f"Failed to load string theory model")
                 return result
             else:
+                self.logger.warning(f"Unknown model type requested", extra={
+                    "model_type": model_type
+                })
                 return {
                     "success": False,
                     "error": f"Unknown model type: {model_type}"
@@ -127,6 +162,13 @@ class QuasimotoMCPServer:
                 "n_parameters": n_params
             }
             
+            self.logger.info(f"Model loaded successfully", extra={
+                "model_id": model_id,
+                "model_type": model_type,
+                "n_parameters": n_params,
+                "total_models": len(self.models)
+            })
+            
             return {
                 "success": True,
                 "model_id": model_id,
@@ -136,6 +178,10 @@ class QuasimotoMCPServer:
             }
             
         except Exception as e:
+            self.logger.error(f"Failed to load model", extra={
+                "model_type": model_type,
+                "error": str(e)
+            }, exc_info=True)
             return {
                 "success": False,
                 "error": str(e)
@@ -330,26 +376,44 @@ class QuasimotoMCPServer:
         operation = request.get("operation")
         params = request.get("params", {})
         
-        if operation == "list_capabilities":
-            return self.list_capabilities()
-        elif operation == "load_model":
-            return self.load_model(params.get("model_type"), params.get("config"))
-        elif operation == "inference":
-            return self.inference(params.get("model_id"), params.get("inputs", {}))
-        elif operation == "get_parameters":
-            return self.get_parameters(params.get("model_id"))
-        elif operation == "benchmark":
-            return self.benchmark(params.get("model_type"), params.get("config"))
-        elif operation == "string_spectrum":
-            return self.string_spectrum(params)
-        elif operation == "string_parameters":
-            return self.string_parameters(params)
-        elif operation == "unified_inference":
-            return self.unified_inference(params)
-        else:
+        self.logger.info(f"Handling MCP request", extra={
+            "operation": operation,
+            "has_params": bool(params)
+        })
+        
+        try:
+            if operation == "list_capabilities":
+                return self.list_capabilities()
+            elif operation == "load_model":
+                return self.load_model(params.get("model_type"), params.get("config"))
+            elif operation == "inference":
+                return self.inference(params.get("model_id"), params.get("inputs", {}))
+            elif operation == "get_parameters":
+                return self.get_parameters(params.get("model_id"))
+            elif operation == "benchmark":
+                return self.benchmark(params.get("model_type"), params.get("config"))
+            elif operation == "string_spectrum":
+                return self.string_spectrum(params)
+            elif operation == "string_parameters":
+                return self.string_parameters(params)
+            elif operation == "unified_inference":
+                return self.unified_inference(params)
+            else:
+                self.logger.warning(f"Unknown operation requested", extra={
+                    "operation": operation
+                })
+                return {
+                    "success": False,
+                    "error": f"Unknown operation: {operation}"
+                }
+        except Exception as e:
+            self.logger.error(f"Error handling request", extra={
+                "operation": operation,
+                "error": str(e)
+            }, exc_info=True)
             return {
                 "success": False,
-                "error": f"Unknown operation: {operation}"
+                "error": f"Internal error: {str(e)}"
             }
     
     def string_spectrum(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -365,11 +429,27 @@ class QuasimotoMCPServer:
         try:
             max_modes = params.get("max_modes", 10)
             dimensions = params.get("dimensions", 10)
-            return self.string_theory_server.compute_string_spectrum(
+            
+            self.logger.info(f"Computing string spectrum", extra={
+                "max_modes": max_modes,
+                "dimensions": dimensions
+            })
+            
+            result = self.string_theory_server.compute_string_spectrum(
                 max_modes=max_modes,
                 dimensions=dimensions
             )
+            
+            if result.get("success"):
+                self.logger.debug(f"String spectrum computed successfully")
+            else:
+                self.logger.warning(f"String spectrum computation failed")
+                
+            return result
         except Exception as e:
+            self.logger.error(f"Error computing string spectrum", extra={
+                "error": str(e)
+            }, exc_info=True)
             return {
                 "success": False,
                 "error": str(e)
