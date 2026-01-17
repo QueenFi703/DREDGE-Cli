@@ -21,11 +21,10 @@ updates:
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "09:00"
+      interval: "daily"
+      time: "03:10"
       timezone: "America/New_York"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 10
     target-branch: "main"
     
     groups:
@@ -123,11 +122,10 @@ updates:
   - package-ecosystem: "swift"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "10:00"
+      interval: "daily"
+      time: "03:10"
       timezone: "America/New_York"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     target-branch: "main"
     labels:
       - "🤖 dependadredgeabot"
@@ -146,11 +144,10 @@ updates:
   - package-ecosystem: "swift"
     directory: "/swift"
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "10:00"
+      interval: "daily"
+      time: "03:10"
       timezone: "America/New_York"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     target-branch: "main"
     labels:
       - "🤖 dependadredgeabot"
@@ -173,11 +170,10 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "11:00"
+      interval: "daily"
+      time: "03:10"
       timezone: "America/New_York"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     target-branch: "main"
     labels:
       - "🤖 dependadredgeabot"
@@ -197,11 +193,10 @@ updates:
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "tuesday"
-      time: "09:00"
+      interval: "daily"
+      time: "03:10"
       timezone: "America/New_York"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 10
     target-branch: "main"
     labels:
       - "🤖 dependadredgeabot"
@@ -217,28 +212,25 @@ updates:
       # Python 3.13: Not yet compatible with current dependency ecosystem
       # pyproject.toml constrains to >=3.9,<3.13 for stability
       - dependency-name: "python"
-        versions: ["3.13", "3.13.*", ">=3.13"]
+        update-types: ["version-update:semver-major"]
       # CUDA 11.8: Required for PyTorch 2.x GPU kernel compatibility
       # Upgrading to 12.x would require PyTorch 3.x (breaking change)
       - dependency-name: "nvidia/cuda"
         update-types: ["version-update:semver-major"]
-      - dependency-name: "nvidia/cuda"
-        versions: ["12.*", ">=12.0"]
       # Ubuntu: Pin to 22.04 LTS for CUDA 11.8 compatibility
       - dependency-name: "ubuntu"
-        versions: ["23.*", ">=24.04"]
+        update-types: ["version-update:semver-major"]
       # Debian: Avoid unstable releases for production stability
       - dependency-name: "debian"
-        versions: ["testing", "unstable", "sid"]
+        update-types: ["version-update:semver-major"]
   
   - package-ecosystem: "docker"
     directory: "/docker"
     schedule:
-      interval: "weekly"
-      day: "tuesday"
-      time: "09:00"
+      interval: "daily"
+      time: "03:10"
       timezone: "America/New_York"
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 10
     target-branch: "main"
     labels:
       - "🤖 dependadredgeabot"
