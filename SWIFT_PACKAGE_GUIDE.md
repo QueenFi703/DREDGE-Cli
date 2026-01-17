@@ -1,5 +1,84 @@
 # Swift Development Guide
 
+## Quick Start
+
+### Using Swift Package Manager (SPM)
+
+Add DREDGE-Cli to your `Package.swift`:
+
+```swift
+// swift-tools-version:5.9
+import PackageDescription
+
+let package = Package(
+    name: "YourApp",
+    platforms: [
+        .macOS(.v12),
+        .iOS(.v15)
+    ],
+    dependencies: [
+        .package(url: "https://github.com/QueenFi703/DREDGE-Cli.git", from: "0.2.0")
+    ],
+    targets: [
+        .executableTarget(
+            name: "YourApp",
+            dependencies: [
+                .product(name: "DREDGECli", package: "DREDGE-Cli")
+            ]
+        )
+    ]
+)
+```
+
+Then import and use:
+
+```swift
+import DREDGECli
+
+// String Theory calculations
+let stringTheory = StringTheory(dimensions: 10)
+let spectrum = stringTheory.modeSpectrum(maxModes: 10)
+let mode = stringTheory.vibrationalMode(n: 1, x: 0.5)
+
+// MCP Client for server interactions
+let client = MCPClient(serverURL: "http://localhost:3002")
+if #available(macOS 12.0, iOS 15.0, *) {
+    let capabilities = try await client.listCapabilities()
+}
+
+// Unified DREDGE integration
+let unified = UnifiedDREDGE(dimensions: 10)
+if #available(macOS 12.0, iOS 15.0, *) {
+    let result = try await unified.unifiedInference(
+        insight: "Digital memory must be human-reachable",
+        coords: [0.5, 0.5, 0.5],
+        modes: [1, 2, 3]
+    )
+}
+```
+
+### Using Xcode
+
+1. **Add Package Dependency:**
+   - File → Add Package Dependencies...
+   - Enter: `https://github.com/QueenFi703/DREDGE-Cli.git`
+   - Select version: `0.2.0` or later
+
+2. **Import and Use:**
+   ```swift
+   import DREDGECli
+   
+   let stringTheory = StringTheory()
+   print(DREDGECli.version)
+   ```
+
+### Minimal Configuration
+
+No additional configuration required! DREDGE-Cli works out of the box with sensible defaults:
+- String Theory dimensions: 10 (superstring theory)
+- MCP Server URL: `http://localhost:3002`
+- Compatible with Swift 5.9+
+
 ## Overview
 
 The DREDGE-Cli repository includes a root-level `Package.swift` that allows building the Swift CLI directly from the repository root. This provides a more convenient developer experience while maintaining compatibility with the self-contained Swift project in the `swift/` subdirectory.
@@ -205,3 +284,169 @@ Both Package.swift files produce:
 This configuration was established on 2026-01-16 as part of the repository structure validation and cleanup. Both Package.swift files are maintained and should remain synchronized.
 
 For questions or issues with the Swift build configuration, refer to the Swift Package Manager documentation or open an issue in the repository.
+
+
+## Public API Reference
+
+### Core Types
+
+#### `DREDGECli`
+
+Main entry point with version information.
+
+```swift
+public struct DREDGECli {
+    public static let version: String  // Current version (semver format)
+    public static let tagline: String  // Project tagline
+    public static func run()           // Run CLI application
+}
+```
+
+**Example:**
+```swift
+print(DREDGECli.version)  // "0.2.0"
+print(DREDGECli.tagline)  // "Digital memory must be human-reachable."
+DREDGECli.run()           // Print CLI information
+```
+
+---
+
+#### `StringTheory`
+
+String theory calculations with vibrational modes and energy spectra.
+
+```swift
+public struct StringTheory {
+    public let dimensions: Int  // Number of dimensions (default: 10)
+    public let length: Double   // String length (default: 1.0)
+    
+    public init(dimensions: Int = 10, length: Double = 1.0)
+    
+    /// Calculate nth vibrational mode at position x
+    public func vibrationalMode(n: Int, x: Double) -> Double
+    
+    /// Calculate energy level for nth mode
+    public func energyLevel(n: Int) -> Double
+    
+    /// Generate energy spectrum
+    public func modeSpectrum(maxModes: Int = 10) -> [Double]
+}
+```
+
+**Example:**
+```swift
+let st = StringTheory(dimensions: 10, length: 1.0)
+let amplitude = st.vibrationalMode(n: 1, x: 0.5)  // 1.0
+let spectrum = st.modeSpectrum(maxModes: 5)
+```
+
+---
+
+#### `MCPClient`
+
+Client for interacting with MCP (Model Context Protocol) server.
+
+```swift
+public struct MCPClient {
+    public let serverURL: String
+    
+    public init(serverURL: String = "http://localhost:3002")
+    
+    // Apple Platforms Only (macOS 12+, iOS 15+)
+    @available(macOS 12.0, iOS 15.0, *)
+    public func listCapabilities() async throws -> [String: Any]
+    
+    @available(macOS 12.0, iOS 15.0, *)
+    public func sendRequest(operation: String, params: [String: Any]) async throws -> [String: Any]
+}
+```
+
+---
+
+#### `UnifiedDREDGE`
+
+Unified interface combining String Theory and MCP Client.
+
+```swift
+public struct UnifiedDREDGE {
+    public let stringTheory: StringTheory
+    public let mcpClient: MCPClient
+    
+    public init(dimensions: Int = 10, serverURL: String = "http://localhost:3002")
+    
+    @available(macOS 12.0, iOS 15.0, *)
+    public func unifiedInference(insight: String, coords: [Double], modes: [Int]) async throws -> [String: Any]
+    
+    @available(macOS 12.0, iOS 15.0, *)
+    public func getStringSpectrum(maxModes: Int = 10) async throws -> [String: Any]
+}
+```
+
+---
+
+#### `MCPError`
+
+Error type for MCP operations.
+
+```swift
+public enum MCPError: Error {
+    case invalidURL      // Malformed server URL
+    case invalidResponse // Server returned non-JSON response
+    case networkError    // Network connection failed
+}
+```
+
+---
+
+### Platform Support
+
+**All Platforms:**
+- `DREDGECli`, `StringTheory` - Work everywhere
+- `MCPClient`, `UnifiedDREDGE` - Initialization works everywhere
+
+**Apple Platforms Only (macOS 12+, iOS 15+):**
+- Network operations (async methods)
+- Fallback methods provided for other platforms
+
+---
+
+### Semantic Versioning
+
+DREDGE-Cli follows [semantic versioning](https://semver.org/):
+
+**Current Version:** `0.2.0`
+
+- **MAJOR**: Incompatible API changes
+- **MINOR**: New functionality (backward compatible)
+- **PATCH**: Bug fixes (backward compatible)
+
+---
+
+### Testing
+
+```bash
+# Run all tests
+swift test
+
+# Run specific suite
+swift test --filter IntegrationTests
+swift test --filter EndToEndTests
+```
+
+**Note:** End-to-end tests require running MCP server:
+```bash
+python -m dredge mcp  # Terminal 1
+swift test            # Terminal 2
+```
+
+---
+
+### Further Reading
+
+- [Troubleshooting Guide](./docs/TROUBLESHOOTING.md)
+- [README](./README.md)
+- [MCP Server Documentation](./README.md#mcp-server-port-3002---quasimoto-integration)
+
+---
+
+*API Reference last updated: 2026-01-17*
