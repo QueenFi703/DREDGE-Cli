@@ -213,9 +213,16 @@ def test_string_theory_parameter_count():
     
     n_params = sum(p.numel() for p in model.parameters())
     
-    # Expected parameters:
-    # input_layer: 10 * 64 + 64 = 704
-    # hidden_layer: 64 * 64 + 64 = 4160
-    # output_layer: 64 * 1 + 1 = 65
-    # Total: 4929
-    assert n_params == 4929
+    # Expected parameters (calculated dynamically):
+    # input_layer: dimensions * hidden_size + hidden_size
+    # hidden_layer: hidden_size * hidden_size + hidden_size
+    # output_layer: hidden_size * 1 + 1
+    dimensions = 10
+    hidden_size = 64
+    expected_params = (
+        (dimensions * hidden_size + hidden_size) +  # input_layer
+        (hidden_size * hidden_size + hidden_size) +  # hidden_layer
+        (hidden_size * 1 + 1)  # output_layer
+    )
+    
+    assert n_params == expected_params, f"Expected {expected_params}, got {n_params}"

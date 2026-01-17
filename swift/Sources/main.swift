@@ -55,6 +55,7 @@ import FoundationNetworking
 
 public struct MCPClient {
     public let serverURL: String
+    private static let mcpEndpoint = "/mcp"
     
     public init(serverURL: String = "http://localhost:3002") {
         self.serverURL = serverURL
@@ -79,7 +80,7 @@ public struct MCPClient {
     /// Send MCP request (Apple platforms)
     @available(macOS 12.0, iOS 15.0, watchOS 8.0, tvOS 15.0, *)
     public func sendRequest(operation: String, params: [String: Any]) async throws -> [String: Any] {
-        guard let url = URL(string: "\(serverURL)/mcp") else {
+        guard let url = URL(string: "\(serverURL)\(MCPClient.mcpEndpoint)") else {
             throw MCPError.invalidURL
         }
         

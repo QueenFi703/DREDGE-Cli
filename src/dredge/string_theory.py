@@ -199,16 +199,19 @@ class StringQuasimocoIntegration:
         Returns:
             Dictionary with coordinates and field values
         """
+        # Number of modes to average for field calculation
+        NUM_MODES = 3
+        
         x_min, x_max = x_range
         x_values = [x_min + (x_max - x_min) * i / (num_points - 1) for i in range(num_points)]
         
-        # Generate field values using first three modes
+        # Generate field values using first NUM_MODES modes
         field_values = []
         for x in x_values:
             amplitude = sum(
                 self.string_vibration.vibrational_mode(n, x) 
-                for n in range(1, 4)
-            ) / 3.0
+                for n in range(1, NUM_MODES + 1)
+            ) / float(NUM_MODES)
             field_values.append(amplitude)
         
         return {
