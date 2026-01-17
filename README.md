@@ -1,5 +1,7 @@
 # DREDGE
 
+[![DEPENDADREDGEABOT](https://img.shields.io/badge/dependencies-DEPENDADREDGEABOT-blueviolet?style=for-the-badge&logo=dependabot)](https://github.com/QueenFi703/DREDGE-Cli/blob/main/.github/dependabot.yml)
+
 DREDGE — small Python package scaffold.
 
 ## Repository Structure

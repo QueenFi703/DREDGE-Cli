@@ -1,0 +1,19 @@
+- name: "🤖 dependadredgeabot"
+  color: "8B5CF6"
+  description: "Automated dependency updates by DEPENDADREDGEABOT"
+
+- name: "dredge-core"
+  color: "3B82F6"
+  description: "DREDGE Python core dependencies"
+
+- name: "dolly-gpu"
+  color: "10B981"
+  description: "Dolly GPU/ML framework dependencies"
+
+- name: "quasimoto-physics"
+  color: "F59E0B"
+  description: "Quasimoto wave function dependencies"
+
+- name: "infrastructure"
+  color: "6B7280"
+  description: "Docker/CI/CD infrastructure updates"
