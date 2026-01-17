@@ -64,6 +64,8 @@ WORKDIR /app
 
 COPY requirements.txt pyproject.toml ./
 
+# Install PyTorch with CUDA 11.8 support (pinned for GPU kernel stability)
+# Note: Overrides requirements.txt torch>=2.0.0 with specific CUDA build
 RUN pip3 install --no-cache-dir \
     torch==2.1.0+cu118 \
     --index-url https://download.pytorch.org/whl/cu118 && \

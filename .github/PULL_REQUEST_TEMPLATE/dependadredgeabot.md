@@ -29,6 +29,7 @@
 ### 🧪 Manual Validation Checklist
 ```bash
 # Run Quasimoto benchmarks (GPU dependencies)
+# Note: Ensure benchmarks/quasimoto_extended_benchmark.py exists
 python benchmarks/quasimoto_extended_benchmark.py
 
 # Test Flask server
