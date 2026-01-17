@@ -2,7 +2,7 @@
 // MVP iOS Dredge Agent
 // SwiftUI + Background Tasks + Voice + Lock Screen Widget
 
-#if os(iOS) || os(macOS)
+#if canImport(SwiftUI)
 import SwiftUI
 import BackgroundTasks
 import NaturalLanguage
