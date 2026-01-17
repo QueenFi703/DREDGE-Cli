@@ -1,0 +1,53 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Install Python Dependencies",
+            "type": "shell",
+            "command": "python -m pip install -e .",
+            "problemMatcher": [],
+            "group": "build"
+        },
+        {
+            "label": "Run Python Tests",
+            "type": "shell",
+            "command": "python -m pytest tests/ -v",
+            "problemMatcher": [],
+            "group": "test"
+        },
+        {
+            "label": "Start DREDGE Server",
+            "type": "shell",
+            "command": "python -m dredge serve --host 0.0.0.0 --port 3001 --debug",
+            "problemMatcher": [],
+            "isBackground": true
+        },
+        {
+            "label": "Start MCP Server",
+            "type": "shell",
+            "command": "python -m dredge mcp --host 0.0.0.0 --port 3002 --debug",
+            "problemMatcher": [],
+            "isBackground": true
+        },
+        {
+            "label": "Build Swift Package",
+            "type": "shell",
+            "command": "swift build",
+            "problemMatcher": [],
+            "group": "build"
+        },
+        {
+            "label": "Run Swift Tests",
+            "type": "shell",
+            "command": "swift test",
+            "problemMatcher": [],
+            "group": "test"
+        },
+        {
+            "label": "Run Swift CLI",
+            "type": "shell",
+            "command": "swift run dredge-cli",
+            "problemMatcher": []
+        }
+    ]
+}

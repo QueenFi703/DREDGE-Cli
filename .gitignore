@@ -14,7 +14,7 @@ dist/
 *.egg-info/
 
 # Editor directories and files
-.vscode/
+# Note: We allow .vscode/ for shared workspace configuration
 .idea/
 *.swp
 
