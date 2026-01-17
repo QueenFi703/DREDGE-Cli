@@ -31,6 +31,11 @@ except ImportError:
     )
 
 from . import __version__
+from .string_theory import (
+    DREDGEStringTheoryServer,
+    StringVibration,
+    calculate_string_parameters
+)
 
 
 class QuasimotoMCPServer:
@@ -44,11 +49,12 @@ class QuasimotoMCPServer:
     def __init__(self):
         self.models: Dict[str, nn.Module] = {}
         self.model_configs: Dict[str, Dict[str, Any]] = {}
+        self.string_theory_server = DREDGEStringTheoryServer()
         
     def list_capabilities(self) -> Dict[str, Any]:
         """List available MCP server capabilities."""
         return {
-            "name": "DREDGE Quasimoto MCP Server",
+            "name": "DREDGE Quasimoto String Theory MCP Server",
             "version": __version__,
             "protocol": "Model Context Protocol v1.0",
             "capabilities": {
@@ -56,13 +62,17 @@ class QuasimotoMCPServer:
                     "quasimoto_1d": "1D wave function (8 parameters)",
                     "quasimoto_4d": "4D spatiotemporal wave function (13 parameters)",
                     "quasimoto_6d": "6D high-dimensional wave function (17 parameters)",
-                    "quasimoto_ensemble": "Ensemble of wave functions (configurable)"
+                    "quasimoto_ensemble": "Ensemble of wave functions (configurable)",
+                    "string_theory": "String theory neural network (configurable dimensions)"
                 },
                 "operations": [
                     "load_model",
                     "inference",
                     "get_parameters",
-                    "benchmark"
+                    "benchmark",
+                    "string_spectrum",
+                    "string_parameters",
+                    "unified_inference"
                 ]
             }
         }
@@ -91,6 +101,16 @@ class QuasimotoMCPServer:
             elif model_type == "quasimoto_ensemble":
                 n_waves = config.get("n_waves", 16)
                 model = QuasimotoEnsemble(n=n_waves)
+            elif model_type == "string_theory":
+                dimensions = config.get("dimensions", 10)
+                hidden_size = config.get("hidden_size", 64)
+                result = self.string_theory_server.load_string_model(
+                    dimensions=dimensions,
+                    hidden_size=hidden_size
+                )
+                if result["success"]:
+                    result["config"] = config
+                return result
             else:
                 return {
                     "success": False,
@@ -320,10 +340,92 @@ class QuasimotoMCPServer:
             return self.get_parameters(params.get("model_id"))
         elif operation == "benchmark":
             return self.benchmark(params.get("model_type"), params.get("config"))
+        elif operation == "string_spectrum":
+            return self.string_spectrum(params)
+        elif operation == "string_parameters":
+            return self.string_parameters(params)
+        elif operation == "unified_inference":
+            return self.unified_inference(params)
         else:
             return {
                 "success": False,
                 "error": f"Unknown operation: {operation}"
+            }
+    
+    def string_spectrum(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Compute string theory vibrational spectrum.
+        
+        Args:
+            params: Parameters including max_modes and dimensions
+            
+        Returns:
+            String spectrum data
+        """
+        try:
+            max_modes = params.get("max_modes", 10)
+            dimensions = params.get("dimensions", 10)
+            return self.string_theory_server.compute_string_spectrum(
+                max_modes=max_modes,
+                dimensions=dimensions
+            )
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    def string_parameters(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Calculate fundamental string theory parameters.
+        
+        Args:
+            params: Parameters including energy_scale and coupling_constant
+            
+        Returns:
+            String theory parameters
+        """
+        try:
+            energy_scale = params.get("energy_scale", 1.0)
+            coupling_constant = params.get("coupling_constant", 0.1)
+            result = calculate_string_parameters(
+                energy_scale=energy_scale,
+                coupling_constant=coupling_constant
+            )
+            return {
+                "success": True,
+                "parameters": result
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    def unified_inference(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Unified inference combining DREDGE, Quasimoto, and String Theory.
+        
+        Args:
+            params: Parameters including dredge_insight, quasimoto_coords, string_modes
+            
+        Returns:
+            Combined inference results
+        """
+        try:
+            dredge_insight = params.get("dredge_insight", "")
+            quasimoto_coords = params.get("quasimoto_coords", [0.5])
+            string_modes = params.get("string_modes", [1, 2, 3])
+            
+            return self.string_theory_server.unified_inference(
+                dredge_insight=dredge_insight,
+                quasimoto_coords=quasimoto_coords,
+                string_modes=string_modes
+            )
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e)
             }
 
 

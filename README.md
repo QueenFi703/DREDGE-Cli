@@ -61,7 +61,7 @@ curl -X POST http://localhost:3001/lift \
 
 ### 2. MCP Server (Port 3002) - Quasimoto Integration
 
-A Model Context Protocol server for serving Quasimoto neural wave function models.
+A Model Context Protocol server for serving Quasimoto neural wave function models with String Theory integration.
 
 #### Starting the MCP Server
 
@@ -79,10 +79,13 @@ dredge-cli mcp --host 0.0.0.0 --port 3002 --debug
 #### Available Operations
 
 1. **list_capabilities** - List available models and operations
-2. **load_model** - Load Quasimoto models (1D, 4D, 6D, ensemble)
+2. **load_model** - Load Quasimoto models (1D, 4D, 6D, ensemble) or String Theory models
 3. **inference** - Run inference on loaded models
 4. **get_parameters** - Retrieve model parameters
 5. **benchmark** - Run performance benchmarks
+6. **string_spectrum** - Compute string theory vibrational spectrum
+7. **string_parameters** - Calculate fundamental string theory parameters
+8. **unified_inference** - Run unified DREDGE + Quasimoto + String Theory inference
 
 #### Example MCP Request
 
@@ -107,6 +110,40 @@ curl -X POST http://localhost:3002/mcp \
 - **quasimoto_4d** - 4D spatiotemporal wave function (13 parameters)
 - **quasimoto_6d** - 6D high-dimensional wave function (17 parameters)
 - **quasimoto_ensemble** - Configurable ensemble models
+- **string_theory** - String theory neural network (configurable dimensions)
+
+#### String Theory Integration
+
+The MCP server now includes string theory models that integrate with Quasimoto wave functions:
+
+```bash
+# Compute string vibrational spectrum
+curl -X POST http://localhost:3002/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"operation": "string_spectrum", "params": {"max_modes": 10, "dimensions": 10}}'
+
+# Calculate fundamental string parameters
+curl -X POST http://localhost:3002/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"operation": "string_parameters", "params": {"energy_scale": 1.0, "coupling_constant": 0.1}}'
+
+# Run unified inference (DREDGE + Quasimoto + String Theory)
+curl -X POST http://localhost:3002/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "unified_inference",
+    "params": {
+      "dredge_insight": "Digital memory must be human-reachable",
+      "quasimoto_coords": [0.5, 0.5, 0.5],
+      "string_modes": [1, 2, 3]
+    }
+  }'
+
+# Load a string theory model
+curl -X POST http://localhost:3002/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"operation": "load_model", "params": {"model_type": "string_theory", "config": {"dimensions": 10, "hidden_size": 64}}}'
+```
 
 ### GitHub Codespaces
 
@@ -114,7 +151,7 @@ The repository includes `.devcontainer/devcontainer.json` configured to automati
 
 ## Swift Development
 
-DREDGE includes a Swift CLI implementation. You can develop using:
+DREDGE includes a Swift CLI implementation with MCP client and String Theory support. You can develop using:
 
 ### Xcode Workspace
 ```bash
@@ -132,6 +169,13 @@ cd swift
 swift build
 swift run dredge-cli
 ```
+
+### Swift Features
+
+The Swift implementation includes:
+- **String Theory Models** - 10D superstring vibrational modes and energy calculations
+- **MCP Client** - Connect to MCP server for model operations
+- **Unified Integration** - Combine DREDGE insights, Quasimoto coordinates, and String Theory modes
 
 See [SWIFT_PACKAGE_GUIDE.md](SWIFT_PACKAGE_GUIDE.md) for detailed Swift development information.
 

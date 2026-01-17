@@ -10,6 +10,7 @@ def test_mcp_server_creation():
     assert server is not None
     assert isinstance(server.models, dict)
     assert len(server.models) == 0
+    assert server.string_theory_server is not None
 
 
 def test_list_capabilities():
@@ -17,12 +18,17 @@ def test_list_capabilities():
     server = QuasimotoMCPServer()
     capabilities = server.list_capabilities()
     
-    assert capabilities["name"] == "DREDGE Quasimoto MCP Server"
+    assert capabilities["name"] == "DREDGE Quasimoto String Theory MCP Server"
     assert "version" in capabilities
     assert "protocol" in capabilities
     assert "capabilities" in capabilities
     assert "models" in capabilities["capabilities"]
     assert "operations" in capabilities["capabilities"]
+    
+    # Check for string theory additions
+    assert "string_theory" in capabilities["capabilities"]["models"]
+    assert "string_spectrum" in capabilities["capabilities"]["operations"]
+    assert "unified_inference" in capabilities["capabilities"]["operations"]
 
 
 def test_load_quasimoto_1d():
@@ -172,3 +178,116 @@ def test_inference_on_nonexistent_model():
     
     assert result["success"] is False
     assert "error" in result
+
+
+def test_load_string_theory_model():
+    """Test loading a string theory model."""
+    server = QuasimotoMCPServer()
+    result = server.load_model("string_theory", {"dimensions": 10, "hidden_size": 64})
+    
+    assert result["success"] is True
+    assert "model_id" in result
+    assert result["dimensions"] == 10
+    assert result["n_parameters"] > 0
+
+
+def test_string_spectrum_operation():
+    """Test string spectrum operation."""
+    server = QuasimotoMCPServer()
+    result = server.string_spectrum({"max_modes": 10, "dimensions": 10})
+    
+    assert result["success"] is True
+    assert result["dimensions"] == 10
+    assert result["max_modes"] == 10
+    assert "energy_spectrum" in result
+
+
+def test_string_parameters_operation():
+    """Test string parameters operation."""
+    server = QuasimotoMCPServer()
+    result = server.string_parameters({
+        "energy_scale": 1.0,
+        "coupling_constant": 0.1
+    })
+    
+    assert result["success"] is True
+    assert "parameters" in result
+    assert result["parameters"]["coupling_constant"] == 0.1
+
+
+def test_unified_inference_operation():
+    """Test unified inference operation."""
+    server = QuasimotoMCPServer()
+    result = server.unified_inference({
+        "dredge_insight": "Test insight",
+        "quasimoto_coords": [0.5, 0.5],
+        "string_modes": [1, 2, 3]
+    })
+    
+    assert result["success"] is True
+    assert result["dredge_insight"] == "Test insight"
+    assert "coupled_amplitude" in result
+    assert "unified_field" in result
+
+
+def test_handle_request_string_operations():
+    """Test handling string theory operations via request handler."""
+    server = QuasimotoMCPServer()
+    
+    # Test string_spectrum
+    response = server.handle_request({
+        "operation": "string_spectrum",
+        "params": {"max_modes": 5, "dimensions": 10}
+    })
+    assert response["success"] is True
+    
+    # Test string_parameters
+    response = server.handle_request({
+        "operation": "string_parameters",
+        "params": {"energy_scale": 1.0, "coupling_constant": 0.1}
+    })
+    assert response["success"] is True
+    
+    # Test unified_inference
+    response = server.handle_request({
+        "operation": "unified_inference",
+        "params": {
+            "dredge_insight": "Test",
+            "quasimoto_coords": [0.5],
+            "string_modes": [1, 2]
+        }
+    })
+    assert response["success"] is True
+
+
+def test_mcp_app_string_theory_endpoints():
+    """Test MCP app with string theory endpoints."""
+    app = create_mcp_app()
+    
+    with app.test_client() as client:
+        # Test string spectrum via MCP endpoint
+        response = client.post('/mcp',
+                              json={
+                                  "operation": "string_spectrum",
+                                  "params": {"max_modes": 10, "dimensions": 10}
+                              },
+                              content_type='application/json')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data["success"] is True
+        
+        # Test unified inference
+        response = client.post('/mcp',
+                              json={
+                                  "operation": "unified_inference",
+                                  "params": {
+                                      "dredge_insight": "Integration test",
+                                      "quasimoto_coords": [0.5],
+                                      "string_modes": [1, 2, 3]
+                                  }
+                              },
+                              content_type='application/json')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data["success"] is True
+
