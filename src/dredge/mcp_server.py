@@ -5,6 +5,7 @@ Integrates Quasimoto benchmarks with MCP protocol for external applications.
 """
 import json
 import logging
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any, List
@@ -47,8 +48,11 @@ from . import __version__
 from .string_theory import (
     DREDGEStringTheoryServer,
     StringVibration,
-    calculate_string_parameters
+    calculate_string_parameters,
+    get_device_info
 )
+from .monitoring import get_metrics_collector, get_tracer, Timer
+from .cache import ResultCache
 
 
 class QuasimotoMCPServer:
@@ -56,22 +60,46 @@ class QuasimotoMCPServer:
     MCP Server for Quasimoto neural wave function models.
     
     Provides model inference, training, and benchmark capabilities
-    via the Model Context Protocol.
+    via the Model Context Protocol with caching, monitoring, and GPU support.
     """
     
-    def __init__(self):
+    def __init__(self, use_cache: bool = True, enable_metrics: bool = True):
         self.logger = get_logger("MCPServer")
         self.logger.info("Initializing Quasimoto MCP Server", extra={
-            "version": __version__
+            "version": __version__,
+            "cache_enabled": use_cache,
+            "metrics_enabled": enable_metrics
         })
         self.models: Dict[str, nn.Module] = {}
         self.model_configs: Dict[str, Dict[str, Any]] = {}
-        self.string_theory_server = DREDGEStringTheoryServer()
+        self.string_theory_server = DREDGEStringTheoryServer(use_cache=use_cache)
+        
+        # Initialize metrics and caching
+        self.enable_metrics = enable_metrics
+        if enable_metrics:
+            self.metrics = get_metrics_collector()
+            self.tracer = get_tracer()
+        else:
+            self.metrics = None
+            self.tracer = None
+        
+        self.use_cache = use_cache
+        if use_cache:
+            self.cache = ResultCache()
+        else:
+            self.cache = None
+        
         self.logger.info("MCP Server initialized successfully")
         
     def list_capabilities(self) -> Dict[str, Any]:
         """List available MCP server capabilities."""
         self.logger.debug("Listing capabilities")
+        
+        if self.metrics:
+            self.metrics.increment_counter("mcp_list_capabilities")
+        
+        device_info = get_device_info()
+        
         return {
             "name": "DREDGE Quasimoto String Theory MCP Server",
             "version": __version__,
@@ -82,7 +110,7 @@ class QuasimotoMCPServer:
                     "quasimoto_4d": "4D spatiotemporal wave function (13 parameters)",
                     "quasimoto_6d": "6D high-dimensional wave function (17 parameters)",
                     "quasimoto_ensemble": "Ensemble of wave functions (configurable)",
-                    "string_theory": "String theory neural network (configurable dimensions)"
+                    "string_theory": "String theory neural network (configurable dimensions, depth, GPU)"
                 },
                 "operations": [
                     "load_model",
@@ -91,8 +119,16 @@ class QuasimotoMCPServer:
                     "benchmark",
                     "string_spectrum",
                     "string_parameters",
-                    "unified_inference"
+                    "unified_inference",
+                    "get_metrics",
+                    "get_cache_stats"
                 ]
+            },
+            "features": {
+                "caching": self.use_cache,
+                "metrics": self.enable_metrics,
+                "gpu_support": device_info['cuda_available'] or device_info['mps_available'],
+                "device_info": device_info
             }
         }
     
@@ -202,7 +238,7 @@ class QuasimotoMCPServer:
     
     def inference(self, model_id: str, inputs: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Run inference on a loaded model.
+        Run inference on a loaded model with caching.
         
         Args:
             model_id: ID of the loaded model
@@ -211,6 +247,17 @@ class QuasimotoMCPServer:
         Returns:
             Model outputs
         """
+        # Check cache first
+        if self.cache:
+            cached = self.cache.get_inference(model_id, inputs)
+            if cached:
+                if self.metrics:
+                    self.metrics.increment_counter("mcp_inference_cache_hit", labels={"model_id": model_id})
+                return cached
+        
+        if self.metrics:
+            self.metrics.increment_counter("mcp_inference", labels={"model_id": model_id})
+        
         if model_id not in self.models:
             return {
                 "success": False,
@@ -220,6 +267,9 @@ class QuasimotoMCPServer:
         try:
             model = self.models[model_id]
             model_type = self.model_configs[model_id]["type"]
+            
+            # Start timer for metrics
+            start_time = time.time()
             
             with torch.no_grad():
                 if model_type == "quasimoto_1d":
@@ -246,13 +296,27 @@ class QuasimotoMCPServer:
                         "error": f"Inference not implemented for {model_type}"
                     }
             
-            return {
+            # Record inference time
+            if self.metrics:
+                inference_time = time.time() - start_time
+                self.metrics.record_timer("mcp_inference_duration", inference_time, 
+                                        labels={"model_id": model_id})
+            
+            result = {
                 "success": True,
                 "model_id": model_id,
                 "output": output.tolist()
             }
             
+            # Cache the result
+            if self.cache:
+                self.cache.set_inference(model_id, inputs, result)
+            
+            return result
+            
         except Exception as e:
+            if self.metrics:
+                self.metrics.increment_counter("mcp_inference_error", labels={"model_id": model_id})
             return {
                 "success": False,
                 "error": str(e)
@@ -398,6 +462,10 @@ class QuasimotoMCPServer:
                 return self.string_parameters(params)
             elif operation == "unified_inference":
                 return self.unified_inference(params)
+            elif operation == "get_metrics":
+                return self.get_metrics()
+            elif operation == "get_cache_stats":
+                return self.get_cache_stats()
             else:
                 self.logger.warning(f"Unknown operation requested", extra={
                     "operation": operation
@@ -497,11 +565,62 @@ class QuasimotoMCPServer:
             quasimoto_coords = params.get("quasimoto_coords", [0.5])
             string_modes = params.get("string_modes", [1, 2, 3])
             
+            if self.metrics:
+                self.metrics.increment_counter("mcp_unified_inference")
+            
             return self.string_theory_server.unified_inference(
                 dredge_insight=dredge_insight,
                 quasimoto_coords=quasimoto_coords,
                 string_modes=string_modes
             )
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    def get_metrics(self) -> Dict[str, Any]:
+        """
+        Get collected metrics.
+        
+        Returns:
+            Metrics data
+        """
+        if not self.enable_metrics or not self.metrics:
+            return {
+                "success": False,
+                "error": "Metrics not enabled"
+            }
+        
+        try:
+            return {
+                "success": True,
+                "metrics": self.metrics.get_metrics()
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """
+        Get cache statistics.
+        
+        Returns:
+            Cache statistics
+        """
+        if not self.use_cache or not self.cache:
+            return {
+                "success": False,
+                "error": "Caching not enabled"
+            }
+        
+        try:
+            return {
+                "success": True,
+                "cache_stats": self.cache.get_stats()
+            }
         except Exception as e:
             return {
                 "success": False,

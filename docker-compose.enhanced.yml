@@ -1,0 +1,153 @@
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# DREDGE-Cli Enhanced Docker Compose Configuration
+# Production-ready with Redis, workers, monitoring, and scale-out support
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+version: '3.8'
+
+services:
+  # Redis cache for distributed caching
+  redis:
+    image: redis:7-alpine
+    container_name: dredge-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    networks:
+      - dredge-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # DREDGE x Dolly Server (Port 3001)
+  dredge-server:
+    build:
+      context: .
+      target: cpu-build
+    container_name: dredge-flask
+    ports:
+      - "3001:3001"
+    environment:
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - PYTHONUNBUFFERED=1
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CACHE_ENABLED=${CACHE_ENABLED:-true}
+      - METRICS_ENABLED=${METRICS_ENABLED:-true}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - dredge-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Quasimoto MCP Server (Port 3002) with GPU support
+  quasimoto-mcp:
+    build:
+      context: .
+      target: gpu-build
+    container_name: quasimoto-gpu
+    ports:
+      - "3002:3002"
+    environment:
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+      - PYTHONUNBUFFERED=1
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CACHE_ENABLED=${CACHE_ENABLED:-true}
+      - METRICS_ENABLED=${METRICS_ENABLED:-true}
+      - DEVICE=${DEVICE:-auto}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - dredge-network
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import torch; exit(0 if torch.cuda.is_available() else 1)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+
+  # Worker nodes for distributed processing
+  dredge-worker-1:
+    build:
+      context: .
+      target: cpu-build
+    container_name: dredge-worker-1
+    environment:
+      - PYTHONUNBUFFERED=1
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - WORKER_ID=worker-1
+      - WORKER_CONCURRENCY=${WORKER_CONCURRENCY:-4}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - dredge-network
+    command: ["python", "-m", "dredge.worker_cli", "--worker-id", "worker-1"]
+
+  dredge-worker-2:
+    build:
+      context: .
+      target: cpu-build
+    container_name: dredge-worker-2
+    environment:
+      - PYTHONUNBUFFERED=1
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - WORKER_ID=worker-2
+      - WORKER_CONCURRENCY=${WORKER_CONCURRENCY:-4}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - dredge-network
+    command: ["python", "-m", "dredge.worker_cli", "--worker-id", "worker-2"]
+
+  # Metrics exporter (Prometheus-compatible endpoint)
+  metrics-exporter:
+    build:
+      context: .
+      target: cpu-build
+    container_name: dredge-metrics
+    ports:
+      - "9090:9090"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - dredge-network
+    command: ["python", "-m", "dredge.metrics_exporter", "--port", "9090"]
+
+networks:
+  dredge-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local
