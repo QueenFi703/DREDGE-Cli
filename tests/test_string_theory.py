@@ -1,14 +1,41 @@
 """Tests for the DREDGE String Theory module."""
 import pytest
 import math
+import os
+import torch
 from dredge.string_theory import (
     StringVibration,
     StringTheoryNN,
     StringQuasimocoIntegration,
     DREDGEStringTheoryServer,
-    calculate_string_parameters
+    calculate_string_parameters,
+    get_optimal_device,
+    get_device_info
 )
-import torch
+
+
+def test_get_optimal_device():
+    """Test that get_optimal_device returns a valid device."""
+    device = get_optimal_device()
+    assert device in ['cpu', 'cuda', 'mps']
+
+
+def test_get_device_info():
+    """Test that get_device_info returns proper device information."""
+    info = get_device_info()
+    
+    assert 'optimal_device' in info
+    assert 'cpu_available' in info
+    assert 'cuda_available' in info
+    assert 'mps_available' in info
+    
+    assert info['cpu_available'] is True
+    assert info['optimal_device'] in ['cpu', 'cuda', 'mps']
+    
+    if info['cuda_available']:
+        assert 'cuda_device_count' in info
+        assert 'cuda_device_name' in info
+        assert 'cuda_version' in info
 
 
 def test_string_vibration_creation():
@@ -75,6 +102,24 @@ def test_string_theory_nn_creation():
     assert model.hidden_size == 64
 
 
+def test_string_theory_nn_device():
+    """Test StringTheoryNN device handling."""
+    # Test with CPU device
+    model = StringTheoryNN(dimensions=10, hidden_size=64, device='cpu')
+    assert model.device == 'cpu'
+    
+    # Check that all parameters are on CPU
+    for param in model.parameters():
+        assert param.device.type == 'cpu'
+
+
+def test_string_theory_nn_auto_device():
+    """Test StringTheoryNN with auto device detection."""
+    optimal_device = get_optimal_device()
+    model = StringTheoryNN(dimensions=10, hidden_size=64, device=optimal_device)
+    assert model.device == optimal_device
+
+
 def test_string_theory_nn_forward():
     """Test StringTheoryNN forward pass."""
     model = StringTheoryNN(dimensions=10, hidden_size=64)
@@ -86,6 +131,20 @@ def test_string_theory_nn_forward():
     output = model(x)
     
     assert output.shape == (5, 1)
+
+
+def test_string_theory_nn_forward_device():
+    """Test StringTheoryNN forward pass handles device correctly."""
+    model = StringTheoryNN(dimensions=10, hidden_size=64, device='cpu')
+    
+    # Create input tensor on CPU
+    x = torch.randn(5, 10)
+    
+    # Forward pass should move input to model's device automatically
+    output = model(x)
+    
+    assert output.shape == (5, 1)
+    assert output.device.type == 'cpu'
 
 
 def test_string_quasimoco_integration():
@@ -149,6 +208,35 @@ def test_dredge_string_theory_server_creation():
     assert server is not None
     assert isinstance(server.models, dict)
     assert len(server.models) == 0
+
+
+def test_dredge_string_theory_server_device():
+    """Test DREDGEStringTheoryServer device handling."""
+    # Test with CPU device
+    server = DREDGEStringTheoryServer(device='cpu')
+    assert server.device == 'cpu'
+    
+    # Test with auto device
+    server_auto = DREDGEStringTheoryServer(device='auto')
+    assert server_auto.device in ['cpu', 'cuda', 'mps']
+
+
+def test_dredge_string_theory_server_device_from_env():
+    """Test DREDGEStringTheoryServer respects DEVICE environment variable."""
+    # Save original env var
+    original_device = os.getenv('DEVICE')
+    
+    try:
+        # Set env var to CPU
+        os.environ['DEVICE'] = 'cpu'
+        server = DREDGEStringTheoryServer(device='auto')
+        assert server.device == 'cpu'
+    finally:
+        # Restore original env var
+        if original_device is not None:
+            os.environ['DEVICE'] = original_device
+        elif 'DEVICE' in os.environ:
+            del os.environ['DEVICE']
 
 
 def test_load_string_model():

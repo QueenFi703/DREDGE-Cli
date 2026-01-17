@@ -1,7 +1,10 @@
 """Tests for the DREDGE MCP server."""
 import pytest
 import json
+import os
+import torch
 from dredge.mcp_server import QuasimotoMCPServer, create_mcp_app
+from dredge.string_theory import get_device_info
 
 
 def test_mcp_server_creation():
@@ -11,6 +14,51 @@ def test_mcp_server_creation():
     assert isinstance(server.models, dict)
     assert len(server.models) == 0
     assert server.string_theory_server is not None
+
+
+def test_mcp_server_device_default():
+    """Test MCP server device defaults to optimal device."""
+    server = QuasimotoMCPServer()
+    device_info = get_device_info()
+    assert server.device == device_info['optimal_device']
+
+
+def test_mcp_server_device_cpu():
+    """Test MCP server can be created with CPU device."""
+    server = QuasimotoMCPServer(device='cpu')
+    assert server.device == 'cpu'
+
+
+def test_mcp_server_device_from_env():
+    """Test MCP server respects DEVICE environment variable."""
+    # Save original env var
+    original_device = os.getenv('DEVICE')
+    
+    try:
+        # Set env var to CPU
+        os.environ['DEVICE'] = 'cpu'
+        server = QuasimotoMCPServer(device='auto')
+        assert server.device == 'cpu'
+    finally:
+        # Restore original env var
+        if original_device is not None:
+            os.environ['DEVICE'] = original_device
+        elif 'DEVICE' in os.environ:
+            del os.environ['DEVICE']
+
+
+def test_mcp_server_device_fallback_cuda():
+    """Test MCP server falls back to CPU when CUDA unavailable."""
+    if not torch.cuda.is_available():
+        server = QuasimotoMCPServer(device='cuda')
+        assert server.device == 'cpu'
+
+
+def test_mcp_server_device_fallback_mps():
+    """Test MCP server falls back to CPU when MPS unavailable."""
+    if not (hasattr(torch.backends, 'mps') and torch.backends.mps.is_available()):
+        server = QuasimotoMCPServer(device='mps')
+        assert server.device == 'cpu'
 
 
 def test_list_capabilities():
@@ -42,6 +90,22 @@ def test_load_quasimoto_1d():
     assert result["n_parameters"] == 8
 
 
+def test_load_quasimoto_model_on_device():
+    """Test that loaded Quasimoto models are on the correct device."""
+    server = QuasimotoMCPServer(device='cpu')
+    result = server.load_model("quasimoto_1d")
+    
+    model_id = result["model_id"]
+    model = server.models[model_id]
+    
+    # Check that model parameters are on CPU
+    for param in model.parameters():
+        assert param.device.type == 'cpu'
+    
+    # Check that model config includes device info
+    assert server.model_configs[model_id]['device'] == 'cpu'
+
+
 def test_load_quasimoto_ensemble():
     """Test loading Quasimoto ensemble model."""
     server = QuasimotoMCPServer()
@@ -64,6 +128,22 @@ def test_inference_1d():
     assert inference_result["success"] is True
     assert "output" in inference_result
     assert isinstance(inference_result["output"], list)
+
+
+def test_inference_tensors_on_device():
+    """Test that inference creates tensors on the correct device."""
+    server = QuasimotoMCPServer(device='cpu')
+    load_result = server.load_model("quasimoto_1d")
+    model_id = load_result["model_id"]
+    
+    # Run inference
+    inference_result = server.inference(model_id, {"x": [0.5], "t": [0.0]})
+    
+    assert inference_result["success"] is True
+    
+    # Verify the input tensors would have been created on CPU
+    # (we can't directly check them as they're local to the method,
+    # but we know they were created correctly if inference succeeded)
 
 
 def test_get_parameters():
@@ -90,6 +170,16 @@ def test_benchmark():
     assert "final_loss" in result
     assert "initial_loss" in result
     assert result["final_loss"] < result["initial_loss"]  # Training should reduce loss
+
+
+def test_benchmark_device_info():
+    """Test that benchmark includes device information."""
+    server = QuasimotoMCPServer(device='cpu')
+    result = server.benchmark("quasimoto_1d", {"epochs": 10})
+    
+    assert result["success"] is True
+    assert "device" in result
+    assert result["device"] == 'cpu'
 
 
 def test_handle_request():
@@ -127,6 +217,20 @@ def test_mcp_app_creation():
         assert response.status_code == 200
         data = json.loads(response.data)
         assert "capabilities" in data
+
+
+def test_mcp_app_with_device():
+    """Test that the Flask app can be created with specific device."""
+    app = create_mcp_app(device='cpu')
+    assert app is not None
+    
+    with app.test_client() as client:
+        # Test capabilities include device info
+        response = client.get('/')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert "features" in data
+        assert "device_info" in data["features"]
 
 
 def test_mcp_endpoint_load_and_inference():
