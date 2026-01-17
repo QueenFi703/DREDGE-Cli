@@ -8,37 +8,32 @@ let package = Package(
         .iOS(.v15)
     ],
     products: [
-        // Executable CLI tool
         .executable(
             name: "dredge-cli",
             targets: ["DREDGECli"]
         ),
-        // iOS MVP App library
         .library(
             name: "DREDGEMVPApp",
             targets: ["DREDGEMVPApp"]
         )
     ],
     targets: [
-        // CLI executable target (from swift/Sources/main.swift)
         .executableTarget(
             name: "DREDGECli",
-            path: "swift/Sources"
+            path: "Sources"
         ),
-        // iOS MVP App library target
         .target(
             name: "DREDGEMVPApp",
             dependencies: [],
-            path: "swift/DREDGE_MVP_App",
+            path: "DREDGE_MVP_App",
             resources: [
                 .process("AboutStrings.strings")
             ]
         ),
-        // Test target
         .testTarget(
             name: "DREDGE-CliTests",
             dependencies: ["DREDGECli"],
-            path: "swift/Tests/DREDGE-CliTests"
+            path: "Tests/DREDGE-CliTests"
         )
     ]
 )

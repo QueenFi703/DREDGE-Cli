@@ -21,6 +21,16 @@ dist/
 # Swift build artifacts
 .build/
 *.xcodeproj
-*.xcworkspace
 DerivedData/
 .swiftpm/
+
+# Xcode workspace: allow DREDGE-Cli.xcworkspace but exclude user-specific data
+*.xcworkspace
+!DREDGE-Cli.xcworkspace/
+DREDGE-Cli.xcworkspace/xcuserdata/
+
+# Archives and temporary files
+archives/
+*.zip
+*.torrent
+*.docx

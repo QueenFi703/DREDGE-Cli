@@ -9,7 +9,7 @@ description = "DREDGE — A small Python utility (scaffold)."
 readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "QueenFi703" }]
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.9,<3.13"
 classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",

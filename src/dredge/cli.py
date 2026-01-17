@@ -30,6 +30,25 @@ def main(argv=None):
         help="Enable debug mode"
     )
     
+    # MCP Server command
+    mcp_parser = subparsers.add_parser("mcp", help="Start the DREDGE MCP server (Quasimoto models)")
+    mcp_parser.add_argument(
+        "--host", 
+        default="0.0.0.0", 
+        help="Host to bind to (default: 0.0.0.0)"
+    )
+    mcp_parser.add_argument(
+        "--port", 
+        type=int, 
+        default=3002, 
+        help="Port to listen on (default: 3002)"
+    )
+    mcp_parser.add_argument(
+        "--debug", 
+        action="store_true", 
+        help="Enable debug mode"
+    )
+    
     args = parser.parse_args(argv)
     
     if args.version:
@@ -39,6 +58,11 @@ def main(argv=None):
     if args.command == "serve":
         from .server import run_server
         run_server(host=args.host, port=args.port, debug=args.debug)
+        return 0
+    
+    if args.command == "mcp":
+        from .mcp_server import run_mcp_server
+        run_mcp_server(host=args.host, port=args.port, debug=args.debug)
         return 0
     
     parser.print_help()
