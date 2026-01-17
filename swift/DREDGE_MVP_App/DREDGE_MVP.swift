@@ -3,7 +3,7 @@
 // SwiftUI + Background Tasks + Voice + Lock Screen Widget
 
 import SwiftUI
-#if canImport(BackgroundTasks)
+#if os(iOS)
 import BackgroundTasks
 #endif
 import NaturalLanguage
