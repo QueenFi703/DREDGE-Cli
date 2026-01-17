@@ -30,6 +30,7 @@ public struct StringTheory {
     }
     
     /// Calculate the nth vibrational mode at position x
+    /// Returns 0.0 for invalid inputs (consistent with error handling)
     public func vibrationalMode(n: Int, x: Double) -> Double {
         guard n >= 1 else { return 0.0 }
         guard x >= 0.0 && x <= 1.0 else { return 0.0 }

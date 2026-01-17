@@ -8,6 +8,12 @@ from typing import List, Dict, Any, Tuple
 import torch
 import torch.nn as nn
 
+# Physical constants
+PLANCK_LENGTH = 1.616e-35  # meters
+
+# Computational constants
+DEFAULT_KK_MODES = 10  # Number of Kaluza-Klein modes to compute
+
 
 class StringVibration:
     """
@@ -85,7 +91,7 @@ class StringVibration:
             Dictionary with compactification parameters
         """
         # Kaluza-Klein momentum quantization
-        kk_modes = [n / radius for n in range(1, 11)]
+        kk_modes = [n / radius for n in range(1, DEFAULT_KK_MODES + 1)]
         
         return {
             "compactification_radius": radius,
@@ -236,8 +242,7 @@ def calculate_string_parameters(
         Dictionary of calculated parameters
     """
     # String length (Planck scale)
-    planck_length = 1.616e-35  # meters
-    string_length = planck_length * math.sqrt(coupling_constant)
+    string_length = PLANCK_LENGTH * math.sqrt(coupling_constant)
     
     # String tension
     tension = 1.0 / (2.0 * math.pi * coupling_constant)
@@ -247,7 +252,7 @@ def calculate_string_parameters(
         "string_tension": tension,
         "coupling_constant": coupling_constant,
         "energy_scale": energy_scale,
-        "planck_length": planck_length
+        "planck_length": PLANCK_LENGTH
     }
 
 
