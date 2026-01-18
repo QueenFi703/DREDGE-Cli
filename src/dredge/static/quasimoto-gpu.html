@@ -94,6 +94,12 @@
                 return div.innerHTML;
             }
 
+            validateValue(value) {
+                const num = parseFloat(value);
+                if (isNaN(num)) return 0;
+                return Math.max(0, Math.min(100, num));
+            }
+
             render() {
                 const data = this.parseData();
 
@@ -107,7 +113,8 @@
                 let offset = 0;
 
                 const slices = data.map(d => {
-                    const length = (d.value / 100) * circumference;
+                    const value = this.validateValue(d.value);
+                    const length = (value / 100) * circumference;
                     const color = this.escapeHtml(d.color);
                     const svg = `
                         <circle
@@ -127,7 +134,7 @@
                 const legendItems = data.map(d => {
                     const label = this.escapeHtml(d.label);
                     const color = this.escapeHtml(d.color);
-                    const value = parseFloat(d.value).toFixed(1);
+                    const value = this.validateValue(d.value).toFixed(1);
                     return `
                         <div class="legend-item">
                             <div class="legend-color" style="background-color: ${color}"></div>
