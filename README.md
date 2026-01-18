@@ -1,6 +1,8 @@
 # DREDGE
 
 [![DEPENDADREDGEABOT](https://img.shields.io/badge/dependencies-DEPENDADREDGEABOT-blueviolet?style=for-the-badge&logo=dependabot)](https://github.com/QueenFi703/DREDGE-Cli/blob/main/.github/dependabot.yml)
+[![Docker Image CI/CD](https://github.com/QueenFi703/DREDGE-Cli/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/QueenFi703/DREDGE-Cli/actions/workflows/docker-publish.yml)
+[![Python CI](https://github.com/QueenFi703/DREDGE-Cli/actions/workflows/ci-python.yml/badge.svg)](https://github.com/QueenFi703/DREDGE-Cli/actions/workflows/ci-python.yml)
 
 DREDGE — small Python package scaffold with String Theory integration.
 
@@ -10,6 +12,9 @@ DREDGE — small Python package scaffold with String Theory integration.
 - **[CONTRIBUTING.md](CONTRIBUTING.md)** - Contribution guidelines
 - **[SWIFT_PACKAGE_GUIDE.md](SWIFT_PACKAGE_GUIDE.md)** - Swift development guide
 - **[docs/VSCODE_SETUP.md](docs/VSCODE_SETUP.md)** - VS Code setup instructions
+- **[docs/CONTAINER_ARCHITECTURE.md](docs/CONTAINER_ARCHITECTURE.md)** - Container architecture and deployment guide
+- **[docs/CONTAINER_QUICKSTART.md](docs/CONTAINER_QUICKSTART.md)** - Quick start for container deployment
+- **[docs/GITHUB_ACTIONS_CONTAINERS.md](docs/GITHUB_ACTIONS_CONTAINERS.md)** - GitHub Actions workflows for containers
 
 ## 🚀 Quick Start
 
@@ -35,13 +40,32 @@ make test-all
 
 ### Container Development
 
+Pre-built images are available on GitHub Container Registry:
+
+```bash
+# Pull and run latest CPU image
+docker pull ghcr.io/queenfi703/dredge-cli:latest-cpu
+docker run -p 3001:3001 ghcr.io/queenfi703/dredge-cli:latest-cpu
+
+# Pull and run latest GPU image
+docker pull ghcr.io/queenfi703/dredge-cli:latest-gpu
+docker run -p 3002:3002 --gpus all ghcr.io/queenfi703/dredge-cli:latest-gpu
+```
+
+Or build and run locally:
+
 ```bash
 # CPU-only Flask server
 make docker-up-cpu
 
 # GPU-enabled MCP server
 make docker-up-gpu
+
+# Full stack with monitoring
+make docker-profile-full
 ```
+
+See **[docs/CONTAINER_QUICKSTART.md](docs/CONTAINER_QUICKSTART.md)** for more container deployment options.
 
 See **[BUILD.md](BUILD.md)** for complete build instructions, CI triggers, and troubleshooting.
 
