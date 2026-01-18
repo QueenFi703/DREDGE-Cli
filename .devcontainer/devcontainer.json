@@ -21,7 +21,7 @@
     }
   },
   
-  "postCreateCommand": "git fetch --unshallow && pip install -r requirements.txt && pip install -e .",
+  "postCreateCommand": "bash -c '[ -f .git/shallow ] && git fetch --unshallow || echo \"Repository already has full history\"; pip install -r requirements.txt && pip install -e .'",
   
   "customizations": {
     "vscode": {
