@@ -120,6 +120,7 @@ dredge-cli serve --host 0.0.0.0 --port 3001 --debug
 - **GET /** - API information and available endpoints
 - **GET /health** - Health check endpoint
 - **POST /lift** - Lift an insight with Dolly integration
+- **GET /quasimoto-gpu** - Quasimoto GPU visualization (repository language statistics)
 
 #### Example Usage
 
@@ -134,6 +135,9 @@ curl http://localhost:3001/health
 curl -X POST http://localhost:3001/lift \
   -H "Content-Type: application/json" \
   -d '{"insight_text": "Digital memory must be human-reachable."}'
+
+# View Quasimoto GPU visualization
+open http://localhost:3001/quasimoto-gpu
 ```
 
 ### 2. MCP Server (Port 3002) - Quasimoto Integration
