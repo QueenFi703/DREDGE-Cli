@@ -104,6 +104,41 @@ def main(argv=None):
         help="Device to use for computation (default: auto-detect)"
     )
     
+    # GitHub Event command for MCP integration
+    github_parser = subparsers.add_parser(
+        "github-event", help="Process GitHub events with DREDGE MCP", formatter_class=formatter
+    )
+    github_parser.add_argument(
+        "--event", 
+        required=True, 
+        help="GitHub event name (push, pull_request, etc.)"
+    )
+    github_parser.add_argument(
+        "--payload", 
+        required=True, 
+        help="GitHub event payload (JSON string)"
+    )
+    github_parser.add_argument(
+        "--ref", 
+        required=True, 
+        help="Git reference (branch/tag)"
+    )
+    github_parser.add_argument(
+        "--repo", 
+        required=True, 
+        help="Repository name (owner/repo)"
+    )
+    github_parser.add_argument(
+        "--sha", 
+        required=True, 
+        help="Commit SHA"
+    )
+    github_parser.add_argument(
+        "--out", 
+        default="out.json", 
+        help="Output file path (default: out.json)"
+    )
+    
     args = parser.parse_args(argv)
     
     if args.version:
@@ -119,6 +154,21 @@ def main(argv=None):
         from .mcp_server import run_mcp_server
         run_mcp_server(host=args.host, port=args.port, debug=args.debug, device=args.device)
         return 0
+    
+    if args.command == "github-event":
+        from .github_event_handler import main as github_event_main
+        import sys
+        # Reconstruct argv for github_event_handler
+        github_argv = [
+            "--event", args.event,
+            "--payload", args.payload,
+            "--ref", args.ref,
+            "--repo", args.repo,
+            "--sha", args.sha,
+            "--out", args.out
+        ]
+        sys.argv = ["dredge-cli github-event"] + github_argv
+        return github_event_main()
     
     parser.print_help()
     return 0

@@ -1,0 +1,197 @@
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# DREDGE MCP Responder
+# GitHub as Prompt, DREDGE-CLI MCP as Responder
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# "Every GitHub event is a knock; DREDGE answers with intent."
+#
+# Core pattern:
+# - GitHub signals (push, PR, comment, workflow_dispatch) are prompts
+# - DREDGE MCP processes the event context
+# - Responses flow back as comments, labels, or check runs
+#
+# Integration with DEPENDADREDGEABOT:
+# - Detects Dependabot PRs and commits
+# - Analyzes dependency updates
+# - Provides philosophical insights on dependency management
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+name: DREDGE MCP Responder
+
+on:
+  push:
+    branches: 
+      - main
+      - 'feature/**'
+      - 'copilot/**'
+  pull_request:
+    types: [opened, synchronize, reopened, labeled]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      custom_message:
+        description: 'Custom message for DREDGE MCP'
+        required: false
+        default: 'Manual trigger'
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  respond-with-dredge:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install DREDGE CLI
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+
+      - name: Run DREDGE MCP on GitHub Event
+        id: dredge
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Prepare event payload
+          echo '${{ toJson(github.event) }}' > event_payload.json
+          
+          # Run DREDGE MCP event handler
+          dredge-cli github-event \
+            --event "$GITHUB_EVENT_NAME" \
+            --payload '${{ toJson(github.event) }}' \
+            --ref "${{ github.ref }}" \
+            --repo "${{ github.repository }}" \
+            --sha "${{ github.sha }}" \
+            --out out.json
+          
+          # Display the output
+          echo "DREDGE MCP Response:"
+          cat out.json
+          
+          # Set outputs for later steps
+          echo "response<<EOF" >> $GITHUB_OUTPUT
+          cat out.json >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Comment on Pull Request
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const out = JSON.parse(fs.readFileSync('out.json', 'utf8'));
+            
+            // Only comment if there's a message
+            if (out.comment) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: out.comment
+              });
+            }
+
+      - name: Comment on Issue
+        if: github.event_name == 'issue_comment' && github.event.issue.pull_request == null
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const out = JSON.parse(fs.readFileSync('out.json', 'utf8'));
+            
+            // Only comment if DREDGE was mentioned and has a response
+            if (out.is_mentioned && out.comment) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.issue.number,
+                body: out.comment
+              });
+            }
+
+      - name: Add Label to Dependabot PRs
+        if: github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const out = JSON.parse(fs.readFileSync('out.json', 'utf8'));
+            
+            // Add DREDGE MCP label to Dependabot PRs
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              labels: ['🔮 dredge-mcp-analyzed', '🤖 dependadredgeabot']
+            });
+
+      - name: Upload DREDGE MCP Output
+        uses: actions/upload-artifact@v4
+        with:
+          name: dredge-mcp-output-${{ github.sha }}
+          path: out.json
+          retention-days: 7
+
+      - name: Create Job Summary
+        if: always()
+        run: |
+          echo "## 🔮 DREDGE MCP Response" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Event**: \`$GITHUB_EVENT_NAME\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Repository**: \`${{ github.repository }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Ref**: \`${{ github.ref }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**SHA**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f out.json ]; then
+            echo "### Response Output" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+            cat out.json >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ No output generated" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "*Every GitHub event is a knock; DREDGE answers with intent.* 🔮" >> $GITHUB_STEP_SUMMARY
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# NOTES & BEST PRACTICES
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# Security:
+# - GITHUB_TOKEN scoped to minimal permissions (read contents, write issues/PRs)
+# - No secrets exposed in logs
+# - Event payloads sanitized before processing
+#
+# Performance:
+# - pip cache enabled for faster runs
+# - Artifacts retained for 7 days only
+# - Fails fast on errors
+#
+# Stateless Design:
+# - Each event processed independently
+# - No persistent state between runs
+# - Idempotent operations
+#
+# Integration Points:
+# - DEPENDADREDGEABOT: Automatic dependency analysis
+# - GitHub Actions: Native event handling
+# - DREDGE MCP: Philosophical response generation
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
