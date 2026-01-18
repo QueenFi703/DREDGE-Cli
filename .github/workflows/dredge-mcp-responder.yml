@@ -39,7 +39,7 @@ jobs:
           set -euo pipefail
           
           # Read event payload directly from file to avoid quoting/escaping issues
-          echo "Reading GitHub event from: $GITHUB_EVENT_PATH"
+          echo "Reading GitHub event from: ${GITHUB_EVENT_PATH}"
           
           # Create a simple script to process the event and generate response
           cat > process_event.py << 'EOF'
@@ -94,10 +94,10 @@ jobs:
           # Base64-encode the output to avoid shell metacharacter problems
           if [ -f out.json ]; then
             OUTPUT_B64=$(base64 -w 0 out.json)
-            echo "output_b64=${OUTPUT_B64}" >> $GITHUB_OUTPUT
-            echo "has_output=true" >> $GITHUB_OUTPUT
+            echo "output_b64=${OUTPUT_B64}" >> "${GITHUB_OUTPUT}"
+            echo "has_output=true" >> "${GITHUB_OUTPUT}"
           else
-            echo "has_output=false" >> $GITHUB_OUTPUT
+            echo "has_output=false" >> "${GITHUB_OUTPUT}"
           fi
 
       - name: Comment on issue (safe for all events)
@@ -209,24 +209,31 @@ jobs:
         run: |
           set -euo pipefail
           
-          echo "# DREDGE MCP Responder Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Event Type:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Repository:** ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Actor:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Ref:** ${{ github.ref }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          # Use a block redirect to improve efficiency
+          {
+            echo "# DREDGE MCP Responder Summary"
+            echo ""
+            echo "**Event Type:** ${{ github.event_name }}"
+            echo "**Repository:** ${{ github.repository }}"
+            echo "**Actor:** ${{ github.actor }}"
+            echo "**Ref:** ${{ github.ref }}"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
           
           if [ -f out.json ]; then
-            echo "## Processed Output" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo '```json' >> $GITHUB_STEP_SUMMARY
-            cat out.json >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
+            {
+              echo "## Processed Output"
+              echo ""
+              echo '```json'
+              cat out.json
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "⚠️ No output file was generated" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ No output file was generated" >> "$GITHUB_STEP_SUMMARY"
           fi
           
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "---" >> $GITHUB_STEP_SUMMARY
-          echo "*Workflow completed at $(date -u '+%Y-%m-%d %H:%M:%S UTC')*" >> $GITHUB_STEP_SUMMARY
+          {
+            echo ""
+            echo "---"
+            echo "*Workflow completed at $(date -u '+%Y-%m-%d %H:%M:%S UTC')*"
+          } >> "$GITHUB_STEP_SUMMARY"
