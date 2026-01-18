@@ -94,6 +94,16 @@
                 return div.innerHTML;
             }
 
+            validateColor(color) {
+                // Validate hex color format (#RGB or #RRGGBB)
+                const hexPattern = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+                if (hexPattern.test(color)) {
+                    return color;
+                }
+                // Default to gray if invalid
+                return '#cccccc';
+            }
+
             validateValue(value) {
                 const num = parseFloat(value);
                 if (isNaN(num)) return 0;
@@ -115,7 +125,7 @@
                 const slices = data.map(d => {
                     const value = this.validateValue(d.value);
                     const length = (value / 100) * circumference;
-                    const color = this.escapeHtml(d.color);
+                    const color = this.validateColor(d.color);
                     const svg = `
                         <circle
                             cx="200"
@@ -133,7 +143,7 @@
 
                 const legendItems = data.map(d => {
                     const label = this.escapeHtml(d.label);
-                    const color = this.escapeHtml(d.color);
+                    const color = this.validateColor(d.color);
                     const value = this.validateValue(d.value).toFixed(1);
                     return `
                         <div class="legend-item">

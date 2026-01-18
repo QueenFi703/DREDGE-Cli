@@ -107,7 +107,7 @@ def create_app():
         if not html_file.exists():
             return jsonify({"error": "Visualization file not found"}), 404
         
-        return send_file(html_file)
+        return send_file(html_file, mimetype='text/html')
     
     return app
 
