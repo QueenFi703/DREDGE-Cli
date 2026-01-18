@@ -53,7 +53,11 @@ def main(argv=None):
         formatter_class=formatter,
     )
     parser.add_argument("--version", action="store_true", help="Print version and exit")
-    parser.add_argument("--version-info", action="store_true", help="Print version and system information")
+    parser.add_argument(
+        "--version-info", 
+        action="store_true", 
+        help="Print detailed version and system information"
+    )
     parser.add_argument(
         "--no-spinner",
         action="store_true",
@@ -209,10 +213,18 @@ def main(argv=None):
             print(f"Health Status: {health['status']}")
             print()
             print("Dependency Checks:")
-            for dep, info in health['dependencies'].items():
-                status = "✓" if info['available'] else "✗"
-                version = f" ({info['version']})" if info.get('version') else ""
-                print(f"  {status} {dep}{version}")
+            for dep, available in health['checks']['dependencies'].items():
+                status = "✓" if available else "✗"
+                print(f"  {status} {dep}")
+            
+            if 'missing_dependencies' in health and health['missing_dependencies']:
+                print()
+                print("Missing dependencies:")
+                for dep in health['missing_dependencies']:
+                    print(f"  - {dep}")
+                print()
+                print("Run 'make install-python' or 'pip install -r requirements.txt' to install")
+                return 1
         return 0 if health['status'] == 'healthy' else 1
     
     if args.command == "info":
@@ -226,23 +238,28 @@ def main(argv=None):
             print(json.dumps(config, indent=2))
             return 0
         elif args.config_action == "init":
-            config_file = get_config_path()
-            if config_file.exists():
-                print(f"Config file already exists at: {config_file}")
+            try:
+                path = init_config()
+                print(f"Configuration file created at: {path}")
+                print()
+                print("Edit the file to customize your settings.")
+                return 0
+            except FileExistsError as e:
+                print(f"Error: {e}", file=sys.stderr)
+                print(f"Use 'dredge-cli config show' to view current config", file=sys.stderr)
                 return 1
-            init_config()
-            print(f"Initialized default config at: {config_file}")
-            return 0
         elif args.config_action == "path":
-            print(get_config_path())
+            path = get_config_path()
+            exists = "exists" if path.exists() else "does not exist"
+            print(f"{path} ({exists})")
             return 0
         else:
             config_parser.print_help()
-            return 1
+            return 0
     
     if args.command == "serve":
         # Load config and merge with CLI args
-        host, port, debug, _ = _merge_server_args(args, "serve", "0.0.0.0", 3001)
+        host, port, debug, _ = _merge_server_args(args, "server", "0.0.0.0", 3001)
         
         try:
             validate_server_config(host, port, debug)
