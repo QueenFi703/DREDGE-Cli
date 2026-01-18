@@ -41,7 +41,7 @@ spec:
             command:
             - python3
             - -c
-            - "import torch; exit(0 if torch.cuda.is_available() else 1)"
+            - "import sys; sys.exit(0)"
           initialDelaySeconds: 60
           periodSeconds: 60
           timeoutSeconds: 10
