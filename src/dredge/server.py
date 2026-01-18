@@ -103,6 +103,10 @@ def create_app():
         """Serve the Quasimoto GPU visualization page."""
         static_dir = Path(__file__).parent / 'static'
         html_file = static_dir / 'quasimoto-gpu.html'
+        
+        if not html_file.exists():
+            return jsonify({"error": "Visualization file not found"}), 404
+        
         return send_file(html_file)
     
     return app

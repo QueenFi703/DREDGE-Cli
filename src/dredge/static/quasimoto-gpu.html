@@ -37,31 +37,6 @@
             justify-content: center;
             margin-bottom: 30px;
         }
-        .legend {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            justify-content: center;
-        }
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .legend-color {
-            width: 20px;
-            height: 20px;
-            border-radius: 4px;
-        }
-        .legend-label {
-            font-size: 14px;
-            color: #333;
-        }
-        .legend-value {
-            font-size: 14px;
-            color: #666;
-            font-weight: 500;
-        }
     </style>
 </head>
 <body>
@@ -82,8 +57,6 @@
                 ]'>
             </quasimoto-gpu>
         </div>
-        
-        <div class="legend" id="legend"></div>
     </div>
 
     <script type="module">
@@ -103,11 +76,31 @@
 
             connectedCallback() {
                 this.render();
-                this.updateLegend();
+            }
+
+            parseData() {
+                try {
+                    const dataAttr = this.getAttribute("data") || "[]";
+                    return JSON.parse(dataAttr);
+                } catch (e) {
+                    console.error("Failed to parse data attribute:", e);
+                    return [];
+                }
+            }
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
             }
 
             render() {
-                const data = JSON.parse(this.getAttribute("data") || "[]");
+                const data = this.parseData();
+
+                if (data.length === 0) {
+                    this.shadowRoot.innerHTML = '<div>No data available</div>';
+                    return;
+                }
 
                 const radius = 150;
                 const circumference = 2 * Math.PI * radius;
@@ -115,13 +108,14 @@
 
                 const slices = data.map(d => {
                     const length = (d.value / 100) * circumference;
+                    const color = this.escapeHtml(d.color);
                     const svg = `
                         <circle
                             cx="200"
                             cy="200"
                             r="${radius}"
                             fill="none"
-                            stroke="${d.color}"
+                            stroke="${color}"
                             stroke-width="40"
                             stroke-dasharray="${length} ${circumference}"
                             stroke-dashoffset="${-offset}"
@@ -130,8 +124,24 @@
                     return svg;
                 }).join("");
 
+                const legendItems = data.map(d => {
+                    const label = this.escapeHtml(d.label);
+                    const color = this.escapeHtml(d.color);
+                    const value = parseFloat(d.value).toFixed(1);
+                    return `
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: ${color}"></div>
+                            <span class="legend-label">${label}:</span>
+                            <span class="legend-value">${value}%</span>
+                        </div>
+                    `;
+                }).join("");
+
                 this.shadowRoot.innerHTML = `
                     <style>
+                        :host {
+                            display: block;
+                        }
                         svg {
                             width: 100%;
                             max-width: 400px;
@@ -139,6 +149,32 @@
                         }
                         circle {
                             transform-origin: 50% 50%;
+                        }
+                        .legend {
+                            display: flex;
+                            flex-wrap: wrap;
+                            gap: 15px;
+                            justify-content: center;
+                            margin-top: 20px;
+                        }
+                        .legend-item {
+                            display: flex;
+                            align-items: center;
+                            gap: 8px;
+                        }
+                        .legend-color {
+                            width: 20px;
+                            height: 20px;
+                            border-radius: 4px;
+                        }
+                        .legend-label {
+                            font-size: 14px;
+                            color: #333;
+                        }
+                        .legend-value {
+                            font-size: 14px;
+                            color: #666;
+                            font-weight: 500;
                         }
                     </style>
 
@@ -154,22 +190,11 @@
                             Graphics Card
                         </text>
                     </svg>
+                    
+                    <div class="legend">
+                        ${legendItems}
+                    </div>
                 `;
-            }
-
-            updateLegend() {
-                const data = JSON.parse(this.getAttribute("data") || "[]");
-                const legendContainer = document.getElementById("legend");
-                
-                if (legendContainer) {
-                    legendContainer.innerHTML = data.map(d => `
-                        <div class="legend-item">
-                            <div class="legend-color" style="background-color: ${d.color}"></div>
-                            <span class="legend-label">${d.label}:</span>
-                            <span class="legend-value">${d.value}%</span>
-                        </div>
-                    `).join("");
-                }
             }
         }
 
