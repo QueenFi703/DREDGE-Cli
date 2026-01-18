@@ -6,7 +6,8 @@ import hashlib
 import os
 import logging
 from functools import lru_cache
-from flask import Flask, jsonify, request
+from pathlib import Path
+from flask import Flask, jsonify, request, send_file
 
 from . import __version__
 from .config import load_config
@@ -55,6 +56,7 @@ def create_app():
                 "/": "API information",
                 "/health": "Health check",
                 "/lift": "Lift an insight (POST)",
+                "/quasimoto-gpu": "Quasimoto GPU visualization",
             }
         })
     
@@ -95,6 +97,13 @@ def create_app():
         }
         
         return jsonify(result)
+    
+    @app.route('/quasimoto-gpu')
+    def quasimoto_gpu():
+        """Serve the Quasimoto GPU visualization page."""
+        static_dir = Path(__file__).parent / 'static'
+        html_file = static_dir / 'quasimoto-gpu.html'
+        return send_file(html_file)
     
     return app
 
