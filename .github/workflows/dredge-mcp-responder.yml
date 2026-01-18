@@ -1,0 +1,232 @@
+name: DREDGE MCP Responder
+
+on:
+  issues:
+    types: [opened, edited]
+  issue_comment:
+    types: [created, edited]
+  pull_request:
+    types: [opened, edited, synchronize]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  respond:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+
+      - name: Process GitHub event
+        id: process_event
+        run: |
+          set -euo pipefail
+          
+          # Read event payload directly from file to avoid quoting/escaping issues
+          echo "Reading GitHub event from: $GITHUB_EVENT_PATH"
+          
+          # Create a simple script to process the event and generate response
+          cat > process_event.py << 'EOF'
+          import json
+          import sys
+          import os
+          
+          # Read the GitHub event payload
+          event_path = os.environ.get('GITHUB_EVENT_PATH')
+          if not event_path:
+              print("Error: GITHUB_EVENT_PATH not set", file=sys.stderr)
+              sys.exit(1)
+          
+          with open(event_path, 'r') as f:
+              event = json.load(f)
+          
+          # Extract relevant information
+          event_name = os.environ.get('GITHUB_EVENT_NAME', 'unknown')
+          repo_name = os.environ.get('GITHUB_REPOSITORY', 'unknown')
+          
+          # Generate response based on event type
+          response = {
+              "event_type": event_name,
+              "repository": repo_name,
+              "processed": True
+          }
+          
+          # Add event-specific details
+          if event_name == "issues":
+              response["issue_number"] = event.get("issue", {}).get("number")
+              response["issue_title"] = event.get("issue", {}).get("title")
+              response["action"] = event.get("action")
+          elif event_name == "pull_request":
+              response["pr_number"] = event.get("pull_request", {}).get("number")
+              response["pr_title"] = event.get("pull_request", {}).get("title")
+              response["action"] = event.get("action")
+              response["is_fork"] = event.get("pull_request", {}).get("head", {}).get("repo", {}).get("fork", False)
+          elif event_name == "issue_comment":
+              response["comment_id"] = event.get("comment", {}).get("id")
+              response["issue_number"] = event.get("issue", {}).get("number")
+              response["action"] = event.get("action")
+          
+          # Write output
+          with open('out.json', 'w') as f:
+              json.dump(response, f, indent=2)
+          
+          print(f"Processed {event_name} event for {repo_name}")
+          EOF
+          
+          python process_event.py
+          
+          # Base64-encode the output to avoid shell metacharacter problems
+          if [ -f out.json ]; then
+            OUTPUT_B64=$(base64 -w 0 out.json)
+            echo "output_b64=${OUTPUT_B64}" >> $GITHUB_OUTPUT
+            echo "has_output=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_output=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment on issue (safe for all events)
+        if: github.event_name == 'issues' || github.event_name == 'issue_comment'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Read and parse the output
+            if (!fs.existsSync('out.json')) {
+              console.log('No output file generated');
+              return;
+            }
+            
+            const output = JSON.parse(fs.readFileSync('out.json', 'utf8'));
+            
+            // Generate comment
+            const comment = [
+              '🤖 **DREDGE MCP Responder**',
+              '',
+              'Event processed successfully!',
+              '',
+              '**Details:**',
+              `- Event Type: ${output.event_type}`,
+              `- Repository: ${output.repository}`,
+              `- Action: ${output.action || 'N/A'}`,
+              '',
+              '*Automated response from DREDGE MCP workflow*'
+            ].join('\n');
+            
+            // Post comment
+            const issue_number = context.issue.number;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue_number,
+              body: comment
+            });
+
+      - name: Comment on PR (fork-safe)
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Read and parse the output
+            if (!fs.existsSync('out.json')) {
+              console.log('No output file generated');
+              return;
+            }
+            
+            const output = JSON.parse(fs.readFileSync('out.json', 'utf8'));
+            
+            // Generate PR comment
+            const comment = [
+              '🤖 **DREDGE MCP Responder**',
+              '',
+              'Pull request processed successfully!',
+              '',
+              '**Details:**',
+              `- PR Number: ${output.pr_number || 'N/A'}`,
+              `- PR Title: ${output.pr_title || 'N/A'}`,
+              `- Action: ${output.action || 'N/A'}`,
+              '',
+              '*Automated response from DREDGE MCP workflow*'
+            ].join('\n');
+            
+            // Post comment
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: comment
+            });
+
+      - name: Label Dependabot PRs
+        if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Assert out.json exists (sanity check)
+            if (!fs.existsSync('out.json')) {
+              console.log('Warning: out.json not found');
+              return;
+            }
+            
+            // Add label to Dependabot PRs
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['dependencies', 'dependadredgeabot']
+            });
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcp-responder-output
+          path: out.json
+          if-no-files-found: warn
+
+      - name: Job Summary
+        if: always()
+        run: |
+          set -euo pipefail
+          
+          echo "# DREDGE MCP Responder Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Event Type:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Repository:** ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Actor:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Ref:** ${{ github.ref }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f out.json ]; then
+            echo "## Processed Output" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat out.json >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ No output file was generated" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "*Workflow completed at $(date -u '+%Y-%m-%d %H:%M:%S UTC')*" >> $GITHUB_STEP_SUMMARY
