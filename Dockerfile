@@ -79,7 +79,8 @@ RUN pip3 install --no-cache-dir --upgrade pip setuptools>=64 wheel
 # Note: Overrides requirements.txt torch>=2.0.0 with specific CUDA build
 RUN pip3 install --no-cache-dir \
     torch \
-    torchaudio --index-url https://download.pytorch.org/whl/cu118 && \
+    torchaudio \
+    --index-url https://download.pytorch.org/whl/cu118 && \
     pip3 install --no-cache-dir \
     flask>=3.0.0 \
     numpy>=1.24.0 \
