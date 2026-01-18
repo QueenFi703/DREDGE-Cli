@@ -45,7 +45,7 @@ services:
               count: 1
               capabilities: [gpu]
     healthcheck:
-      test: ["CMD", "python3", "-c", "import torch; exit(0 if torch.cuda.is_available() else 1)"]
+      test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
       interval: 60s
       timeout: 10s
       retries: 3

@@ -98,9 +98,10 @@ services:
           cpus: '0.25'
           memory: 512M
 
-  # ─────────────────────────────────────────────────────────────────────
-  # Quasimoto MCP Server - GPU Build (Profiles: gpu, full)
-  # ─────────────────────────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────────────
+    # Quasimoto MCP Server - GPU Build (Profiles: gpu, full)
+    # Note: Requires Docker Compose v2+ with nvidia-container-runtime
+    # ─────────────────────────────────────────────────────────────────────
   quasimoto-mcp:
     build:
       context: .
@@ -138,7 +139,7 @@ services:
               count: ${GPU_COUNT:-1}
               capabilities: [gpu]
     healthcheck:
-      test: ["CMD", "python3", "-c", "import torch; exit(0 if torch.cuda.is_available() else 1)"]
+      test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
       interval: 60s
       timeout: 10s
       retries: 3

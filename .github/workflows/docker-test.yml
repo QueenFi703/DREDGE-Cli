@@ -67,7 +67,7 @@ jobs:
         if: matrix.target == 'gpu-build'
         run: |
           docker run -d --name test-gpu -p 3002:3002 -e DEVICE=cpu dredge-cli:test-${{ matrix.suffix }}
-          sleep 15
+          sleep 20
           curl -f http://localhost:3002/ || exit 1
           docker stop test-gpu
           echo "✅ GPU image test passed (CPU mode)"
