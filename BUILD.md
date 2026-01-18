@@ -128,6 +128,20 @@ pip install -e .
 
 # Run CLI
 dredge-cli --help
+dredge-cli --version
+dredge-cli --version-info       # Detailed version and system info
+
+# Health and diagnostics
+dredge-cli health               # Check system health and dependencies
+dredge-cli health --json        # JSON output for scripts
+dredge-cli info                 # Show system information
+
+# Configuration management
+dredge-cli config init          # Create default config file (.dredge.json)
+dredge-cli config show          # Show current configuration
+dredge-cli config path          # Show config file path
+
+# Servers
 dredge-cli serve --host 0.0.0.0 --port 3001
 dredge-cli mcp --host 0.0.0.0 --port 3002
 
@@ -165,6 +179,57 @@ cd swift
 swift build
 swift run dredge-cli
 ```
+
+---
+
+## ⚙️ Configuration
+
+DREDGE supports configuration via `.dredge.json` file for persistent settings.
+
+### Create Configuration File
+
+```bash
+# Initialize with defaults
+dredge-cli config init
+
+# Show current config file path
+dredge-cli config path
+
+# View configuration
+dredge-cli config show
+```
+
+### Configuration File Format
+
+The `.dredge.json` file can be placed in:
+1. Current directory (`./.dredge.json`) - takes precedence
+2. Home directory (`~/.dredge.json`) - fallback
+
+**Example configuration:**
+
+```json
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 3001,
+    "debug": false,
+    "threads": 1
+  },
+  "mcp": {
+    "host": "0.0.0.0",
+    "port": 3002,
+    "debug": false,
+    "device": "auto",
+    "threads": 1
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  }
+}
+```
+
+**Note:** Command-line arguments override configuration file settings.
 
 ---
 

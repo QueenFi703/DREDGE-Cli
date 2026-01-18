@@ -6,7 +6,8 @@
 .PHONY: help install-all install-python install-dev build-swift run-swift \
 	serve mcp test-all test-python test-swift lint-all lint-python lint-swift \
 	format-all format-python format-swift docker-build-cpu docker-build-gpu \
-	docker-up-cpu docker-up-gpu docker-down clean install-hooks
+	docker-up-cpu docker-up-gpu docker-down clean install-hooks health info \
+	version-info config-init config-show
 
 .DEFAULT_GOAL := help
 
@@ -27,6 +28,7 @@ help: ## Show this help message
 	@echo "  make install-all   # Install Python + Swift"
 	@echo "  make test-all      # Run all tests"
 	@echo "  make serve         # Start DREDGE server (port 3001)"
+	@echo "  make health        # Check system health"
 	@echo ""
 
 # ─────────────────────────────────────────────────────────────────────
@@ -77,6 +79,37 @@ serve: ## Start DREDGE x Dolly server (port 3001)
 mcp: ## Start MCP server with Quasimoto (port 3002)
 	@echo "🚀 Starting MCP server on port 3002..."
 	dredge-cli mcp --host 0.0.0.0 --port 3002 --debug
+
+# ─────────────────────────────────────────────────────────────────────
+# Diagnostics
+# ─────────────────────────────────────────────────────────────────────
+
+health: ## Run health check on system and dependencies
+	@echo "🏥 Running health check..."
+	dredge-cli health
+
+info: ## Show system information
+	@echo "ℹ️  System Information:"
+	@echo ""
+	dredge-cli info
+
+version-info: ## Show detailed version information
+	@echo "📋 Version Information:"
+	@echo ""
+	dredge-cli --version-info
+
+# ─────────────────────────────────────────────────────────────────────
+# Configuration
+# ─────────────────────────────────────────────────────────────────────
+
+config-init: ## Initialize default configuration file
+	@echo "⚙️  Initializing configuration..."
+	dredge-cli config init
+
+config-show: ## Show current configuration
+	@echo "⚙️  Current Configuration:"
+	@echo ""
+	dredge-cli config show
 
 # ─────────────────────────────────────────────────────────────────────
 # Testing

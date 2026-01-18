@@ -34,3 +34,6 @@ archives/
 *.zip
 *.torrent
 *.docx
+
+# Configuration files (user-specific)
+.dredge.json

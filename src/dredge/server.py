@@ -4,10 +4,27 @@ A lightweight web server for the DREDGE x Dolly integration.
 """
 import hashlib
 import os
+import logging
 from functools import lru_cache
 from flask import Flask, jsonify, request
 
 from . import __version__
+from .config import load_config
+
+
+def setup_logging(debug: bool = False):
+    """Setup logging configuration."""
+    config = load_config()
+    log_config = config.get("logging", {})
+    level = logging.DEBUG if debug else getattr(logging, log_config.get("level", "INFO"))
+    log_format = log_config.get("format", "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+    
+    logging.basicConfig(
+        level=level,
+        format=log_format,
+        handlers=[logging.StreamHandler()]
+    )
+    return logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1024)
@@ -84,10 +101,18 @@ def run_server(host='0.0.0.0', port=3001, debug=False):
         port: Port to listen on (default: 3001)
         debug: Enable debug mode (default: False)
     """
+    logger = setup_logging(debug)
+    
+    logger.info(f"Starting DREDGE x Dolly Server v{__version__}")
+    logger.info(f"Host: {host}, Port: {port}, Debug: {debug}")
+    
     app = create_app()
+    
     print(f"🚀 Starting DREDGE x Dolly server on http://{host}:{port}")
     print(f"📡 API Version: {__version__}")
     print(f"🔧 Debug mode: {debug}")
+    
+    logger.info("Server ready. Press CTRL+C to stop.")
     app.run(host=host, port=port, debug=debug)
 
 
