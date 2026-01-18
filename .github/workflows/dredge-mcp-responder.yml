@@ -81,11 +81,9 @@ jobs:
           
           # Set multi-line output using heredoc delimiter
           # Format: key<<DELIMITER followed by content and closing DELIMITER
-          {
-            echo 'response<<EOF'
-            cat out.json
-            echo 'EOF'
-          } >> $GITHUB_OUTPUT
+          echo "response<<EOF" >> $GITHUB_OUTPUT
+          cat out.json >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Comment on Pull Request
         if: github.event_name == 'pull_request'
