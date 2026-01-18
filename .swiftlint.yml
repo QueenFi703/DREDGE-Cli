@@ -1,0 +1,42 @@
+# SwiftLint configuration for DREDGE-Cli
+# Install SwiftLint: brew install swiftlint (macOS)
+
+disabled_rules:
+  - line_length
+  - trailing_whitespace
+  - identifier_name
+
+opt_in_rules:
+  - empty_count
+  - empty_string
+  - explicit_init
+  - first_where
+  - sorted_imports
+  - closure_spacing
+  - contains_over_first_not_nil
+
+excluded:
+  - .build
+  - .swiftpm
+  - DerivedData
+  - Pods
+  - vendor
+
+# Configurable rules
+type_body_length:
+  - 300  # warning
+  - 400  # error
+
+file_length:
+  warning: 500
+  error: 1000
+
+function_body_length:
+  warning: 50
+  error: 100
+
+cyclomatic_complexity:
+  warning: 10
+  error: 20
+
+reporter: "xcode"

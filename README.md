@@ -4,6 +4,47 @@
 
 DREDGE — small Python package scaffold with String Theory integration.
 
+## 📖 Documentation
+
+- **[BUILD.md](BUILD.md)** - Comprehensive build, test, and development guide
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Contribution guidelines
+- **[SWIFT_PACKAGE_GUIDE.md](SWIFT_PACKAGE_GUIDE.md)** - Swift development guide
+- **[docs/VSCODE_SETUP.md](docs/VSCODE_SETUP.md)** - VS Code setup instructions
+
+## 🚀 Quick Start
+
+### Local Development (with Makefile)
+
+```bash
+# Clone and enter repository
+git clone https://github.com/QueenFi703/DREDGE-Cli.git
+cd DREDGE-Cli
+
+# Install all dependencies (Python + Swift)
+make install-all
+
+# Run DREDGE server (port 3001)
+make serve
+
+# Or run MCP server (port 3002)
+make mcp
+
+# Run tests
+make test-all
+```
+
+### Container Development
+
+```bash
+# CPU-only Flask server
+make docker-up-cpu
+
+# GPU-enabled MCP server
+make docker-up-gpu
+```
+
+See **[BUILD.md](BUILD.md)** for complete build instructions, CI triggers, and troubleshooting.
+
 ## 🚀 Quick Start with VS Code
 
 **Clone this repository directly into VS Code!**
