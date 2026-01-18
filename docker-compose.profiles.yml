@@ -127,17 +127,16 @@ services:
       - full
     deploy:
       resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: ${GPU_COUNT:-1}
-              capabilities: [gpu]
         limits:
           cpus: '2.0'
           memory: 4G
         reservations:
           cpus: '1.0'
           memory: 2G
+          devices:
+            - driver: nvidia
+              count: ${GPU_COUNT:-1}
+              capabilities: [gpu]
     healthcheck:
       test: ["CMD", "python3", "-c", "import torch; exit(0 if torch.cuda.is_available() else 1)"]
       interval: 60s

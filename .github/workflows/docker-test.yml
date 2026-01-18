@@ -1,0 +1,142 @@
+name: Docker Build Test
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'Dockerfile'
+      - 'docker-compose*.yml'
+      - '.dockerignore'
+      - 'requirements.txt'
+      - 'pyproject.toml'
+      - 'src/**'
+      - '.github/workflows/docker-*.yml'
+
+jobs:
+  validate-docker:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    strategy:
+      matrix:
+        target: [cpu-build, gpu-build, dev]
+        include:
+          - target: cpu-build
+            suffix: cpu
+            platforms: linux/amd64
+          - target: gpu-build
+            suffix: gpu
+            platforms: linux/amd64
+          - target: dev
+            suffix: dev
+            platforms: linux/amd64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (test only)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: ${{ matrix.platforms }}
+          target: ${{ matrix.target }}
+          push: false
+          tags: dredge-cli:test-${{ matrix.suffix }}
+          cache-from: type=gha,scope=${{ matrix.target }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.target }}
+          load: true
+
+      - name: Test CPU image
+        if: matrix.target == 'cpu-build'
+        run: |
+          docker run -d --name test-cpu -p 3001:3001 dredge-cli:test-${{ matrix.suffix }}
+          sleep 15
+          curl -f http://localhost:3001/health || exit 1
+          docker stop test-cpu
+          echo "✅ CPU image test passed"
+
+      - name: Test GPU image (without GPU)
+        if: matrix.target == 'gpu-build'
+        run: |
+          docker run -d --name test-gpu -p 3002:3002 -e DEVICE=cpu dredge-cli:test-${{ matrix.suffix }}
+          sleep 15
+          curl -f http://localhost:3002/ || exit 1
+          docker stop test-gpu
+          echo "✅ GPU image test passed (CPU mode)"
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: dredge-cli:test-${{ matrix.suffix }}
+          format: 'table'
+          exit-code: '0'
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
+
+  validate-compose:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Validate docker-compose.yml
+        run: |
+          docker compose config > /dev/null
+          echo "✅ docker-compose.yml is valid"
+
+      - name: Validate docker-compose.enhanced.yml
+        run: |
+          docker compose -f docker-compose.enhanced.yml config > /dev/null
+          echo "✅ docker-compose.enhanced.yml is valid"
+
+      - name: Validate docker-compose.profiles.yml
+        run: |
+          docker compose -f docker-compose.profiles.yml config > /dev/null
+          echo "✅ docker-compose.profiles.yml is valid"
+
+  validate-kubernetes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Validate Kubernetes manifests
+        run: |
+          kubectl kustomize k8s/ > /dev/null
+          echo "✅ Kubernetes manifests are valid"
+
+      - name: Validate YAML syntax
+        run: |
+          python3 -c "
+          import yaml
+          import sys
+          from pathlib import Path
+          
+          failed = False
+          for yaml_file in Path('k8s').glob('*.yaml'):
+              try:
+                  list(yaml.safe_load_all(open(yaml_file)))
+                  print(f'✅ {yaml_file}')
+              except Exception as e:
+                  print(f'❌ {yaml_file}: {e}')
+                  failed = True
+          
+          sys.exit(1 if failed else 0)
+          "
