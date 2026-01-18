@@ -16,7 +16,14 @@ def setup_logging(debug: bool = False):
     """Setup logging configuration."""
     config = load_config()
     log_config = config.get("logging", {})
-    level = logging.DEBUG if debug else getattr(logging, log_config.get("level", "INFO"))
+    
+    # Safely get log level with validation
+    level_name = log_config.get("level", "INFO")
+    try:
+        level = logging.DEBUG if debug else getattr(logging, level_name, logging.INFO)
+    except AttributeError:
+        level = logging.INFO
+    
     log_format = log_config.get("format", "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     
     logging.basicConfig(

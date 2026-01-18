@@ -14,7 +14,10 @@ def get_system_info() -> Dict[str, Any]:
         import torch
         torch_version = torch.__version__
         cuda_available = torch.cuda.is_available()
-        mps_available = torch.backends.mps.is_available() if hasattr(torch.backends, 'mps') else False
+        # Safely check for MPS availability
+        mps_available = False
+        if hasattr(torch, 'backends') and hasattr(torch.backends, 'mps'):
+            mps_available = torch.backends.mps.is_available()
     except ImportError:
         torch_version = "not installed"
         cuda_available = False
@@ -26,6 +29,11 @@ def get_system_info() -> Dict[str, Any]:
     except ImportError:
         flask_version = "not installed"
     
+    uname = platform.uname()
+    release_lower = uname.release.lower()
+    is_termux = "TERMUX_VERSION" in os.environ
+    is_ish = "alpine" in release_lower or "ish" in release_lower
+    
     return {
         "python_version": sys.version.split()[0],
         "platform": platform.platform(),
@@ -35,8 +43,8 @@ def get_system_info() -> Dict[str, Any]:
         "mps_available": mps_available,
         "flask_version": flask_version,
         "term_width": shutil.get_terminal_size(fallback=(80, 24)).columns,
-        "is_termux": "TERMUX_VERSION" in os.environ,
-        "is_ish": "alpine" in platform.uname().release.lower() or "ish" in platform.uname().release.lower(),
+        "is_termux": is_termux,
+        "is_ish": is_ish,
     }
 
 
@@ -104,7 +112,7 @@ def validate_server_config(host: str, port: int, debug: bool) -> None:
         raise ValueError(f"Port must be between 1 and 65535, got {port}")
     
     # Check if port is privileged
-    if port < 1024 and os.geteuid() != 0 if hasattr(os, 'geteuid') else False:
+    if port < 1024 and hasattr(os, 'geteuid') and os.geteuid() != 0:
         print(f"Warning: Port {port} is privileged and may require sudo/admin rights", file=sys.stderr)
     
     # Check common port conflicts

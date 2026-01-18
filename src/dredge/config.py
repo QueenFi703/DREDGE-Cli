@@ -84,7 +84,10 @@ def init_config(path: Optional[Path] = None) -> Path:
         path = get_config_path()
     
     if path.exists():
-        raise FileExistsError(f"Configuration file already exists at {path}")
+        raise FileExistsError(
+            f"Configuration file already exists at {path}. "
+            f"Use 'dredge-cli config show' to view it or remove the file first."
+        )
     
     save_config(DEFAULT_CONFIG, path)
     return path

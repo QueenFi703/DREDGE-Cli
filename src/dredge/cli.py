@@ -10,6 +10,19 @@ from .health import get_system_info, format_system_info, check_health, validate_
 from .config import load_config, save_config, init_config, get_config_path, DEFAULT_CONFIG
 
 
+def _merge_server_args(args, config_key: str, default_host: str, default_port: int):
+    """Merge CLI arguments with configuration for server commands."""
+    config = load_config()
+    server_config = config.get(config_key, {})
+    
+    host = args.host if hasattr(args, 'host') and args.host != default_host else server_config.get("host", default_host)
+    port = args.port if hasattr(args, 'port') and args.port != default_port else server_config.get("port", default_port)
+    debug = args.debug if hasattr(args, 'debug') else False
+    debug = debug or server_config.get("debug", False)
+    
+    return host, port, debug, server_config
+
+
 def _detect_mobile_context():
     uname = platform.uname()
     is_termux = "TERMUX_VERSION" in os.environ
@@ -211,12 +224,7 @@ def main(argv=None):
     
     if args.command == "serve":
         # Load config and merge with CLI args
-        config = load_config()
-        server_config = config.get("server", {})
-        
-        host = args.host if args.host != "0.0.0.0" else server_config.get("host", "0.0.0.0")
-        port = args.port if args.port != 3001 else server_config.get("port", 3001)
-        debug = args.debug or server_config.get("debug", False)
+        host, port, debug, _ = _merge_server_args(args, "server", "0.0.0.0", 3001)
         
         try:
             validate_server_config(host, port, debug)
@@ -230,12 +238,7 @@ def main(argv=None):
     
     if args.command == "mcp":
         # Load config and merge with CLI args
-        config = load_config()
-        mcp_config = config.get("mcp", {})
-        
-        host = args.host if args.host != "0.0.0.0" else mcp_config.get("host", "0.0.0.0")
-        port = args.port if args.port != 3002 else mcp_config.get("port", 3002)
-        debug = args.debug or mcp_config.get("debug", False)
+        host, port, debug, mcp_config = _merge_server_args(args, "mcp", "0.0.0.0", 3002)
         device = args.device if args.device != "auto" else mcp_config.get("device", "auto")
         
         try:
