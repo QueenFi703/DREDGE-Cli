@@ -79,7 +79,9 @@ jobs:
           echo "DREDGE MCP Response:"
           cat out.json
           
-          # Set outputs for later steps
+          # Set multi-line output using heredoc delimiter (EOF)
+          # This makes the JSON output available as steps.dredge.outputs.response
+          # Usage in other steps: ${{ steps.dredge.outputs.response }}
           echo "response<<EOF" >> $GITHUB_OUTPUT
           cat out.json >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
