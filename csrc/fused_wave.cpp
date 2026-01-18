@@ -3,7 +3,7 @@
 torch::Tensor fused_wave_cuda(torch::Tensor x, double alpha);
 
 torch::Tensor fused_wave(torch::Tensor x, double alpha) {
-    // Dispatch to CUDA; CPU impl could be added if needed
+    TORCH_CHECK(x.is_cuda(), "fused_wave only supports CUDA tensors. Use CPU fallback for CPU tensors.");
     return fused_wave_cuda(x, alpha);
 }
 

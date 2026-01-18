@@ -10,6 +10,7 @@ If CUDA is not available, the package will install without extensions
 and fall back to pure Python implementations at runtime.
 """
 
+import os
 import sys
 import warnings
 from setuptools import setup
@@ -21,8 +22,6 @@ try:
 
     # Check if CUDA is available
     if torch.cuda.is_available():
-        import os
-
         # Define extension module
         ext_modules = [
             CUDAExtension(

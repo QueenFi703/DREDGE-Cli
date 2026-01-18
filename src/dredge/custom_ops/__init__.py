@@ -15,7 +15,7 @@ def _fallback():
 def _load():
     try:
         return importlib.import_module("dredge_custom_ops").fused_wave
-    except Exception as e:
+    except (ImportError, ModuleNotFoundError) as e:
         log.info("Custom CUDA ops not available, using fallback: %s", e)
         return _fallback()
 

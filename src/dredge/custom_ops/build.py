@@ -4,9 +4,10 @@ from torch.utils.cpp_extension import load
 
 def build_extensions():
     this_dir = os.path.dirname(__file__)
+    csrc_dir = os.path.abspath(os.path.join(this_dir, "..", "..", "..", "csrc"))
     sources = [
-        os.path.join(this_dir, "..", "..", "..", "csrc", "fused_wave.cpp"),
-        os.path.join(this_dir, "..", "..", "..", "csrc", "fused_wave_kernel.cu"),
+        os.path.join(csrc_dir, "fused_wave.cpp"),
+        os.path.join(csrc_dir, "fused_wave_kernel.cu"),
     ]
     return load(
         name="dredge_custom_ops",
