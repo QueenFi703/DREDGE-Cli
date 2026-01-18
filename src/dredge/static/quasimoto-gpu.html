@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quasimoto GPU - Repository Statistics</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .chart-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+        }
+        .legend-label {
+            font-size: 14px;
+            color: #333;
+        }
+        .legend-value {
+            font-size: 14px;
+            color: #666;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>DREDGE Repository Statistics</h1>
+        <p class="subtitle">Language distribution analyzed by Quasimoto GPU</p>
+        
+        <div class="chart-container">
+            <quasimoto-gpu
+                data='[
+                    {"label":"Python","value":68.2,"color":"#1f77b4"},
+                    {"label":"Swift","value":15.7,"color":"#ff7f0e"},
+                    {"label":"TeX","value":6.8,"color":"#d62728"},
+                    {"label":"Makefile","value":4.1,"color":"#2ca02c"},
+                    {"label":"Shell","value":3.4,"color":"#ffbb78"},
+                    {"label":"Dockerfile","value":1.6,"color":"#9467bd"},
+                    {"label":"Other","value":0.2,"color":"#7f7f7f"}
+                ]'>
+            </quasimoto-gpu>
+        </div>
+        
+        <div class="legend" id="legend"></div>
+    </div>
+
+    <script type="module">
+        class QuasimotoGPU extends HTMLElement {
+            static get observedAttributes() {
+                return ["data"];
+            }
+
+            constructor() {
+                super();
+                this.attachShadow({ mode: "open" });
+            }
+
+            attributeChangedCallback() {
+                this.render();
+            }
+
+            connectedCallback() {
+                this.render();
+                this.updateLegend();
+            }
+
+            render() {
+                const data = JSON.parse(this.getAttribute("data") || "[]");
+
+                const radius = 150;
+                const circumference = 2 * Math.PI * radius;
+                let offset = 0;
+
+                const slices = data.map(d => {
+                    const length = (d.value / 100) * circumference;
+                    const svg = `
+                        <circle
+                            cx="200"
+                            cy="200"
+                            r="${radius}"
+                            fill="none"
+                            stroke="${d.color}"
+                            stroke-width="40"
+                            stroke-dasharray="${length} ${circumference}"
+                            stroke-dashoffset="${-offset}"
+                        />`;
+                    offset += length;
+                    return svg;
+                }).join("");
+
+                this.shadowRoot.innerHTML = `
+                    <style>
+                        svg {
+                            width: 100%;
+                            max-width: 400px;
+                            font-family: system-ui, sans-serif;
+                        }
+                        circle {
+                            transform-origin: 50% 50%;
+                        }
+                    </style>
+
+                    <svg viewBox="0 0 400 400">
+                        <g transform="rotate(-90 200 200)">
+                            ${slices}
+                        </g>
+                        <circle cx="200" cy="200" r="110" fill="white"/>
+                        <text x="200" y="195" text-anchor="middle" font-size="18">
+                            Quasimoto
+                        </text>
+                        <text x="200" y="215" text-anchor="middle" font-size="12" fill="#666">
+                            Graphics Card
+                        </text>
+                    </svg>
+                `;
+            }
+
+            updateLegend() {
+                const data = JSON.parse(this.getAttribute("data") || "[]");
+                const legendContainer = document.getElementById("legend");
+                
+                if (legendContainer) {
+                    legendContainer.innerHTML = data.map(d => `
+                        <div class="legend-item">
+                            <div class="legend-color" style="background-color: ${d.color}"></div>
+                            <span class="legend-label">${d.label}:</span>
+                            <span class="legend-value">${d.value}%</span>
+                        </div>
+                    `).join("");
+                }
+            }
+        }
+
+        customElements.define("quasimoto-gpu", QuasimotoGPU);
+    </script>
+</body>
+</html>
