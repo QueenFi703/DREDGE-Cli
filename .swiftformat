@@ -1,0 +1,31 @@
+# SwiftFormat configuration for DREDGE-Cli
+# Install SwiftFormat: brew install swiftformat (macOS)
+
+--indent 4
+--ifdef no-indent
+--indentcase false
+--trimwhitespace always
+--nospaceoperators ...,..<
+--ranges spaced
+--self insert
+--importgrouping testable-bottom
+--commas inline
+--stripunusedargs closure-only
+--wraparguments before-first
+--wrapcollections before-first
+--maxwidth 100
+--closingparen balanced
+--funcattributes prev-line
+--typeattributes prev-line
+
+# Enabled rules
+--enable isEmpty
+--enable sortedImports
+--enable blankLinesAtStartOfScope
+--enable blankLinesAtEndOfScope
+--enable blankLinesBetweenScopes
+--enable consecutiveBlankLines
+--enable consecutiveSpaces
+
+# Disabled rules
+--disable andOperator
