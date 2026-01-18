@@ -1,0 +1,41 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'dredge-cli'
+    environment: 'production'
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'dredge-metrics'
+    static_configs:
+      - targets: ['metrics-exporter:9090']
+        labels:
+          service: 'dredge-cli'
+
+  - job_name: 'dredge-server'
+    static_configs:
+      - targets: ['dredge-server:3001']
+        labels:
+          service: 'dredge-api'
+
+  - job_name: 'quasimoto-mcp'
+    static_configs:
+      - targets: ['quasimoto-mcp:3002']
+        labels:
+          service: 'mcp-server'
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+        labels:
+          service: 'cache'
+
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx:80']
+        labels:
+          service: 'proxy'

@@ -1,0 +1,324 @@
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# DREDGE-Cli Advanced Docker Compose Configuration
+# Multiple profiles for different deployment scenarios
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+version: '3.8'
+
+x-common-environment: &common-environment
+  PYTHONUNBUFFERED: 1
+  REDIS_HOST: redis
+  REDIS_PORT: 6379
+  CACHE_ENABLED: ${CACHE_ENABLED:-true}
+  METRICS_ENABLED: ${METRICS_ENABLED:-true}
+
+x-common-deploy: &common-deploy
+  restart_policy:
+    condition: on-failure
+    delay: 5s
+    max_attempts: 3
+    window: 120s
+
+services:
+  # ─────────────────────────────────────────────────────────────────────
+  # Redis Cache (All Profiles)
+  # ─────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: dredge-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    command: |
+      redis-server 
+      --appendonly yes 
+      --maxmemory ${REDIS_MAX_MEMORY:-512mb}
+      --maxmemory-policy allkeys-lru
+      --save 60 1000
+      --loglevel warning
+    restart: unless-stopped
+    networks:
+      - dredge-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+  # ─────────────────────────────────────────────────────────────────────
+  # DREDGE Server - CPU Build (Profiles: cpu, dev, full)
+  # ─────────────────────────────────────────────────────────────────────
+  dredge-server:
+    build:
+      context: .
+      target: cpu-build
+      cache_from:
+        - ghcr.io/queenfi703/dredge-cli:latest-cpu
+    image: ghcr.io/queenfi703/dredge-cli:${VERSION:-latest}-cpu
+    container_name: dredge-flask
+    ports:
+      - "${DREDGE_PORT:-3001}:3001"
+    environment:
+      <<: *common-environment
+      FLASK_ENV: ${FLASK_ENV:-production}
+      SERVER_MODE: cpu
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - dredge-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    profiles:
+      - cpu
+      - dev
+      - full
+    deploy:
+      <<: *common-deploy
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Quasimoto MCP Server - GPU Build (Profiles: gpu, full)
+  # ─────────────────────────────────────────────────────────────────────
+  quasimoto-mcp:
+    build:
+      context: .
+      target: gpu-build
+      cache_from:
+        - ghcr.io/queenfi703/dredge-cli:latest-gpu
+    image: ghcr.io/queenfi703/dredge-cli:${VERSION:-latest}-gpu
+    container_name: quasimoto-gpu
+    ports:
+      - "${MCP_PORT:-3002}:3002"
+    environment:
+      <<: *common-environment
+      CUDA_VISIBLE_DEVICES: ${CUDA_VISIBLE_DEVICES:-0}
+      DEVICE: ${DEVICE:-auto}
+      SERVER_MODE: gpu
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - dredge-network
+    profiles:
+      - gpu
+      - full
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: ${GPU_COUNT:-1}
+              capabilities: [gpu]
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import torch; exit(0 if torch.cuda.is_available() else 1)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Worker Nodes (Profile: full, workers)
+  # ─────────────────────────────────────────────────────────────────────
+  dredge-worker-1:
+    build:
+      context: .
+      target: cpu-build
+      cache_from:
+        - ghcr.io/queenfi703/dredge-cli:latest-cpu
+    image: ghcr.io/queenfi703/dredge-cli:${VERSION:-latest}-cpu
+    container_name: dredge-worker-1
+    environment:
+      <<: *common-environment
+      WORKER_ID: worker-1
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-4}
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - dredge-network
+    profiles:
+      - full
+      - workers
+    command: ["python", "-m", "dredge.worker_cli", "--worker-id", "worker-1"]
+    deploy:
+      <<: *common-deploy
+      replicas: ${WORKER_REPLICAS:-2}
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Metrics Exporter (Profiles: full, monitoring)
+  # ─────────────────────────────────────────────────────────────────────
+  metrics-exporter:
+    build:
+      context: .
+      target: cpu-build
+      cache_from:
+        - ghcr.io/queenfi703/dredge-cli:latest-cpu
+    image: ghcr.io/queenfi703/dredge-cli:${VERSION:-latest}-cpu
+    container_name: dredge-metrics
+    ports:
+      - "${METRICS_PORT:-9090}:9090"
+    environment:
+      <<: *common-environment
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - dredge-network
+    profiles:
+      - full
+      - monitoring
+    command: ["python", "-m", "dredge.metrics_exporter", "--port", "9090"]
+    deploy:
+      <<: *common-deploy
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Nginx Reverse Proxy (Profile: proxy)
+  # ─────────────────────────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: dredge-nginx
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx-cache:/var/cache/nginx
+    depends_on:
+      - dredge-server
+    restart: unless-stopped
+    networks:
+      - dredge-network
+    profiles:
+      - proxy
+      - full
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      <<: *common-deploy
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Prometheus (Profile: monitoring)
+  # ─────────────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: dredge-prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9091}:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+    restart: unless-stopped
+    networks:
+      - dredge-network
+    profiles:
+      - monitoring
+      - full
+    deploy:
+      <<: *common-deploy
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Grafana (Profile: monitoring)
+  # ─────────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    container_name: dredge-grafana
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: false
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - dredge-network
+    profiles:
+      - monitoring
+      - full
+    deploy:
+      <<: *common-deploy
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+networks:
+  dredge-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  redis-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  nginx-cache:
+    driver: local

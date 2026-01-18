@@ -181,6 +181,42 @@ docker-down: ## Stop all Docker containers
 	@echo "🐳 Stopping Docker containers..."
 	docker compose down
 
+docker-profile-cpu: ## Run with CPU profile (DREDGE server + Redis)
+	@echo "🐳 Starting CPU profile..."
+	docker compose -f docker-compose.profiles.yml --profile cpu up -d
+
+docker-profile-gpu: ## Run with GPU profile (Quasimoto MCP + Redis)
+	@echo "🐳 Starting GPU profile..."
+	docker compose -f docker-compose.profiles.yml --profile gpu up -d
+
+docker-profile-full: ## Run full stack with all services
+	@echo "🐳 Starting full stack..."
+	docker compose -f docker-compose.profiles.yml --profile full up -d
+
+docker-profile-monitoring: ## Run with monitoring (Prometheus + Grafana)
+	@echo "🐳 Starting monitoring stack..."
+	docker compose -f docker-compose.profiles.yml --profile monitoring up -d
+
+docker-profile-proxy: ## Run with Nginx reverse proxy
+	@echo "🐳 Starting Nginx proxy..."
+	docker compose -f docker-compose.profiles.yml --profile proxy up -d
+
+docker-profile-down: ## Stop profile-based containers
+	@echo "🐳 Stopping profile containers..."
+	docker compose -f docker-compose.profiles.yml down
+
+docker-logs: ## View Docker logs
+	@echo "📜 Viewing Docker logs..."
+	docker compose logs -f
+
+docker-ps: ## List running containers
+	@echo "📋 Running containers:"
+	docker compose ps
+
+docker-stats: ## Show container resource usage
+	@echo "📊 Container resource usage:"
+	docker stats
+
 # ─────────────────────────────────────────────────────────────────────
 # Cleanup
 # ─────────────────────────────────────────────────────────────────────

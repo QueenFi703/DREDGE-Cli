@@ -1,0 +1,104 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# CI/CD
+.github
+
+# Documentation
+*.md
+!README.md
+!LICENSE
+docs/
+CHANGELOG.md
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Development
+.pre-commit-config.yaml
+Makefile
+*.xcworkspace/
+Package.swift
+
+# Archives
+archives/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.log
+
+# Container files
+docker-compose*.yml
+!docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Kubernetes
+k8s/
+
+# Monitoring
+monitoring/
+
+# Nginx
+nginx/
+
+# Environment
+.env
+.env.*
+!.env.example

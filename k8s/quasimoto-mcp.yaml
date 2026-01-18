@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: quasimoto-mcp
+  namespace: dredge
+  labels:
+    app: quasimoto-mcp
+    component: mcp-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: quasimoto-mcp
+  template:
+    metadata:
+      labels:
+        app: quasimoto-mcp
+        component: mcp-server
+    spec:
+      containers:
+      - name: quasimoto-gpu
+        image: ghcr.io/queenfi703/dredge-cli:latest-gpu
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3002
+          name: http
+        envFrom:
+        - configMapRef:
+            name: quasimoto-config
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+            nvidia.com/gpu: 1
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+            nvidia.com/gpu: 1
+        livenessProbe:
+          exec:
+            command:
+            - python3
+            - -c
+            - "import torch; exit(0 if torch.cuda.is_available() else 1)"
+          initialDelaySeconds: 60
+          periodSeconds: 60
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3002
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+      restartPolicy: Always
+      # Requires NVIDIA GPU operator installed on the cluster
+      # https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/getting-started.html
+      nodeSelector:
+        nvidia.com/gpu.present: "true"
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: quasimoto-mcp-service
+  namespace: dredge
+  labels:
+    app: quasimoto-mcp
+    component: mcp-server
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3002
+    targetPort: 3002
+    protocol: TCP
+    name: http
+  selector:
+    app: quasimoto-mcp
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: quasimoto-mcp-ingress
+  namespace: dredge
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - mcp.dredge.example.com
+    secretName: quasimoto-mcp-tls
+  rules:
+  - host: mcp.dredge.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: quasimoto-mcp-service
+            port:
+              number: 3002

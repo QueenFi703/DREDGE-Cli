@@ -37,3 +37,17 @@ archives/
 
 # Configuration files (user-specific)
 .dredge.json
+
+# Environment files
+.env
+.env.local
+
+# SSL certificates
+nginx/ssl/*.pem
+nginx/ssl/*.key
+nginx/ssl/*.crt
+
+# Monitoring data
+monitoring/grafana/data/
+prometheus-data/
+grafana-data/
