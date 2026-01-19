@@ -21,19 +21,57 @@
     }
   },
   
-  "postCreateCommand": "bash -c '[ -f .git/shallow ] && git fetch --unshallow || echo \"Repository already has full history\"; pip install -r requirements.txt && pip install -e .'",
+  "postCreateCommand": "bash -c '[ -f .git/shallow ] && git fetch --unshallow || echo \"Repository already has full history\"; pip install -r requirements.txt && pip install -e . && pip install black ruff mypy pytest pre-commit'",
   
   "customizations": {
     "vscode": {
       "extensions": [
         "ms-python.python",
-        "ms-python.vscode-pylance"
+        "ms-python.vscode-pylance",
+        "ms-python.black-formatter",
+        "ms-toolsai.jupyter",
+        "sswg.swift-lang",
+        "vknabel.vscode-apple-swift-format",
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "eamodio.gitlens"
       ],
       "settings": {
         "python.defaultInterpreterPath": "/usr/local/bin/python",
-        "python.linting.enabled": true,
-        "python.linting.pylintEnabled": true,
-        "python.formatting.provider": "black"
+        "python.terminal.activateEnvironment": true,
+        "python.testing.pytestEnabled": true,
+        "python.testing.unittestEnabled": false,
+        "python.testing.pytestArgs": [
+          "tests"
+        ],
+        "files.exclude": {
+          "**/__pycache__": true,
+          "**/*.pyc": true,
+          "**/.pytest_cache": true,
+          "**/.mypy_cache": true,
+          "**/.DS_Store": true
+        },
+        "editor.formatOnSave": false,
+        "editor.rulers": [
+          80,
+          120
+        ],
+        "[python]": {
+          "editor.defaultFormatter": "ms-python.black-formatter",
+          "editor.formatOnSave": false,
+          "editor.codeActionsOnSave": {
+            "source.organizeImports": "never"
+          }
+        },
+        "[swift]": {
+          "editor.defaultFormatter": "vknabel.vscode-apple-swift-format",
+          "editor.formatOnSave": false
+        },
+        "swift.path": "/usr/bin/swift",
+        "files.associations": {
+          "*.swift": "swift",
+          "Package.swift": "swift"
+        }
       }
     }
   },
