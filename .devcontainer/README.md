@@ -10,6 +10,20 @@ The devcontainer is configured to provide a consistent development environment w
 - **Development Tools** - Black, Ruff, MyPy, Pytest, Pre-commit
 - **VS Code Extensions** - Python, Jupyter, Git, GitHub Copilot support
 
+### Python Interpreter
+
+The Python interpreter path differs between environments by design:
+
+- **Local VS Code**: `${workspaceFolder}/.venv/bin/python` (virtual environment)
+- **DevContainer**: `/usr/local/bin/python` (system Python in container)
+
+This is intentional because:
+- Local development uses isolated virtual environments
+- Containers are already isolated, so dependencies are installed system-wide
+- Both approaches are valid and provide dependency isolation
+
+When switching between environments, VS Code will automatically detect and use the correct Python interpreter for each context.
+
 ## Language Support
 
 ### Python (Fully Supported)
@@ -58,9 +72,12 @@ Python and editor settings are synchronized between local VS Code and Codespaces
 2. Wait for the container to build and the postCreateCommand to complete
 3. The container will automatically:
    - Unshallow git history if needed
-   - Install Python dependencies
-   - Install development tools
-   - Set up the Python package in editable mode
+   - Install Python dependencies from `requirements.txt`
+   - Install the package in editable mode
+   - Install development tools (black, ruff, mypy, pytest, pre-commit)
+   - Check for Swift availability and notify if unavailable
+
+The postCreateCommand runs as a single bash command to ensure all setup steps complete in sequence. If you prefer, you can break this into a separate script by creating `.devcontainer/setup.sh`, but the current approach keeps the configuration self-contained.
 
 ## Troubleshooting
 
