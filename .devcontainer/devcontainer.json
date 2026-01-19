@@ -5,6 +5,11 @@
   "features": {
     "ghcr.io/devcontainers/features/python:1": {
       "version": "3.11"
+    },
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": "true",
+      "installOhMyZsh": "true",
+      "upgradePackages": "true"
     }
   },
   
@@ -21,7 +26,7 @@
     }
   },
   
-  "postCreateCommand": "bash -c '[ -f .git/shallow ] && git fetch --unshallow || echo \"Repository already has full history\"; pip install -r requirements.txt && pip install -e . && pip install black ruff mypy pytest pre-commit'",
+  "postCreateCommand": "bash -c '[ -f .git/shallow ] && git fetch --unshallow || echo \"Repository already has full history\"; pip install -r requirements.txt && pip install -e . && pip install black ruff mypy pytest pre-commit; if ! command -v swift &> /dev/null; then echo \"Swift not available in this container - Swift features will be disabled\"; fi'",
   
   "customizations": {
     "vscode": {
