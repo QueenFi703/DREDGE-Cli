@@ -209,8 +209,8 @@ updates:
       prefix: "⬆️ [DEPENDADREDGEABOT/Docker]"
       include: "scope"
     ignore:
-      # Python 3.13: Not yet compatible with current dependency ecosystem
-      # pyproject.toml constrains to >=3.9,<3.13 for stability
+      # Python 3.15+: Not yet compatible with current dependency ecosystem
+      # pyproject.toml constrains to >=3.9,<3.15 for stability
       - dependency-name: "python"
         update-types: ["version-update:semver-major"]
       # CUDA 11.8: Required for PyTorch 2.x GPU kernel compatibility

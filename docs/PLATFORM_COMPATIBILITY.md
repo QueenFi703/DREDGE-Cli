@@ -68,11 +68,12 @@ This document provides comprehensive compatibility information for DREDGE-Cli ac
 
 | Python Version | Status | Notes |
 |----------------|--------|-------|
-| 3.12 | ✅ Full Support | Latest tested version |
+| 3.14 | ✅ Full Support | Latest supported version |
+| 3.13 | ✅ Full Support | Tested and working |
+| 3.12 | ✅ Full Support | Recommended |
 | 3.11 | ✅ Full Support | Recommended |
 | 3.10 | ✅ Full Support | Tested and working |
 | 3.9 | ✅ Full Support | Minimum version |
-| 3.13 | ⚠️  Experimental | Not officially tested |
 | 3.8 and below | ❌ Not Supported | Requires Python 3.9+ |
 
 ### Python Platform Support
