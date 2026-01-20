@@ -2,14 +2,14 @@
 DREDGE Batch Processing Pipeline
 Demonstrates real-world use case for batch unified_inference with load testing.
 """
-import time
-import json
 import asyncio
+import json
 import statistics
 import sys
-from typing import List, Dict, Any
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from typing import List, Dict, Any
 
 # Add src to path if running standalone
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -34,21 +34,32 @@ def _calculate_percentile(data: List[float], percentile: float) -> float:
     
     # Use statistics.quantiles if available (Python 3.8+)
     try:
-        if len(data) >= 100:
-            quantile_count = 100
-            quantile_index = int(percentile) - 1
+        # statistics.quantiles returns n-1 cut points
+        # For 95th percentile, we want the point where 95% of data is below
+        # With n=100, we get 99 cut points, so 95th percentile is at index 94
+        if percentile == 95:
+            quantiles = statistics.quantiles(data, n=100)
+            return quantiles[94] if len(data) >= 100 else quantiles[min(94, len(quantiles) - 1)]
+        elif percentile == 99:
+            quantiles = statistics.quantiles(data, n=100)
+            return quantiles[98] if len(data) >= 100 else quantiles[min(98, len(quantiles) - 1)]
         else:
-            quantile_count = 20
-            # Map to closest quantile
-            quantile_index = int(percentile / 5) - 1 if percentile >= 5 else 0
-        
-        quantiles = statistics.quantiles(data, n=quantile_count)
-        return quantiles[quantile_index] if quantile_index < len(quantiles) else max(data)
+            # General case
+            n = 100
+            quantiles = statistics.quantiles(data, n=n)
+            idx = int((percentile * (n - 1)) / 100)
+            return quantiles[min(idx, len(quantiles) - 1)]
     except (AttributeError, IndexError):
-        # Fallback for older Python versions or edge cases
+        # Fallback for edge cases
         sorted_data = sorted(data)
-        index = int(len(sorted_data) * percentile / 100.0)
-        return sorted_data[min(index, len(sorted_data) - 1)]
+        k = (len(sorted_data) - 1) * percentile / 100.0
+        f = int(k)
+        c = f + 1
+        if c >= len(sorted_data):
+            return sorted_data[-1]
+        d0 = sorted_data[f] * (c - k)
+        d1 = sorted_data[c] * (k - f)
+        return d0 + d1
 
 
 class BatchInferencePipeline:

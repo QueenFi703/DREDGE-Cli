@@ -11,8 +11,8 @@ except ImportError:
 def build_extensions():
     if not TORCH_AVAILABLE:
         raise ImportError(
-            "PyTorch is required to build custom CUDA extensions. "
-            "Please install PyTorch with CUDA support: pip install torch"
+            "PyTorch is required to build custom extensions. "
+            "Please install PyTorch: pip install torch"
         )
     
     this_dir = os.path.dirname(__file__)
