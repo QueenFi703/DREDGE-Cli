@@ -52,7 +52,46 @@ The Swift extensions will gracefully degrade in the container environment and al
 The container forwards two ports:
 
 - **3001** - DREDGE x Dolly Server
-- **3002** - DREDGE MCP Server (Quasimoto)
+- **3002** - DREDGE MCP Server (Quasimoto + Dependabot Integration)
+
+## Environment Variables
+
+### GitHub Token for Dependabot Integration
+
+The MCP server now includes Dependabot alerts integration. To use these features, you need to configure a GitHub token:
+
+1. **Create a GitHub Personal Access Token** (classic or fine-grained):
+   - Classic: Go to GitHub Settings → Developer settings → Personal access tokens → Tokens (classic)
+   - Fine-grained: Go to GitHub Settings → Developer settings → Personal access tokens → Fine-grained tokens
+   
+2. **Required Permissions**:
+   - Classic token: Select `security_events` scope (read:org, read:repo_security_events)
+   - Fine-grained token: Grant "Dependabot alerts" read access
+   
+3. **Configure in Codespaces**:
+   ```bash
+   # Set as a Codespace secret (recommended for persistent access)
+   # Go to: Settings → Codespaces → Secrets → New secret
+   # Name: GITHUB_TOKEN
+   # Value: your_token_here
+   
+   # Or set temporarily in your terminal session:
+   export GITHUB_TOKEN=your_token_here
+   ```
+
+4. **Configure Locally**:
+   ```bash
+   # Add to your shell profile (~/.bashrc, ~/.zshrc, etc.):
+   export GITHUB_TOKEN=your_token_here
+   
+   # Or create a .env file (never commit this file!)
+   echo "GITHUB_TOKEN=your_token_here" > .env
+   ```
+
+**Dependabot MCP Operations** (requires GITHUB_TOKEN):
+- `get_dependabot_alerts` - List all security alerts
+- `explain_dependabot_alert` - Get vulnerability details with AI recommendations
+- `update_dependabot_alert` - Dismiss or reopen alerts
 
 ## Customization
 
@@ -77,9 +116,27 @@ Python and editor settings are synchronized between local VS Code and Codespaces
    - Install development tools (black, ruff, mypy, pytest, pre-commit)
    - Check for Swift availability and notify if unavailable
 
+4. **(Optional) Configure Dependabot Integration**:
+   - Set up `GITHUB_TOKEN` as described in the Environment Variables section above
+   - Required for MCP Dependabot operations: querying alerts, explaining vulnerabilities, updating alert statuses
+   - Without token, all other MCP features (Quasimoto models, String Theory) work normally
+
 The postCreateCommand runs as a single bash command to ensure all setup steps complete in sequence. If you prefer, you can break this into a separate script by creating `.devcontainer/setup.sh`, but the current approach keeps the configuration self-contained.
 
 ## Troubleshooting
+
+### Dependabot Operations Return "GITHUB_TOKEN not set"
+
+If you see this error when using MCP Dependabot operations:
+```json
+{"success": false, "error": "GITHUB_TOKEN not set"}
+```
+
+**Solutions:**
+1. **Codespaces**: Add GITHUB_TOKEN as a Codespace secret (Settings → Codespaces → Secrets)
+2. **Local container**: Export the token before starting VS Code: `export GITHUB_TOKEN=your_token`
+3. **Verify token**: Run `echo $GITHUB_TOKEN` in the terminal to confirm it's set
+4. **Check permissions**: Ensure token has `security_events` scope (read:org, read:repo_security_events)
 
 ### Swift Extensions Show Errors
 This is expected. Swift extensions require the Swift runtime which is not available in the Python-based container. You can safely ignore these warnings or disable the Swift extensions in Codespaces if preferred.

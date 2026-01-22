@@ -21,12 +21,17 @@
       "onAutoForward": "notify"
     },
     "3002": {
-      "label": "DREDGE MCP Server (Quasimoto)",
+      "label": "DREDGE MCP Server (Quasimoto + Dependabot)",
       "onAutoForward": "notify"
     }
   },
   
   "postCreateCommand": "bash -c '[ -f .git/shallow ] && git fetch --unshallow || echo \"Repository already has full history\"; pip install -r requirements.txt && pip install -e . && pip install black ruff mypy pytest pre-commit; if ! command -v swift &> /dev/null; then echo \"Swift not available in this container - Swift features will be disabled\"; fi'",
+  
+  // Optional: Configure GITHUB_TOKEN for Dependabot integration
+  // See .devcontainer/README.md for setup instructions
+  // Required permissions: security_events scope (read Dependabot alerts)
+  "remoteEnv": {},
   
   "customizations": {
     "vscode": {
