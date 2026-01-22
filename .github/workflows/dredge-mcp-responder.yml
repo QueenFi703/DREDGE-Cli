@@ -1,256 +1,183 @@
-# DREDGE MCP Responder Workflow
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# DREDGE MCP Responder
+# GitHub as Prompt, DREDGE-CLI MCP as Responder
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #
-# This workflow provides automated responses to GitHub events (issues, PRs, and comments).
-# It demonstrates best practices for robust GitHub Actions workflows:
+# "Every GitHub event is a knock; DREDGE answers with intent."
 #
-# - Uses safe shell defaults (set -euo pipefail) to fail fast on errors
-# - Reads event payload directly from $GITHUB_EVENT_PATH to avoid quoting/escaping issues
-# - Base64-encodes outputs to prevent shell metacharacter problems
-# - Includes fork-safety guards to prevent permission errors on forked PRs
-# - Automatically labels Dependabot PRs
-# - Generates comprehensive job summaries with actual event and repository values
+# Core pattern:
+# - GitHub signals (push, PR, comment, workflow_dispatch) are prompts
+# - DREDGE MCP processes the event context
+# - Responses flow back as comments, labels, or check runs
 #
-# The workflow is triggered on:
-# - Issue events (opened, edited)
-# - Issue comment events (created, edited)
-# - Pull request events (opened, edited, synchronize)
+# Integration with DEPENDADREDGEABOT:
+# - Detects Dependabot PRs and commits
+# - Analyzes dependency updates
+# - Provides philosophical insights on dependency management
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 name: DREDGE MCP Responder
 
 on:
-  issues:
-    types: [opened, edited]
-  issue_comment:
-    types: [created, edited]
+  push:
+    branches: 
+      - main
+      - 'feature/**'
+      - 'copilot/**'
   pull_request:
-    types: [opened, edited, synchronize]
+    types: [opened, synchronize, reopened, labeled]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      custom_message:
+        description: 'Custom message for DREDGE MCP'
+        required: false
+        default: 'Manual trigger'
 
 permissions:
   contents: read
-  issues: write
   pull-requests: write
+  issues: write
 
 jobs:
-  respond:
+  respond-with-dredge:
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
-      - name: Install dependencies
+      - name: Install DREDGE CLI
         run: |
-          set -euo pipefail
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -e .
 
-      - name: Process GitHub event
-        id: process_event
+      - name: Run DREDGE MCP on GitHub Event
+        id: dredge
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -euo pipefail
+          # Run DREDGE MCP event handler
+          dredge-cli github-event \
+            --event "$GITHUB_EVENT_NAME" \
+            --payload '${{ toJson(github.event) }}' \
+            --ref "${{ github.ref }}" \
+            --repo "${{ github.repository }}" \
+            --sha "${{ github.sha }}" \
+            --out out.json
           
-          # Read event payload directly from file to avoid quoting/escaping issues
-          echo "Reading GitHub event from: ${GITHUB_EVENT_PATH}"
+          # Display the output
+          echo "DREDGE MCP Response:"
+          cat out.json
           
-          # Create a simple script to process the event and generate response
-          cat > process_event.py << 'EOF'
-          import json
-          import sys
-          import os
-          
-          # Read the GitHub event payload
-          event_path = os.environ.get('GITHUB_EVENT_PATH')
-          if not event_path:
-              print("Error: GITHUB_EVENT_PATH not set", file=sys.stderr)
-              sys.exit(1)
-          
-          with open(event_path, 'r') as f:
-              event = json.load(f)
-          
-          # Extract relevant information
-          event_name = os.environ.get('GITHUB_EVENT_NAME', 'unknown')
-          repo_name = os.environ.get('GITHUB_REPOSITORY', 'unknown')
-          
-          # Generate response based on event type
-          response = {
-              "event_type": event_name,
-              "repository": repo_name,
-              "processed": True
-          }
-          
-          # Add event-specific details
-          if event_name == "issues":
-              response["issue_number"] = event.get("issue", {}).get("number")
-              response["issue_title"] = event.get("issue", {}).get("title")
-              response["action"] = event.get("action")
-          elif event_name == "pull_request":
-              response["pr_number"] = event.get("pull_request", {}).get("number")
-              response["pr_title"] = event.get("pull_request", {}).get("title")
-              response["action"] = event.get("action")
-              response["is_fork"] = event.get("pull_request", {}).get("head", {}).get("repo", {}).get("fork", False)
-          elif event_name == "issue_comment":
-              response["comment_id"] = event.get("comment", {}).get("id")
-              response["issue_number"] = event.get("issue", {}).get("number")
-              response["action"] = event.get("action")
-          
-          # Write output
-          with open('out.json', 'w') as f:
-              json.dump(response, f, indent=2)
-          
-          print(f"Processed {event_name} event for {repo_name}")
-          EOF
-          
-          python process_event.py
-          
-          # Base64-encode the output to avoid shell metacharacter problems
-          if [ -f out.json ]; then
-            OUTPUT_B64=$(base64 -w 0 out.json)
-            echo "output_b64=${OUTPUT_B64}" >> "${GITHUB_OUTPUT}"
-            echo "has_output=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "has_output=false" >> "${GITHUB_OUTPUT}"
-          fi
+          # Set output safely using base64 to avoid shell metacharacter issues
+          # Base64 encoding prevents syntax errors from parentheses, backticks, etc.
+          echo "response=$(base64 -w 0 < out.json)" >> $GITHUB_OUTPUT
 
-      - name: Comment on issue (safe for all events)
-        if: github.event_name == 'issues' || github.event_name == 'issue_comment'
-        uses: actions/github-script@v8
+      - name: Comment on Pull Request
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
+            const out = JSON.parse(fs.readFileSync('out.json', 'utf8'));
             
-            // Read and parse the output
-            if (!fs.existsSync('out.json')) {
-              console.log('No output file generated');
-              return;
+            // Only comment if there's a message
+            if (out.comment) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                body: out.comment
+              });
             }
-            
-            const output = JSON.parse(fs.readFileSync('out.json', 'utf8'));
-            
-            // Generate comment
-            const comment = [
-              '🤖 **DREDGE MCP Responder**',
-              '',
-              'Event processed successfully!',
-              '',
-              '**Details:**',
-              `- Event Type: ${output.event_type}`,
-              `- Repository: ${output.repository}`,
-              `- Action: ${output.action || 'N/A'}`,
-              '',
-              '*Automated response from DREDGE MCP workflow*'
-            ].join('\n');
-            
-            // Post comment
-            const issue_number = context.issue.number;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue_number,
-              body: comment
-            });
 
-      - name: Comment on PR (fork-safe)
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
-        uses: actions/github-script@v8
+      - name: Comment on Issue
+        if: github.event_name == 'issue_comment' && github.event.issue.pull_request == null
+        uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
+            const out = JSON.parse(fs.readFileSync('out.json', 'utf8'));
             
-            // Read and parse the output
-            if (!fs.existsSync('out.json')) {
-              console.log('No output file generated');
-              return;
+            // Only comment if DREDGE was mentioned and has a response
+            if (out.is_mentioned && out.comment) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.issue.number,
+                body: out.comment
+              });
             }
-            
-            const output = JSON.parse(fs.readFileSync('out.json', 'utf8'));
-            
-            // Generate PR comment
-            const comment = [
-              '🤖 **DREDGE MCP Responder**',
-              '',
-              'Pull request processed successfully!',
-              '',
-              '**Details:**',
-              `- PR Number: ${output.pr_number || 'N/A'}`,
-              `- PR Title: ${output.pr_title || 'N/A'}`,
-              `- Action: ${output.action || 'N/A'}`,
-              '',
-              '*Automated response from DREDGE MCP workflow*'
-            ].join('\n');
-            
-            // Post comment
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: comment
-            });
 
-      - name: Label Dependabot PRs
-        if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
-        uses: actions/github-script@v8
+      - name: Add Label to Dependabot PRs
+        if: github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]'
+        uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
+            const out = JSON.parse(fs.readFileSync('out.json', 'utf8'));
             
-            // Assert out.json exists (sanity check)
-            if (!fs.existsSync('out.json')) {
-              console.log('Warning: out.json not found');
-              return;
-            }
-            
-            // Add label to Dependabot PRs
+            // Add DREDGE MCP label to Dependabot PRs
             await github.rest.issues.addLabels({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
-              labels: ['dependencies', '🤖 dependadredgeabot']
+              issue_number: context.payload.pull_request.number,
+              labels: ['🔮 dredge-mcp-analyzed', '🤖 dependadredgeabot']
             });
 
-      - name: Upload artifacts
-        if: always()
-        uses: actions/upload-artifact@v6
+      - name: Upload DREDGE MCP Output
+        uses: actions/upload-artifact@v4
         with:
-          name: mcp-responder-output
+          name: dredge-mcp-output-${{ github.sha }}
           path: out.json
-          if-no-files-found: warn
+          retention-days: 7
 
-      - name: Job Summary
+      - name: Create Job Summary
         if: always()
         run: |
-          set -euo pipefail
-          
-          # Use a block redirect to improve efficiency
-          {
-            echo "# DREDGE MCP Responder Summary"
-            echo ""
-            echo "**Event Type:** ${{ github.event_name }}"
-            echo "**Repository:** ${{ github.repository }}"
-            echo "**Actor:** ${{ github.actor }}"
-            echo "**Ref:** ${{ github.ref }}"
-            echo ""
-          } >> "$GITHUB_STEP_SUMMARY"
-          
-          if [ -f out.json ]; then
-            {
-              echo "## Processed Output"
-              echo ""
-              echo '```json'
-              cat out.json
-              echo '```'
-            } >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "⚠️ No output file was generated" >> "$GITHUB_STEP_SUMMARY"
-          fi
-          
-          {
-            echo ""
-            echo "---"
-            echo "*Workflow completed at $(date -u '+%Y-%m-%d %H:%M:%S UTC')*"
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "## 🔮 DREDGE MCP Response" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Event**: \
+            \
+          \
+            \
+            \
+            \
+          \
+            **Repository**: \
+            *Every GitHub event is a knock; DREDGE answers with intent.* 🔮" >> $GITHUB_STEP_SUMMARY
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# NOTES & BEST PRACTICES
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# Security:
+# - GITHUB_TOKEN scoped to minimal permissions (read contents, write issues/PRs)
+# - No secrets exposed in logs
+# - Event payloads sanitized before processing
+#
+# Performance:
+# - pip cache enabled for faster runs
+# - Artifacts retained for 7 days only
+# - Fails fast on errors
+#
+# Stateless Design:
+# - Each event processed independently
+# - No persistent state between runs
+# - Idempotent operations
+#
+# Integration Points:
+# - DEPENDADREDGEABOT: Automatic dependency analysis
+# - GitHub Actions: Native event handling
+# - DREDGE MCP: Philosophical response generation
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

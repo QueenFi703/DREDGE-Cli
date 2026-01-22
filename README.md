@@ -1,10 +1,21 @@
 # DREDGE
 
 [![DEPENDADREDGEABOT](https://img.shields.io/badge/dependencies-DEPENDADREDGEABOT-blueviolet?style=for-the-badge&logo=dependabot)](https://github.com/QueenFi703/DREDGE-Cli/blob/main/.github/dependabot.yml)
-[![Docker Image CI/CD](https://github.com/QueenFi703/DREDGE-Cli/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/QueenFi703/DREDGE-Cli/actions/workflows/docker-publish.yml)
-[![Python CI](https://github.com/QueenFi703/DREDGE-Cli/actions/workflows/ci-python.yml/badge.svg)](https://github.com/QueenFi703/DREDGE-Cli/actions/workflows/ci-python.yml)
+[![DREDGE MCP](https://img.shields.io/badge/GitHub-MCP%20Integration-blue?style=for-the-badge&logo=github-actions)](https://github.com/QueenFi703/DREDGE-Cli/blob/main/docs/GITHUB_MCP_INTEGRATION.md)
 
 DREDGE — small Python package scaffold with String Theory integration.
+
+## 🔮 GitHub MCP Integration
+
+DREDGE now includes GitHub Actions integration where **GitHub events are prompts** and **DREDGE MCP is the responder**. Every push, pull request, or issue comment triggers DREDGE to analyze and respond with contextual insights.
+
+**Key Features:**
+- 🤖 **DEPENDADREDGEABOT Integration**: Automatically analyzes dependency updates
+- 🔐 **Security Analysis**: Flags security updates for immediate attention  
+- 🎯 **Event-Driven**: Responds to pushes, PRs, comments, and manual triggers
+- 📊 **Ecosystem-Aware**: Understands Python, Swift, Docker, and GitHub Actions updates
+
+See the [GitHub MCP Integration Guide](docs/GITHUB_MCP_INTEGRATION.md) for detailed documentation.
 
 ## 📖 Documentation
 
@@ -302,6 +313,25 @@ The Swift implementation includes:
 - **Unified Integration** - Combine DREDGE insights, Quasimoto coordinates, and String Theory modes
 
 See [SWIFT_PACKAGE_GUIDE.md](SWIFT_PACKAGE_GUIDE.md) for detailed Swift development information.
+
+## GitHub Event Processing
+
+DREDGE CLI can process GitHub events as part of the MCP integration:
+
+```bash
+# Process a GitHub event
+dredge-cli github-event \
+  --event "pull_request" \
+  --payload '{"action": "opened", "pull_request": {...}}' \
+  --ref "refs/pull/42/merge" \
+  --repo "owner/repo" \
+  --sha "abc123"
+
+# Get help
+dredge-cli github-event --help
+```
+
+This command is used by the [GitHub Actions workflow](docs/GITHUB_MCP_INTEGRATION.md) to automatically respond to repository events.
 
 ## Test
 

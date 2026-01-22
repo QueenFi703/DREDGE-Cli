@@ -126,6 +126,41 @@ def main(argv=None):
         help="Device to use for computation (default: auto-detect)"
     )
     
+    # GitHub Event command for MCP integration
+    github_parser = subparsers.add_parser(
+        "github-event", help="Process GitHub events with DREDGE MCP", formatter_class=formatter
+    )
+    github_parser.add_argument(
+        "--event", 
+        required=True, 
+        help="GitHub event name (push, pull_request, etc.)"
+    )
+    github_parser.add_argument(
+        "--payload", 
+        required=True, 
+        help="GitHub event payload (JSON string)"
+    )
+    github_parser.add_argument(
+        "--ref", 
+        required=True, 
+        help="Git reference (branch/tag)"
+    )
+    github_parser.add_argument(
+        "--repo", 
+        required=True, 
+        help="Repository name (owner/repo)"
+    )
+    github_parser.add_argument(
+        "--sha", 
+        required=True, 
+        help="Commit SHA"
+    )
+    github_parser.add_argument(
+        "--out", 
+        default="out.json", 
+        help="Output file path (default: out.json)"
+    )
+    
     # Health check command
     health_parser = subparsers.add_parser(
         "health", help="Check system health and dependencies", formatter_class=formatter
@@ -250,6 +285,27 @@ def main(argv=None):
         from .mcp_server import run_mcp_server
         run_mcp_server(host=host, port=port, debug=debug, device=device)
         return 0
+    
+    if args.command == "github-event":
+        from .github_event_handler import process_github_event
+        
+        # Process the event directly without modifying sys.argv
+        result = process_github_event(
+            args.event,
+            args.payload,
+            args.ref,
+            args.repo,
+            args.sha
+        )
+        
+        # Write output to file
+        with open(args.out, "w") as f:
+            json.dump(result, f, indent=2)
+        
+        # Print to stdout
+        print(json.dumps(result, indent=2))
+        
+        return 0 if result.get("status") == "success" else 1
     
     parser.print_help()
     return 0
