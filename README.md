@@ -167,6 +167,9 @@ dredge-cli mcp --host 0.0.0.0 --port 3002 --debug
 6. **string_spectrum** - Compute string theory vibrational spectrum
 7. **string_parameters** - Calculate fundamental string theory parameters
 8. **unified_inference** - Run unified DREDGE + Quasimoto + String Theory inference
+9. **get_dependabot_alerts** - Retrieve Dependabot security alerts for a repository
+10. **explain_dependabot_alert** - Get detailed explanation of a specific Dependabot alert
+11. **update_dependabot_alert** - Update Dependabot alert status (dismiss or reopen)
 
 #### Example MCP Request
 
@@ -224,6 +227,46 @@ curl -X POST http://localhost:3002/mcp \
 curl -X POST http://localhost:3002/mcp \
   -H "Content-Type: application/json" \
   -d '{"operation": "load_model", "params": {"model_type": "string_theory", "config": {"dimensions": 10, "hidden_size": 64}}}'
+```
+
+#### Dependabot Alert Management
+
+The MCP server now includes Dependabot alert integration for conversational dependency management:
+
+```bash
+# Get all Dependabot alerts for a repository
+curl -X POST http://localhost:3002/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"operation": "get_dependabot_alerts", "params": {"repo_owner": "QueenFi703", "repo_name": "DREDGE-Cli"}}'
+
+# Explain a specific alert with AI-powered recommendations
+curl -X POST http://localhost:3002/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"operation": "explain_dependabot_alert", "params": {"alert_id": 1, "repo_owner": "QueenFi703", "repo_name": "DREDGE-Cli"}}'
+
+# Update an alert status (dismiss or reopen)
+curl -X POST http://localhost:3002/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "update_dependabot_alert",
+    "params": {
+      "alert_id": 1,
+      "state": "dismissed",
+      "dismissed_reason": "not_used",
+      "dismissed_comment": "This dependency is not used in production"
+    }
+  }'
+```
+
+**Note:** Dependabot operations require a `GITHUB_TOKEN` environment variable with the `security_events` scope.
+
+**Available dismissed reasons:**
+- `fix_started` - A fix has already been started
+- `inaccurate` - This alert is inaccurate or incorrect
+- `no_bandwidth` - No bandwidth to fix this
+- `not_used` - Dependency is not used
+- `tolerable_risk` - Risk is tolerable
+
 ```
 
 ### GitHub Codespaces
