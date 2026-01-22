@@ -395,3 +395,223 @@ def test_mcp_app_string_theory_endpoints():
         data = json.loads(response.data)
         assert data["success"] is True
 
+
+def test_dependabot_alerts_no_token():
+    """Test Dependabot alerts without GITHUB_TOKEN."""
+    # Save and remove token
+    original_token = os.getenv("GITHUB_TOKEN")
+    if "GITHUB_TOKEN" in os.environ:
+        del os.environ["GITHUB_TOKEN"]
+    
+    try:
+        server = QuasimotoMCPServer()
+        result = server.get_dependabot_alerts()
+        
+        assert result["success"] is False
+        assert "GITHUB_TOKEN" in result["error"]
+    finally:
+        # Restore token
+        if original_token:
+            os.environ["GITHUB_TOKEN"] = original_token
+
+
+def test_explain_dependabot_alert_no_token():
+    """Test explain Dependabot alert without GITHUB_TOKEN."""
+    # Save and remove token
+    original_token = os.getenv("GITHUB_TOKEN")
+    if "GITHUB_TOKEN" in os.environ:
+        del os.environ["GITHUB_TOKEN"]
+    
+    try:
+        server = QuasimotoMCPServer()
+        result = server.explain_dependabot_alert(alert_id=1)
+        
+        assert result["success"] is False
+        assert "GITHUB_TOKEN" in result["error"]
+    finally:
+        # Restore token
+        if original_token:
+            os.environ["GITHUB_TOKEN"] = original_token
+
+
+def test_update_dependabot_alert_no_token():
+    """Test update Dependabot alert without GITHUB_TOKEN."""
+    # Save and remove token
+    original_token = os.getenv("GITHUB_TOKEN")
+    if "GITHUB_TOKEN" in os.environ:
+        del os.environ["GITHUB_TOKEN"]
+    
+    try:
+        server = QuasimotoMCPServer()
+        result = server.update_dependabot_alert(
+            alert_id=1, 
+            state="dismissed", 
+            dismissed_reason="not_used"
+        )
+        
+        assert result["success"] is False
+        assert "GITHUB_TOKEN" in result["error"]
+    finally:
+        # Restore token
+        if original_token:
+            os.environ["GITHUB_TOKEN"] = original_token
+
+
+def test_update_dependabot_alert_invalid_state():
+    """Test update Dependabot alert with invalid state."""
+    server = QuasimotoMCPServer()
+    result = server.update_dependabot_alert(alert_id=1, state="invalid_state")
+    
+    assert result["success"] is False
+    assert "Invalid state" in result["error"]
+
+
+def test_update_dependabot_alert_missing_reason():
+    """Test update Dependabot alert with dismissed state but no reason."""
+    server = QuasimotoMCPServer()
+    result = server.update_dependabot_alert(alert_id=1, state="dismissed")
+    
+    assert result["success"] is False
+    assert "dismissed_reason is required" in result["error"]
+
+
+def test_update_dependabot_alert_invalid_reason():
+    """Test update Dependabot alert with invalid dismissed reason."""
+    server = QuasimotoMCPServer()
+    result = server.update_dependabot_alert(
+        alert_id=1, 
+        state="dismissed", 
+        dismissed_reason="invalid_reason"
+    )
+    
+    assert result["success"] is False
+    assert "Invalid dismissed_reason" in result["error"]
+
+
+def test_get_recommendation_critical():
+    """Test recommendation for critical severity."""
+    server = QuasimotoMCPServer()
+    recommendation = server._get_recommendation(9.5, "critical")
+    
+    assert "CRITICAL" in recommendation
+    assert "immediately" in recommendation.lower()
+
+
+def test_get_recommendation_high():
+    """Test recommendation for high severity."""
+    server = QuasimotoMCPServer()
+    recommendation = server._get_recommendation(7.5, "high")
+    
+    assert "HIGH" in recommendation
+    assert "soon as possible" in recommendation.lower()
+
+
+def test_get_recommendation_medium():
+    """Test recommendation for medium severity."""
+    server = QuasimotoMCPServer()
+    recommendation = server._get_recommendation(5.0, "medium")
+    
+    assert "MEDIUM" in recommendation
+
+
+def test_get_recommendation_low():
+    """Test recommendation for low severity."""
+    server = QuasimotoMCPServer()
+    recommendation = server._get_recommendation(2.0, "low")
+    
+    assert "LOW" in recommendation
+
+
+def test_get_recommendation_na_score():
+    """Test recommendation with N/A CVSS score."""
+    server = QuasimotoMCPServer()
+    recommendation = server._get_recommendation("N/A", "medium")
+    
+    assert isinstance(recommendation, str)
+    assert len(recommendation) > 0
+
+
+def test_handle_request_dependabot_operations():
+    """Test handling Dependabot operations via request handler."""
+    server = QuasimotoMCPServer()
+    
+    # Test get_dependabot_alerts (will fail without token or with invalid repo)
+    response = server.handle_request({
+        "operation": "get_dependabot_alerts",
+        "params": {}
+    })
+    assert "success" in response
+    
+    # Test explain_dependabot_alert
+    response = server.handle_request({
+        "operation": "explain_dependabot_alert",
+        "params": {"alert_id": 1}
+    })
+    assert "success" in response
+    
+    # Test update_dependabot_alert with invalid state
+    response = server.handle_request({
+        "operation": "update_dependabot_alert",
+        "params": {"alert_id": 1, "state": "invalid"}
+    })
+    assert response["success"] is False
+
+
+def test_list_capabilities_includes_dependabot():
+    """Test that capabilities list includes Dependabot operations."""
+    server = QuasimotoMCPServer()
+    capabilities = server.list_capabilities()
+    
+    operations = capabilities["capabilities"]["operations"]
+    assert "get_dependabot_alerts" in operations
+    assert "explain_dependabot_alert" in operations
+    assert "update_dependabot_alert" in operations
+
+
+def test_mcp_app_dependabot_endpoints():
+    """Test MCP app with Dependabot endpoints."""
+    app = create_mcp_app()
+    
+    with app.test_client() as client:
+        # Test capabilities endpoint shows Dependabot operations
+        response = client.get('/')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        operations = data["capabilities"]["operations"]
+        assert "get_dependabot_alerts" in operations
+        assert "explain_dependabot_alert" in operations
+        assert "update_dependabot_alert" in operations
+        
+        # Test get_dependabot_alerts endpoint
+        response = client.post('/mcp',
+                              json={
+                                  "operation": "get_dependabot_alerts",
+                                  "params": {}
+                              },
+                              content_type='application/json')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert "success" in data
+        
+        # Test explain_dependabot_alert endpoint
+        response = client.post('/mcp',
+                              json={
+                                  "operation": "explain_dependabot_alert",
+                                  "params": {"alert_id": 1}
+                              },
+                              content_type='application/json')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert "success" in data
+        
+        # Test update_dependabot_alert endpoint with invalid params
+        response = client.post('/mcp',
+                              json={
+                                  "operation": "update_dependabot_alert",
+                                  "params": {"alert_id": 1, "state": "invalid"}
+                              },
+                              content_type='application/json')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data["success"] is False
+

@@ -5,10 +5,12 @@ Integrates Quasimoto benchmarks with MCP protocol for external applications.
 """
 import json
 import logging
+import os
 import time
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any, List
+import requests
 import torch
 import torch.nn as nn
 
@@ -146,7 +148,10 @@ class QuasimotoMCPServer:
                     "string_parameters",
                     "unified_inference",
                     "get_metrics",
-                    "get_cache_stats"
+                    "get_cache_stats",
+                    "get_dependabot_alerts",
+                    "explain_dependabot_alert",
+                    "update_dependabot_alert"
                 ]
             },
             "features": {
@@ -463,6 +468,324 @@ class QuasimotoMCPServer:
                 "error": str(e)
             }
     
+    def get_dependabot_alerts(self, repo_owner: str = None, repo_name: str = None) -> Dict[str, Any]:
+        """
+        Get Dependabot alerts for a repository.
+        
+        Args:
+            repo_owner: Repository owner (defaults to env or self)
+            repo_name: Repository name (defaults to env or self)
+        
+        Returns:
+            Dict with alerts or error
+        """
+        token = os.getenv("GITHUB_TOKEN")
+        if not token:
+            self.logger.warning("GITHUB_TOKEN not set for Dependabot alerts")
+            return {"success": False, "error": "GITHUB_TOKEN not set"}
+        
+        # Default to DREDGE-Cli repo if not specified
+        if not repo_owner or not repo_name:
+            repo_owner = repo_owner or "QueenFi703"
+            repo_name = repo_name or "DREDGE-Cli"
+        
+        url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/dependabot/alerts"
+        headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+        }
+        
+        self.logger.info(f"Fetching Dependabot alerts", extra={
+            "repo_owner": repo_owner,
+            "repo_name": repo_name
+        })
+        
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                alerts = response.json()
+                self.logger.info(f"Retrieved {len(alerts)} Dependabot alerts")
+                return {
+                    "success": True,
+                    "alerts": alerts,
+                    "count": len(alerts),
+                    "repo_owner": repo_owner,
+                    "repo_name": repo_name
+                }
+            else:
+                error_msg = f"API error: {response.status_code}"
+                if response.status_code == 404:
+                    error_msg = "Repository not found or Dependabot alerts not enabled"
+                elif response.status_code == 403:
+                    error_msg = "Access denied. Check token permissions."
+                
+                self.logger.error(f"Failed to fetch Dependabot alerts", extra={
+                    "status_code": response.status_code,
+                    "error": error_msg
+                })
+                return {"success": False, "error": error_msg}
+        except requests.RequestException as e:
+            self.logger.error(f"Request failed for Dependabot alerts", extra={
+                "error": str(e)
+            }, exc_info=True)
+            return {"success": False, "error": f"Request failed: {str(e)}"}
+        except Exception as e:
+            self.logger.error(f"Unexpected error fetching Dependabot alerts", extra={
+                "error": str(e)
+            }, exc_info=True)
+            return {"success": False, "error": str(e)}
+    
+    def explain_dependabot_alert(self, alert_id: int, repo_owner: str = "QueenFi703", repo_name: str = "DREDGE-Cli") -> Dict[str, Any]:
+        """
+        Explain a specific Dependabot alert.
+        
+        Args:
+            alert_id: Alert ID
+            repo_owner: Repository owner
+            repo_name: Repository name
+        
+        Returns:
+            Dict with explanation or error
+        """
+        token = os.getenv("GITHUB_TOKEN")
+        if not token:
+            self.logger.warning("GITHUB_TOKEN not set for Dependabot alert explanation")
+            return {"success": False, "error": "GITHUB_TOKEN not set"}
+        
+        url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/dependabot/alerts/{alert_id}"
+        headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+        }
+        
+        self.logger.info(f"Fetching Dependabot alert details", extra={
+            "alert_id": alert_id,
+            "repo_owner": repo_owner,
+            "repo_name": repo_name
+        })
+        
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                alert = response.json()
+                
+                # Extract key information
+                security_advisory = alert.get("security_advisory", {})
+                summary = security_advisory.get("summary", "No summary available")
+                description = security_advisory.get("description", "No description available")
+                severity = security_advisory.get("severity", "unknown")
+                cvss = security_advisory.get("cvss", {}).get("score", "N/A")
+                
+                # Get vulnerability details
+                security_vulnerability = alert.get("security_vulnerability", {})
+                package = security_vulnerability.get("package", {}).get("name", "Unknown package")
+                vulnerable_version_range = security_vulnerability.get("vulnerable_version_range", "Unknown")
+                first_patched_version = security_vulnerability.get("first_patched_version", {})
+                patched_version = first_patched_version.get("identifier", "No patch available") if first_patched_version else "No patch available"
+                
+                # Get alert state
+                state = alert.get("state", "unknown")
+                created_at = alert.get("created_at", "Unknown")
+                
+                # Create human-readable explanation
+                explanation = (
+                    f"Alert #{alert_id}: {summary}\n\n"
+                    f"Package: {package}\n"
+                    f"Severity: {severity.upper()} (CVSS Score: {cvss})\n"
+                    f"State: {state}\n"
+                    f"Vulnerable Version: {vulnerable_version_range}\n"
+                    f"Patched Version: {patched_version}\n"
+                    f"Created: {created_at}\n\n"
+                    f"Description: {description}"
+                )
+                
+                # Add recommendation based on CVSS score
+                recommendation = self._get_recommendation(cvss, severity)
+                
+                self.logger.info(f"Successfully explained alert {alert_id}")
+                
+                return {
+                    "success": True,
+                    "alert_id": alert_id,
+                    "explanation": explanation,
+                    "recommendation": recommendation,
+                    "details": {
+                        "package": package,
+                        "severity": severity,
+                        "cvss_score": cvss,
+                        "state": state,
+                        "vulnerable_version": vulnerable_version_range,
+                        "patched_version": patched_version,
+                        "summary": summary
+                    }
+                }
+            else:
+                error_msg = f"API error: {response.status_code}"
+                if response.status_code == 404:
+                    error_msg = f"Alert {alert_id} not found"
+                elif response.status_code == 403:
+                    error_msg = "Access denied. Check token permissions."
+                
+                self.logger.error(f"Failed to fetch alert details", extra={
+                    "alert_id": alert_id,
+                    "status_code": response.status_code
+                })
+                return {"success": False, "error": error_msg}
+        except requests.RequestException as e:
+            self.logger.error(f"Request failed for alert explanation", extra={
+                "alert_id": alert_id,
+                "error": str(e)
+            }, exc_info=True)
+            return {"success": False, "error": f"Request failed: {str(e)}"}
+        except Exception as e:
+            self.logger.error(f"Unexpected error explaining alert", extra={
+                "alert_id": alert_id,
+                "error": str(e)
+            }, exc_info=True)
+            return {"success": False, "error": str(e)}
+    
+    def _get_recommendation(self, cvss_score: Any, severity: str) -> str:
+        """
+        Get recommendation based on CVSS score and severity.
+        
+        Args:
+            cvss_score: CVSS score (may be float, str, or N/A)
+            severity: Severity level (critical, high, medium, low)
+        
+        Returns:
+            Recommendation string
+        """
+        try:
+            # Try to convert CVSS score to float
+            if isinstance(cvss_score, (int, float)):
+                score = float(cvss_score)
+            elif isinstance(cvss_score, str) and cvss_score != "N/A":
+                score = float(cvss_score)
+            else:
+                score = None
+        except (ValueError, TypeError):
+            score = None
+        
+        # Provide recommendations based on severity and score
+        if severity.lower() == "critical" or (score and score >= 9.0):
+            return "⚠️ CRITICAL: Update immediately. This vulnerability poses a severe security risk."
+        elif severity.lower() == "high" or (score and score >= 7.0):
+            return "⚠️ HIGH: Update as soon as possible. This is a significant security concern."
+        elif severity.lower() == "medium" or (score and score >= 4.0):
+            return "⚡ MEDIUM: Plan to update in your next maintenance cycle."
+        elif severity.lower() == "low":
+            return "ℹ️ LOW: Update when convenient. Consider including in routine updates."
+        else:
+            return "ℹ️ Review the vulnerability details and update if necessary."
+    
+    def update_dependabot_alert(
+        self, 
+        alert_id: int, 
+        state: str, 
+        dismissed_reason: str = None, 
+        dismissed_comment: str = None,
+        repo_owner: str = "QueenFi703", 
+        repo_name: str = "DREDGE-Cli"
+    ) -> Dict[str, Any]:
+        """
+        Update a Dependabot alert status (dismiss or reopen).
+        
+        Args:
+            alert_id: Alert ID to update
+            state: New state ('dismissed' or 'open')
+            dismissed_reason: Reason for dismissal (required if state is 'dismissed')
+                Valid reasons: 'fix_started', 'inaccurate', 'no_bandwidth', 'not_used', 'tolerable_risk'
+            dismissed_comment: Optional comment explaining the dismissal
+            repo_owner: Repository owner
+            repo_name: Repository name
+        
+        Returns:
+            Dict with update status or error
+        """
+        # Validate state first (before checking token)
+        if state not in ['dismissed', 'open']:
+            return {"success": False, "error": f"Invalid state: {state}. Must be 'dismissed' or 'open'"}
+        
+        # Validate dismissed_reason if state is dismissed
+        valid_reasons = ['fix_started', 'inaccurate', 'no_bandwidth', 'not_used', 'tolerable_risk']
+        if state == 'dismissed':
+            if not dismissed_reason:
+                return {"success": False, "error": "dismissed_reason is required when state is 'dismissed'"}
+            if dismissed_reason not in valid_reasons:
+                return {"success": False, "error": f"Invalid dismissed_reason: {dismissed_reason}. Must be one of {valid_reasons}"}
+        
+        token = os.getenv("GITHUB_TOKEN")
+        if not token:
+            self.logger.warning("GITHUB_TOKEN not set for Dependabot alert update")
+            return {"success": False, "error": "GITHUB_TOKEN not set"}
+        
+        url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/dependabot/alerts/{alert_id}"
+        headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+        }
+        
+        # Build request body
+        body = {"state": state}
+        if state == 'dismissed' and dismissed_reason:
+            body["dismissed_reason"] = dismissed_reason
+            if dismissed_comment:
+                body["dismissed_comment"] = dismissed_comment
+        
+        self.logger.info(f"Updating Dependabot alert", extra={
+            "alert_id": alert_id,
+            "state": state,
+            "repo_owner": repo_owner,
+            "repo_name": repo_name
+        })
+        
+        try:
+            response = requests.patch(url, headers=headers, json=body, timeout=10)
+            if response.status_code == 200:
+                alert = response.json()
+                self.logger.info(f"Successfully updated alert {alert_id} to state: {state}")
+                
+                return {
+                    "success": True,
+                    "alert_id": alert_id,
+                    "state": alert.get("state"),
+                    "dismissed_reason": alert.get("dismissed_reason"),
+                    "dismissed_comment": alert.get("dismissed_comment"),
+                    "dismissed_by": alert.get("dismissed_by", {}).get("login"),
+                    "dismissed_at": alert.get("dismissed_at"),
+                    "message": f"Alert {alert_id} successfully updated to {state}"
+                }
+            else:
+                error_msg = f"API error: {response.status_code}"
+                if response.status_code == 404:
+                    error_msg = f"Alert {alert_id} not found"
+                elif response.status_code == 403:
+                    error_msg = "Access denied. Check token permissions (requires 'security_events' scope)."
+                elif response.status_code == 422:
+                    error_msg = "Validation failed. Check parameters."
+                
+                self.logger.error(f"Failed to update alert", extra={
+                    "alert_id": alert_id,
+                    "status_code": response.status_code,
+                    "response": response.text
+                })
+                return {"success": False, "error": error_msg, "details": response.text}
+        except requests.RequestException as e:
+            self.logger.error(f"Request failed for alert update", extra={
+                "alert_id": alert_id,
+                "error": str(e)
+            }, exc_info=True)
+            return {"success": False, "error": f"Request failed: {str(e)}"}
+        except Exception as e:
+            self.logger.error(f"Unexpected error updating alert", extra={
+                "alert_id": alert_id,
+                "error": str(e)
+            }, exc_info=True)
+            return {"success": False, "error": str(e)}
+    
     def handle_request(self, request: Dict[str, Any]) -> Dict[str, Any]:
         """
         Handle an MCP request.
@@ -502,6 +825,12 @@ class QuasimotoMCPServer:
                 return self.get_metrics()
             elif operation == "get_cache_stats":
                 return self.get_cache_stats()
+            elif operation == "get_dependabot_alerts":
+                return self.get_dependabot_alerts(**params)
+            elif operation == "explain_dependabot_alert":
+                return self.explain_dependabot_alert(**params)
+            elif operation == "update_dependabot_alert":
+                return self.update_dependabot_alert(**params)
             else:
                 self.logger.warning(f"Unknown operation requested", extra={
                     "operation": operation
