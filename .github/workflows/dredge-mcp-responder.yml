@@ -223,6 +223,11 @@ jobs:
 
       - name: Job Summary
         if: always()
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          REF: ${{ github.ref }}
         run: |
           set -euo pipefail
           
@@ -230,10 +235,10 @@ jobs:
           {
             echo "# DREDGE MCP Responder Summary"
             echo ""
-            echo "**Event Type:** ${{ github.event_name }}"
-            echo "**Repository:** ${{ github.repository }}"
-            echo "**Actor:** ${{ github.actor }}"
-            echo "**Ref:** ${{ github.ref }}"
+            echo "**Event Type:** ${EVENT_NAME}"
+            echo "**Repository:** ${REPOSITORY}"
+            echo "**Actor:** ${ACTOR}"
+            echo "**Ref:** ${REF}"
             echo ""
           } >> "$GITHUB_STEP_SUMMARY"
           
