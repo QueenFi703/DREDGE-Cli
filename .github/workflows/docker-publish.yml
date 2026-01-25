@@ -60,14 +60,14 @@ jobs:
           echo ""
           echo "Removing unused toolchains (sorted by size impact):"
           # Sorted by typical size: largest first for maximum space recovery
-          echo "  1. Removing .NET SDK (~2GB)..."
-          sudo rm -rf /usr/share/dotnet
-          echo "  2. Removing Android SDK (~8GB)..."
+          echo "  1. Removing Android SDK (~8GB)..."
           sudo rm -rf /usr/local/lib/android
-          echo "  3. Removing GHC/Haskell (~1.5GB)..."
-          sudo rm -rf /opt/ghc
-          echo "  4. Removing CodeQL (~6GB)..."
+          echo "  2. Removing CodeQL (~6GB)..."
           sudo rm -rf /opt/hostedtoolcache/CodeQL
+          echo "  3. Removing .NET SDK (~2GB)..."
+          sudo rm -rf /usr/share/dotnet
+          echo "  4. Removing GHC/Haskell (~1.5GB)..."
+          sudo rm -rf /opt/ghc
           echo "  5. Pruning Docker system..."
           sudo docker system prune -af --volumes
           echo ""
