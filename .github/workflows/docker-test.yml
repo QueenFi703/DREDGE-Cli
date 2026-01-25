@@ -36,25 +36,38 @@ jobs:
             platforms: linux/amd64
 
     steps:
+      # Phase 1: Repository Setup (Cadence: Initial)
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      # Phase 2: Environment Preparation (Cadence: Pre-build)
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Free up disk space
+      - name: Free up disk space (Pre-build cleanup)
         run: |
-          echo "=== Disk space before cleanup ==="
-          df -h
-          echo "=== Removing unused tools ==="
+          echo "=== Phase 2: Pre-build Disk Cleanup ==="
+          echo "Disk space before cleanup:"
+          df -h | grep -E '(Filesystem|/dev/root)'
+          echo ""
+          echo "Removing unused toolchains (sorted by size impact):"
+          # Sorted by typical size: largest first for maximum space recovery
+          echo "  1. Removing .NET SDK (~2GB)..."
           sudo rm -rf /usr/share/dotnet
+          echo "  2. Removing Android SDK (~8GB)..."
           sudo rm -rf /usr/local/lib/android
+          echo "  3. Removing GHC/Haskell (~1.5GB)..."
           sudo rm -rf /opt/ghc
+          echo "  4. Removing CodeQL (~6GB)..."
           sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo docker system prune -af
-          echo "=== Disk space after cleanup ==="
-          df -h
+          echo "  5. Pruning Docker system..."
+          sudo docker system prune -af --volumes
+          echo ""
+          echo "Disk space after cleanup:"
+          df -h | grep -E '(Filesystem|/dev/root)'
+          echo "=== Pre-build cleanup complete ==="
 
+      # Phase 3: Build Execution (Cadence: Main)
       - name: Build Docker image (test only)
         uses: docker/build-push-action@v6
         with:
@@ -67,24 +80,34 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.target }}
           load: true
 
+      # Phase 4: Image Testing (Cadence: Post-build, ordered by complexity)
       - name: Test CPU image
         if: matrix.target == 'cpu-build'
         run: |
+          echo "=== Testing CPU image (15s warmup cadence) ==="
           docker run -d --name test-cpu -p 3001:3001 dredge-cli:test-${{ matrix.suffix }}
+          echo "Waiting for service initialization..."
           sleep 15
+          echo "Testing health endpoint..."
           curl -f http://localhost:3001/health || exit 1
           docker stop test-cpu
+          docker rm test-cpu
           echo "✅ CPU image test passed"
 
       - name: Test GPU image (without GPU)
         if: matrix.target == 'gpu-build'
         run: |
+          echo "=== Testing GPU image in CPU mode (20s warmup cadence) ==="
           docker run -d --name test-gpu -p 3002:3002 -e DEVICE=cpu dredge-cli:test-${{ matrix.suffix }}
+          echo "Waiting for CUDA libraries and service initialization..."
           sleep 20
+          echo "Testing root endpoint..."
           curl -f http://localhost:3002/ || exit 1
           docker stop test-gpu
+          docker rm test-gpu
           echo "✅ GPU image test passed (CPU mode)"
 
+      # Phase 5: Security Validation (Cadence: Final)
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
@@ -93,6 +116,21 @@ jobs:
           exit-code: '0'
           ignore-unfixed: true
           severity: 'CRITICAL,HIGH'
+
+      # Phase 6: Post-test Cleanup (Cadence: Terminal)
+      - name: Cleanup test artifacts
+        if: always()
+        run: |
+          echo "=== Phase 6: Post-test cleanup ==="
+          # Remove test containers (if any still running)
+          docker rm -f test-cpu test-gpu 2>/dev/null || true
+          # Remove test images to free space for next matrix job
+          docker rmi dredge-cli:test-${{ matrix.suffix }} 2>/dev/null || true
+          # Prune build cache to prevent accumulation
+          docker builder prune -f --filter "until=1h" 2>/dev/null || true
+          echo "Remaining disk space:"
+          df -h | grep -E '(Filesystem|/dev/root)'
+          echo "✅ Cleanup complete"
 
   validate-compose:
     runs-on: ubuntu-latest

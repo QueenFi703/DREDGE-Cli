@@ -41,28 +41,41 @@ jobs:
             platforms: linux/amd64,linux/arm64
 
     steps:
+      # Phase 1: Repository Setup (Cadence: Initial)
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      # Phase 2: Environment Preparation (Cadence: Pre-build)
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Free up disk space
+      - name: Free up disk space (Pre-build cleanup)
         run: |
-          echo "=== Disk space before cleanup ==="
-          df -h
-          echo "=== Removing unused tools ==="
+          echo "=== Phase 2: Pre-build Disk Cleanup ==="
+          echo "Disk space before cleanup:"
+          df -h | grep -E '(Filesystem|/dev/root)'
+          echo ""
+          echo "Removing unused toolchains (sorted by size impact):"
+          # Sorted by typical size: largest first for maximum space recovery
+          echo "  1. Removing .NET SDK (~2GB)..."
           sudo rm -rf /usr/share/dotnet
+          echo "  2. Removing Android SDK (~8GB)..."
           sudo rm -rf /usr/local/lib/android
+          echo "  3. Removing GHC/Haskell (~1.5GB)..."
           sudo rm -rf /opt/ghc
+          echo "  4. Removing CodeQL (~6GB)..."
           sudo rm -rf /opt/hostedtoolcache/CodeQL
-          sudo docker system prune -af
-          echo "=== Disk space after cleanup ==="
-          df -h
+          echo "  5. Pruning Docker system..."
+          sudo docker system prune -af --volumes
+          echo ""
+          echo "Disk space after cleanup:"
+          df -h | grep -E '(Filesystem|/dev/root)'
+          echo "=== Pre-build cleanup complete ==="
 
+      # Phase 3: Registry Authentication (Cadence: Pre-build)
       - name: Log in to Container Registry
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
@@ -87,6 +100,7 @@ jobs:
           flavor: |
             latest=false
 
+      # Phase 4: Build and Push (Cadence: Main)
       - name: Build and push Docker image
         id: build
         uses: docker/build-push-action@v6
@@ -102,6 +116,7 @@ jobs:
           build-args: |
             BUILDKIT_INLINE_CACHE=1
 
+      # Phase 5: Attestation and Security (Cadence: Post-build)
       - name: Generate artifact attestation
         if: github.event_name != 'pull_request' && steps.build.outputs.digest != ''
         uses: actions/attest-build-provenance@v3
@@ -127,6 +142,18 @@ jobs:
           sarif_file: 'trivy-results.sarif'
         continue-on-error: true
 
+      # Phase 6: Post-build Cleanup (Cadence: Terminal)
+      - name: Cleanup build artifacts
+        if: always()
+        run: |
+          echo "=== Phase 6: Post-build cleanup ==="
+          # Prune old build cache to prevent accumulation across matrix jobs
+          docker builder prune -f --filter "until=1h" 2>/dev/null || true
+          # Show remaining disk space
+          echo "Remaining disk space:"
+          df -h | grep -E '(Filesystem|/dev/root)'
+          echo "✅ Cleanup complete"
+
   test-images:
     needs: build-and-push
     runs-on: ubuntu-latest
@@ -143,6 +170,7 @@ jobs:
             test_command: "curl -f http://localhost:3002/ || exit 1"
     
     steps:
+      # Phase 1: Authentication (Cadence: Initial)
       - name: Log in to Container Registry
         uses: docker/login-action@v3
         with:
@@ -150,14 +178,33 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Phase 2: Pull and Test (Cadence: Main, with timing controls)
       - name: Pull and test image
         run: |
+          echo "=== Pulling and testing ${{ matrix.suffix }} image ==="
           docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-${{ matrix.suffix }}
+          
+          # Start container with appropriate timing
           docker run -d --name test-container -p ${{ matrix.target == 'cpu-build' && '3001:3001' || '3002:3002' }} \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-${{ matrix.suffix }}
-          sleep 10
+          
+          # Cadenced wait based on target complexity
+          if [ "${{ matrix.target }}" = "gpu-build" ]; then
+            echo "GPU image: waiting 15s for CUDA initialization..."
+            sleep 15
+          else
+            echo "CPU image: waiting 10s for service startup..."
+            sleep 10
+          fi
+          
+          # Execute test
+          echo "Running health check..."
           ${{ matrix.test_command }}
+          
+          # Cleanup
           docker stop test-container
+          docker rm test-container
+          echo "✅ Image test passed"
         continue-on-error: true
         env:
           REGISTRY: ghcr.io
