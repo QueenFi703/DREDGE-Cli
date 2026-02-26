@@ -119,7 +119,7 @@ jobs:
       # Phase 5: Attestation and Security (Cadence: Post-build)
       - name: Generate artifact attestation
         if: github.event_name != 'pull_request' && steps.build.outputs.digest != ''
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@v4
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.build.outputs.digest }}
