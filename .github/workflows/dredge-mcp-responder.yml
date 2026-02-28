@@ -214,12 +214,17 @@ jobs:
             });
 
       - name: Upload artifacts
-        if: always()
+        if: always() && hashFiles('out.json') != ''
         uses: actions/upload-artifact@v7
         with:
           name: mcp-responder-output
           path: out.json
-          if-no-files-found: warn
+          overwrite: true
+          retention-days: 7
+
+      - name: Skip artifact upload (out.json missing)
+        if: always() && hashFiles('out.json') == ''
+        run: echo "No out.json file found; skipping artifact upload."
 
       - name: Job Summary
         if: always()
