@@ -122,6 +122,29 @@ class StringVibration:
             List of energy levels
         """
         return [self.energy_level(n) for n in range(1, max_modes + 1)]
+
+    def batch_vibrational_modes(
+        self, modes: List[int], positions: List[float]
+    ) -> List[List[float]]:
+        """
+        Compute vibrational amplitudes for all (mode, position) pairs in one
+        vectorised operation using PyTorch.
+
+        Args:
+            modes: List of mode numbers (n >= 1).  If empty, returns ``[]``.
+            positions: List of positions (0 <= x <= 1).  If empty, each row
+                       in the result will also be an empty list.
+
+        Returns:
+            2-D list of shape ``(len(modes), len(positions))`` where
+            ``result[i][j]`` is the amplitude for ``modes[i]`` at
+            ``positions[j]``.  Returns ``[]`` when ``modes`` is empty.
+        """
+        n_t = torch.tensor(modes, dtype=torch.float32)
+        x_t = torch.tensor(positions, dtype=torch.float32)
+        # (M, 1) * (1, P) → (M, P)
+        result = torch.sin(n_t.unsqueeze(1) * math.pi * x_t.unsqueeze(0))
+        return result.tolist()
     
     def dimensional_compactification(self, radius: float) -> Dict[str, Any]:
         """
@@ -211,6 +234,31 @@ class StringTheoryNN(nn.Module):
         # Ensure input is on correct device
         x = x.to(self.device)
         return self.network(x)
+
+    def batch_infer(self, inputs: List[List[float]]) -> List[float]:
+        """
+        Run inference on a batch of input vectors in a single GPU pass.
+
+        This is the primary high-throughput entry point.  All samples are
+        forwarded together, maximising GPU amortisation.
+
+        The model is evaluated with ``torch.no_grad()``; it must be in
+        ``eval`` mode for deterministic results (call ``model.eval()`` before
+        using this method if batch normalisation layers are present).
+
+        Args:
+            inputs: List of coordinate vectors, each of length ``dimensions``.
+
+        Returns:
+            List of scalar amplitude predictions (one per input vector).
+            Returns ``[]`` when ``inputs`` is empty.
+        """
+        if not inputs:
+            return []
+        batch = torch.tensor(inputs, dtype=torch.float32)
+        with torch.no_grad():
+            output = self.forward(batch)   # shape: (N, 1)
+        return output.squeeze(1).tolist()
     
     def get_device_info(self) -> Dict[str, Any]:
         """Get information about the device being used."""
