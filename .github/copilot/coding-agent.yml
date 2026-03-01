@@ -1,0 +1,23 @@
+# GitHub Copilot coding agent environment configuration
+# Pre-firewall setup steps run before network restrictions are applied.
+# https://docs.github.com/en/copilot/using-github-copilot/using-copilot-coding-agent-to-work-on-tasks/configuring-copilot-coding-agent-in-your-repository
+
+pre_install:
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -e .
+        pip install pytest pytest-cov
+
+firewall:
+  allowed_hosts:
+    - pypi.org
+    - files.pythonhosted.org
+    - download.pytorch.org
