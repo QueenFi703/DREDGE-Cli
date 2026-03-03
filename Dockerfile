@@ -101,8 +101,9 @@ RUN pip3 install --no-cache-dir \
     && rm -rf /tmp/* \
     && rm -rf /var/tmp/*
 
-# Layer 3: Application code (exclude benchmarks from GPU stage)
+# Layer 3: Application code
 COPY src/ ./src/
+COPY benchmarks/ ./benchmarks/
 COPY README.md LICENSE ./
 
 RUN pip3 install -e . \
