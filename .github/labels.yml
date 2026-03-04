@@ -17,3 +17,11 @@
 - name: "infrastructure"
   color: "6B7280"
   description: "Docker/CI/CD infrastructure updates"
+
+- name: "ci-cd"
+  color: "0075CA"
+  description: "CI/CD pipeline and automation updates"
+
+- name: "github-actions"
+  color: "2088FF"
+  description: "GitHub Actions workflow updates"
