@@ -78,7 +78,7 @@ jobs:
       # Phase 3: Registry Authentication (Cadence: Pre-build)
       - name: Log in to Container Registry
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -172,7 +172,7 @@ jobs:
     steps:
       # Test-images job: Authentication and Testing (2-step flow)
       - name: Log in to Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
