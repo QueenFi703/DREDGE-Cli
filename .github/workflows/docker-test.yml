@@ -69,7 +69,7 @@ jobs:
 
       # Phase 3: Build Execution (Cadence: Main)
       - name: Build Docker image (test only)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: ${{ matrix.platforms }}
