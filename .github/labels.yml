@@ -2,9 +2,29 @@
   color: "8B5CF6"
   description: "Automated dependency updates by DEPENDADREDGEABOT"
 
+- name: "dependencies"
+  color: "0075CA"
+  description: "Dependency version updates"
+
 - name: "dredge-core"
   color: "3B82F6"
   description: "DREDGE Python core dependencies"
+
+- name: "python"
+  color: "3572A5"
+  description: "Python ecosystem updates"
+
+- name: "swift"
+  color: "F05138"
+  description: "Swift ecosystem updates"
+
+- name: "dredge-cli"
+  color: "5A9FD4"
+  description: "DREDGE Swift CLI dependencies"
+
+- name: "dredge-cli-module"
+  color: "4B8BBE"
+  description: "DREDGE Swift CLI module dependencies"
 
 - name: "dolly-gpu"
   color: "10B981"
@@ -13,6 +33,14 @@
 - name: "quasimoto-physics"
   color: "F59E0B"
   description: "Quasimoto wave function dependencies"
+
+- name: "docker"
+  color: "2496ED"
+  description: "Docker image and container updates"
+
+- name: "docker-compose"
+  color: "1A6496"
+  description: "Docker Compose service updates"
 
 - name: "infrastructure"
   color: "6B7280"
@@ -25,3 +53,7 @@
 - name: "github-actions"
   color: "2088FF"
   description: "GitHub Actions workflow updates"
+
+- name: "codex"
+  color: "ededed"
+  description: "Codex automated changes"
