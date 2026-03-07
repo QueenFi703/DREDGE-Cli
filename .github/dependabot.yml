@@ -170,11 +170,15 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "daily"
-      time: "03:10"
-      timezone: "America/New_York"
+      interval: "weekly"
+      time: "04:00"
+      timezone: "UTC"
     open-pull-requests-limit: 10
     target-branch: "main"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
     labels:
       - "🤖 dependadredgeabot"
       - "dependencies"
