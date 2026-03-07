@@ -175,6 +175,13 @@ updates:
       timezone: "America/New_York"
     open-pull-requests-limit: 10
     target-branch: "main"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
     labels:
       - "🤖 dependadredgeabot"
       - "dependencies"
