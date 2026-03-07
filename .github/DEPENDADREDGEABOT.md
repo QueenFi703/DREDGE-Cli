@@ -4,12 +4,13 @@
 
 ## 📅 Update Schedule
 
-| Ecosystem | Day | Time (EST) | Status |
-|-----------|-----|------------|--------|
-| Python (pip) | Monday | 9:00 AM | 🟢 Active |
-| Swift | Monday | 10:00 AM | 🟢 Active |
-| GitHub Actions | Monday | 11:00 AM | 🟢 Active |
-| Docker | Tuesday | 9:00 AM | 🟢 Active |
+| Ecosystem | Frequency | Time (EST) | Status |
+|-----------|-----------|------------|--------|
+| Python (pip) | Daily | 10:10 PM (03:10 UTC) | 🟢 Active |
+| Swift (root) | Daily | 10:10 PM (03:10 UTC) | 🟢 Active |
+| Swift (module) | Daily | 10:10 PM (03:10 UTC) | 🟢 Active |
+| GitHub Actions | Daily | 10:10 PM (03:10 UTC) | 🟢 Active |
+| Docker | Daily | 10:10 PM (03:10 UTC) | 🟢 Active |
 
 ## 🛡️ Protected Dependencies
 

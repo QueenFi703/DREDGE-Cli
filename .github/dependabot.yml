@@ -224,25 +224,6 @@ updates:
       - dependency-name: "debian"
         update-types: ["version-update:semver-major"]
   
-  - package-ecosystem: "docker"
-    directory: "/docker"
-    schedule:
-      interval: "daily"
-      time: "03:10"
-      timezone: "America/New_York"
-    open-pull-requests-limit: 10
-    target-branch: "main"
-    labels:
-      - "🤖 dependadredgeabot"
-      - "dependencies"
-      - "docker-compose"
-      - "infrastructure"
-    reviewers:
-      - "QueenFi703"
-    commit-message:
-      prefix: "⬆️ [DEPENDADREDGEABOT/Compose]"
-      include: "scope"
-
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 📜 DEPENDADREDGEABOT PHILOSOPHY
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
