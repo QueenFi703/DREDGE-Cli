@@ -178,6 +178,8 @@ updates:
     
     groups:
       github-actions-all:
+    groups:
+      github-actions:
         patterns:
           - "*"
         update-types:
