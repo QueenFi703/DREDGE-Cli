@@ -121,25 +121,30 @@ jobs:
         run: |
           set -euo pipefail
 
-          cat > /tmp/sync_signal.json << SIGNAL
-          {
-            "sync_network": "DREDGE-ecosystem",
-            "trigger": "${TRIGGER_REASON}",
-            "schedule_utc": "03:10 daily",
-            "iss_anchor": {
-              "latitude": ${LATITUDE},
-              "longitude": ${LONGITUDE},
-              "altitude_km": ${ALTITUDE_KM},
-              "velocity_kms": ${VELOCITY_KMS},
-              "timestamp": "${TIMESTAMP}"
-            },
-            "repos_in_network": [
-              "QueenFi703/DREDGE-Cli"
-            ],
-            "ecosystems_synced": ["pip", "github-actions", "docker"]
-          }
-          SIGNAL
+          python - << 'PY'
+          import json
+          import os
 
+          data = {
+              "sync_network": "DREDGE-ecosystem",
+              "trigger": os.environ.get("TRIGGER_REASON", ""),
+              "schedule_utc": "03:10 daily",
+              "iss_anchor": {
+                  "latitude": float(os.environ["LATITUDE"]),
+                  "longitude": float(os.environ["LONGITUDE"]),
+                  "altitude_km": float(os.environ["ALTITUDE_KM"]),
+                  "velocity_kms": float(os.environ["VELOCITY_KMS"]),
+                  "timestamp": os.environ["TIMESTAMP"],
+              },
+              "repos_in_network": [
+                  "QueenFi703/DREDGE-Cli",
+              ],
+              "ecosystems_synced": ["pip", "github-actions", "docker"],
+          }
+
+          with open("/tmp/sync_signal.json", "w", encoding="utf-8") as f:
+              json.dump(data, f, ensure_ascii=False, indent=2)
+          PY
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "  CROSS-REPO DEPENDENCY SYNC SIGNAL EMITTED"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
