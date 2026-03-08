@@ -1,6 +1,6 @@
-- name: "🤖 dependadredgeabot"
+- name: "🤖 FiBot"
   color: "8B5CF6"
-  description: "Automated dependency updates by DEPENDADREDGEABOT"
+  description: "Automated dependency updates by FiBot"
 
 - name: "dependencies"
   color: "0075CA"
