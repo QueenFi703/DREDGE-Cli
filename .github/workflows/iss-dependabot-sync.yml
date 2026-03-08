@@ -108,9 +108,9 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
 
       # ──────────────────────────────────────────────────────────────
-      # Phase 2: Dependency Sync Coordination Signal
+      # Phase 2: Dependency Sync Signal Log
       # ──────────────────────────────────────────────────────────────
-      - name: Emit cross-repo dependency sync signal
+      - name: Log dependency sync signal
         env:
           LATITUDE: ${{ steps.iss-fetch.outputs.latitude }}
           LONGITUDE: ${{ steps.iss-fetch.outputs.longitude }}
@@ -121,7 +121,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          python - << 'PY'
+          python3 - << 'PY'
           import json
           import os
 
@@ -145,8 +145,9 @@ jobs:
           with open("/tmp/sync_signal.json", "w", encoding="utf-8") as f:
               json.dump(data, f, ensure_ascii=False, indent=2)
           PY
+
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "  CROSS-REPO DEPENDENCY SYNC SIGNAL EMITTED"
+          echo "  DEPENDENCY SYNC SIGNAL LOGGED"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           cat /tmp/sync_signal.json
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -163,6 +164,7 @@ jobs:
             /tmp/iss_telemetry.json
             /tmp/sync_signal.json
           if-no-files-found: warn
+          retention-days: 7
 
       # ──────────────────────────────────────────────────────────────
       # Phase 4: Job Summary
