@@ -1,6 +1,6 @@
 # DREDGE
 
-[![DEPENDADREDGEABOT](https://img.shields.io/badge/dependencies-DEPENDADREDGEABOT-blueviolet?style=for-the-badge&logo=dependabot)](https://github.com/QueenFi703/DREDGE-Cli/blob/main/.github/dependabot.yml)
+[![FiBot](https://img.shields.io/badge/dependencies-FiBot-blueviolet?style=for-the-badge&logo=dependabot)](https://github.com/QueenFi703/DREDGE-Cli/blob/main/.github/dependabot.yml)
 [![Docker Image CI/CD](https://github.com/QueenFi703/DREDGE-Cli/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/QueenFi703/DREDGE-Cli/actions/workflows/docker-publish.yml)
 [![Python CI](https://github.com/QueenFi703/DREDGE-Cli/actions/workflows/ci-python.yml/badge.svg)](https://github.com/QueenFi703/DREDGE-Cli/actions/workflows/ci-python.yml)
 

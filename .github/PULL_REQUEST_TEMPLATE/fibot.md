@@ -1,4 +1,4 @@
-## 🤖 DEPENDADREDGEABOT Update
+## 🤖 FiBot Update
 
 **Dependency Oracle Speaks:**
 > "I have surfaced a dependency from the depths of semver. Review with wisdom."
@@ -6,7 +6,7 @@
 ---
 
 ### 📦 Updated Package
-<!-- DEPENDADREDGEABOT will fill this in -->
+<!-- FiBot will fill this in -->
 
 ### 🔄 Change Type
 - [ ] Patch (x.y.Z) - Bug fixes
@@ -20,7 +20,7 @@
 - [ ] Swift CLI (native layer)
 - [ ] Infrastructure (Docker/CI)
 
-### ✅ DEPENDADREDGEABOT Pre-Checks
+### ✅ FiBot Pre-Checks
 - [ ] CI/CD tests passing
 - [ ] No CUDA kernel breakage (GPU dependencies)
 - [ ] Python 3.10-3.12 compatibility maintained
