@@ -1,0 +1,203 @@
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ISS DEPENDABOT SYNC
+# Cross-Repo Dependency Synchronization via ISS Orbital Telemetry
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# "As the ISS orbits at 7.66 km/s, so too do our dependencies
+#  circle the sun of semver, held in orbital coherence by the
+#  gravitational pull of a synchronized update schedule."
+#
+# This workflow runs in concert with DEPENDADREDGEABOT (03:10 UTC)
+# to anchor cross-repository dependency updates to ISS telemetry,
+# ensuring orbital coherence across the DREDGE ecosystem.
+#
+# Triggers:
+#   - Schedule: daily at 03:10 UTC (synchronized with Dependabot)
+#   - Manual: workflow_dispatch for on-demand telemetry snapshots
+#
+# Outputs:
+#   - ISS latitude, longitude, altitude, velocity
+#   - Orbital coherence timestamp for downstream dependency jobs
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+name: ISS Dependabot Sync
+
+on:
+  schedule:
+    # Daily at 03:10 UTC - synchronized with DEPENDADREDGEABOT schedule
+    - cron: "10 3 * * *"
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Reason for manual telemetry snapshot"
+        required: false
+        default: "Manual orbital coherence check"
+
+permissions:
+  contents: read
+
+jobs:
+  iss-telemetry:
+    name: Fetch ISS Orbital Telemetry
+    runs-on: ubuntu-latest
+
+    outputs:
+      latitude: ${{ steps.iss-fetch.outputs.latitude }}
+      longitude: ${{ steps.iss-fetch.outputs.longitude }}
+      altitude_km: ${{ steps.iss-fetch.outputs.altitude_km }}
+      velocity_kms: ${{ steps.iss-fetch.outputs.velocity_kms }}
+      timestamp: ${{ steps.iss-fetch.outputs.timestamp }}
+      telemetry_b64: ${{ steps.iss-fetch.outputs.telemetry_b64 }}
+
+    steps:
+      # ──────────────────────────────────────────────────────────────
+      # Phase 1: Orbital Telemetry Acquisition
+      # ──────────────────────────────────────────────────────────────
+      - name: Fetch ISS position and velocity from wheretheiss.at public API
+        id: iss-fetch
+        run: |
+          set -euo pipefail
+
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "  ISS ORBITAL TELEMETRY ACQUISITION"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          # Primary: wheretheiss.at provides lat, lon, altitude, velocity (no auth)
+          TELEMETRY=$(curl -fsSL --max-time 15 \
+            "https://api.wheretheiss.at/v1/satellites/25544")
+
+          LATITUDE=$(echo "${TELEMETRY}"    | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['latitude'])")
+          LONGITUDE=$(echo "${TELEMETRY}"   | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['longitude'])")
+          ALTITUDE=$(echo "${TELEMETRY}"    | python3 -c "import sys,json; d=json.load(sys.stdin); print(round(d['altitude'],3))")
+          VELOCITY=$(echo "${TELEMETRY}"    | python3 -c "import sys,json; d=json.load(sys.stdin); print(round(d['velocity'],3))")
+          UNIX_TS=$(echo "${TELEMETRY}"     | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['timestamp'])")
+          ISO_TS=$(date -u -d "@${UNIX_TS}" '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -u -r "${UNIX_TS}" '+%Y-%m-%dT%H:%M:%SZ')
+
+          echo "  Latitude  : ${LATITUDE}°"
+          echo "  Longitude : ${LONGITUDE}°"
+          echo "  Altitude  : ${ALTITUDE} km"
+          echo "  Velocity  : ${VELOCITY} km/s"
+          echo "  Timestamp : ${ISO_TS}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          # Build telemetry JSON and base64-encode for downstream jobs
+          python3 - <<PYEOF > /tmp/iss_telemetry.json
+          import json
+          data = {
+              "latitude": ${LATITUDE},
+              "longitude": ${LONGITUDE},
+              "altitude_km": ${ALTITUDE},
+              "velocity_kms": ${VELOCITY},
+              "timestamp_unix": ${UNIX_TS},
+              "timestamp_iso": "${ISO_TS}",
+              "source": "wheretheiss.at/v1/satellites/25544",
+              "norad_id": 25544
+          }
+          print(json.dumps(data, indent=2))
+          PYEOF
+
+          TELEMETRY_B64=$(base64 -w 0 /tmp/iss_telemetry.json)
+
+          {
+            echo "latitude=${LATITUDE}"
+            echo "longitude=${LONGITUDE}"
+            echo "altitude_km=${ALTITUDE}"
+            echo "velocity_kms=${VELOCITY}"
+            echo "timestamp=${ISO_TS}"
+            echo "telemetry_b64=${TELEMETRY_B64}"
+          } >> "${GITHUB_OUTPUT}"
+
+      # ──────────────────────────────────────────────────────────────
+      # Phase 2: Dependency Sync Coordination Signal
+      # ──────────────────────────────────────────────────────────────
+      - name: Emit cross-repo dependency sync signal
+        env:
+          LATITUDE: ${{ steps.iss-fetch.outputs.latitude }}
+          LONGITUDE: ${{ steps.iss-fetch.outputs.longitude }}
+          ALTITUDE_KM: ${{ steps.iss-fetch.outputs.altitude_km }}
+          VELOCITY_KMS: ${{ steps.iss-fetch.outputs.velocity_kms }}
+          TIMESTAMP: ${{ steps.iss-fetch.outputs.timestamp }}
+          TRIGGER_REASON: ${{ github.event.inputs.reason || 'Scheduled DEPENDADREDGEABOT sync' }}
+        run: |
+          set -euo pipefail
+
+          cat > /tmp/sync_signal.json << SIGNAL
+          {
+            "sync_network": "DREDGE-ecosystem",
+            "trigger": "${TRIGGER_REASON}",
+            "schedule_utc": "03:10 daily",
+            "iss_anchor": {
+              "latitude": ${LATITUDE},
+              "longitude": ${LONGITUDE},
+              "altitude_km": ${ALTITUDE_KM},
+              "velocity_kms": ${VELOCITY_KMS},
+              "timestamp": "${TIMESTAMP}"
+            },
+            "repos_in_network": [
+              "QueenFi703/DREDGE-Cli"
+            ],
+            "ecosystems_synced": ["pip", "github-actions", "docker"]
+          }
+          SIGNAL
+
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "  CROSS-REPO DEPENDENCY SYNC SIGNAL EMITTED"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          cat /tmp/sync_signal.json
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+      # ──────────────────────────────────────────────────────────────
+      # Phase 3: Artifact Persistence
+      # ──────────────────────────────────────────────────────────────
+      - name: Upload telemetry artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iss-telemetry-${{ github.run_id }}
+          path: |
+            /tmp/iss_telemetry.json
+            /tmp/sync_signal.json
+          if-no-files-found: warn
+
+      # ──────────────────────────────────────────────────────────────
+      # Phase 4: Job Summary
+      # ──────────────────────────────────────────────────────────────
+      - name: Job Summary
+        if: always()
+        env:
+          LATITUDE: ${{ steps.iss-fetch.outputs.latitude }}
+          LONGITUDE: ${{ steps.iss-fetch.outputs.longitude }}
+          ALTITUDE_KM: ${{ steps.iss-fetch.outputs.altitude_km }}
+          VELOCITY_KMS: ${{ steps.iss-fetch.outputs.velocity_kms }}
+          TIMESTAMP: ${{ steps.iss-fetch.outputs.timestamp }}
+        run: |
+          set -euo pipefail
+
+          {
+            echo "# 🛸 ISS Dependabot Sync — Orbital Telemetry Report"
+            echo ""
+            echo "**Sync Schedule:** 03:10 UTC daily (synchronized with DEPENDADREDGEABOT)"
+            echo "**Run triggered by:** ${{ github.event_name }}"
+            echo ""
+            echo "## ISS Orbital Coordinates"
+            echo ""
+            echo "| Parameter | Value |"
+            echo "|-----------|-------|"
+            echo "| 🌐 Latitude | \`${LATITUDE}°\` |"
+            echo "| 🌐 Longitude | \`${LONGITUDE}°\` |"
+            echo "| 🚀 Altitude | \`${ALTITUDE_KM} km\` |"
+            echo "| ⚡ Velocity | \`${VELOCITY_KMS} km/s\` |"
+            echo "| 🕐 Timestamp | \`${TIMESTAMP}\` |"
+            echo ""
+            echo "## Dependency Sync Network"
+            echo ""
+            echo "| Ecosystem | Schedule | Open PRs Limit |"
+            echo "|-----------|----------|----------------|"
+            echo "| 🐍 pip | daily 03:10 UTC | 10 |"
+            echo "| ⚙️ github-actions | daily 03:10 UTC | 10 |"
+            echo "| 🐳 docker | weekly Monday 03:10 UTC | 5 |"
+            echo ""
+            echo "---"
+            echo "*ISS telemetry sourced from [wheretheiss.at](https://wheretheiss.at) — public, no-auth API*"
+            echo "*Workflow completed at $(date -u '+%Y-%m-%d %H:%M:%S UTC')*"
+          } >> "${GITHUB_STEP_SUMMARY}"

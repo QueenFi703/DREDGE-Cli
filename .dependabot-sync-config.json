@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$comment": "DREDGE cross-repo dependency synchronization configuration anchored to ISS orbital telemetry",
+
+  "version": "1.0.0",
+  "name": "DEPENDADREDGEABOT Sync Network",
+  "description": "Cross-repository dependency synchronization configuration for the DREDGE ecosystem, anchored to ISS orbital telemetry for deterministic, globally-coherent update scheduling.",
+
+  "sync_strategy": {
+    "name": "Orbital Coherence",
+    "description": "All repositories in the sync network update their dependencies on the same schedule, anchored to the ISS orbital clock at 03:10 UTC. This ensures consistent dependency versions propagate across the ecosystem in a single daily pass, preventing version drift between sibling projects.",
+    "schedule_utc": "03:10",
+    "cadence": {
+      "pip": "daily",
+      "github-actions": "daily",
+      "docker": "weekly-monday"
+    },
+    "open_prs_limit": {
+      "pip": 10,
+      "github-actions": 10,
+      "docker": 5
+    },
+    "grouping": {
+      "enabled": true,
+      "rationale": "Grouping reduces PR noise by batching related dependency bumps into single PRs per ecosystem group, keeping the review queue manageable while still surfacing security patches promptly."
+    },
+    "auto_merge_policy": "reviewer-approval-required",
+    "conflict_resolution": "latest-semver-minor-wins"
+  },
+
+  "sync_network": {
+    "description": "Repositories participating in the synchronized update schedule. All members share the same Dependabot schedule and ISS telemetry anchor.",
+    "repos": [
+      {
+        "id": "primary",
+        "full_name": "QueenFi703/DREDGE-Cli",
+        "role": "primary",
+        "ecosystems": ["pip", "github-actions", "docker", "swift"],
+        "dependabot_config": ".github/dependabot.yml",
+        "iss_sync_workflow": ".github/workflows/iss-dependabot-sync.yml"
+      }
+    ]
+  },
+
+  "iss_telemetry_integration": {
+    "description": "ISS orbital telemetry is fetched daily at 03:10 UTC and logged alongside each dependency sync run. The telemetry provides a deterministic, real-world timestamp anchor that is independent of any single cloud provider's clock, making sync events globally verifiable.",
+    "api": {
+      "primary": {
+        "name": "Where The ISS At",
+        "url": "https://api.wheretheiss.at/v1/satellites/25544",
+        "auth_required": false,
+        "fields_used": ["latitude", "longitude", "altitude", "velocity", "timestamp"],
+        "norad_id": 25544
+      },
+      "fallback": {
+        "name": "Open Notify ISS Now",
+        "url": "http://api.open-notify.org/iss-now.json",
+        "auth_required": false,
+        "fields_used": ["iss_position.latitude", "iss_position.longitude", "timestamp"]
+      }
+    },
+    "workflow": ".github/workflows/iss-dependabot-sync.yml",
+    "artifact_retention_days": 7,
+    "outputs": {
+      "latitude": "ISS latitude at time of sync trigger (degrees)",
+      "longitude": "ISS longitude at time of sync trigger (degrees)",
+      "altitude_km": "ISS orbital altitude in kilometres",
+      "velocity_kms": "ISS orbital velocity in km/s (~7.66 km/s nominal)",
+      "timestamp": "ISO 8601 UTC timestamp of telemetry reading"
+    }
+  },
+
+  "orbital_coherence_philosophy": {
+    "manifesto": "The International Space Station completes one orbit of Earth every ~90 minutes at an altitude of ~408 km and a velocity of ~7.66 km/s. It does not ask whether its dependencies are up to date. It simply orbits — reliably, predictably, perpetually. DEPENDADREDGEABOT aspires to the same orbital discipline: updates arrive on schedule, in coherent formation, leaving no repository behind in the gravity well of stale semver.",
+    "principles": [
+      "Synchronised schedules eliminate version drift between sibling repositories.",
+      "Grouping reduces PR entropy — fewer PRs, more signal, less noise.",
+      "A 03:10 UTC trigger precedes most CI peak hours, minimising merge conflicts.",
+      "Docker updates are weekly because container base images are heavier cargo and deserve deliberate review.",
+      "ISS telemetry is the universal timestamp — it belongs to no cloud, no region, no vendor.",
+      "Orbital coherence is not a metaphor. It is an engineering discipline."
+    ],
+    "orbital_period_minutes": 90,
+    "nominal_altitude_km": 408,
+    "nominal_velocity_kms": 7.66
+  }
+}
