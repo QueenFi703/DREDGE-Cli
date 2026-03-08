@@ -51,12 +51,6 @@
         "auth_required": false,
         "fields_used": ["latitude", "longitude", "altitude", "velocity", "timestamp"],
         "norad_id": 25544
-      },
-      "fallback": {
-        "name": "Open Notify ISS Now",
-        "url": "http://api.open-notify.org/iss-now.json",
-        "auth_required": false,
-        "fields_used": ["iss_position.latitude", "iss_position.longitude", "timestamp"]
       }
     },
     "workflow": ".github/workflows/iss-dependabot-sync.yml",
