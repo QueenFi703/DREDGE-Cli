@@ -61,3 +61,7 @@ grafana-data/
 *.lib
 .ninja_deps
 .ninja_log
+
+# Node.js (github-app)
+github-app/node_modules/
+github-app/dist/
