@@ -1,0 +1,66 @@
+name: Actions Run Inspector
+
+on:
+  workflow_dispatch:
+    inputs:
+      owner:
+        required: false
+      repo:
+        required: false
+      run_id:
+        required: false
+      run_url:
+        required: false
+      post_comment:
+        required: false
+        default: "false"
+      comment_url:
+        required: false
+
+  schedule:
+    - cron: "0 */12 * * *"
+
+jobs:
+  inspector:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install
+        working-directory: github-app/actions-run-inspector
+        run: npm install
+
+      - name: Build
+        working-directory: github-app/actions-run-inspector
+        run: npm run build
+
+      - name: Run Inspector
+        working-directory: github-app/actions-run-inspector
+        env:
+          GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
+          GITHUB_APP_INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
+          GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+
+          owner: ${{ github.event.inputs.owner }}
+          repo: ${{ github.event.inputs.repo }}
+          run_id: ${{ github.event.inputs.run_id }}
+          run_url: ${{ github.event.inputs.run_url }}
+
+          post_comment: ${{ github.event.inputs.post_comment }}
+          comment_url: ${{ github.event.inputs.comment_url }}
+
+        run: npm start
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: run-inspector-result
+          path: github-app/actions-run-inspector/result.json
