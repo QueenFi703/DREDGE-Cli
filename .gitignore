@@ -13,6 +13,9 @@ build/
 dist/
 *.egg-info/
 
+# Node.js
+node_modules/
+
 # Editor directories and files
 # Note: We allow .vscode/ for shared workspace configuration
 .idea/
