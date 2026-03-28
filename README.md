@@ -15,6 +15,7 @@ DREDGE — small Python package scaffold with String Theory integration.
 - **[docs/CONTAINER_ARCHITECTURE.md](docs/CONTAINER_ARCHITECTURE.md)** - Container architecture and deployment guide
 - **[docs/CONTAINER_QUICKSTART.md](docs/CONTAINER_QUICKSTART.md)** - Quick start for container deployment
 - **[docs/GITHUB_ACTIONS_CONTAINERS.md](docs/GITHUB_ACTIONS_CONTAINERS.md)** - GitHub Actions workflows for containers
+- **[docs/GITHUB_ACTIONS_RUN.md](docs/GITHUB_ACTIONS_RUN.md)** - GitHub CLI helper for checking Actions run status, logs, and JSON
 
 ## 🚀 Quick Start
 
