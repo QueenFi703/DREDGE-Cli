@@ -51,6 +51,8 @@ jobs:
           GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
           GITHUB_APP_INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
           GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+          # GITHUB_TOKEN is used as a fallback when App secrets are not configured
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
           owner: ${{ github.event.inputs.owner }}
           repo: ${{ github.event.inputs.repo }}
@@ -98,6 +100,7 @@ jobs:
           GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
           GITHUB_APP_INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
           GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           owner: QueenFi703
           repo: amazon-iap-kotlin
           workflow_id: android.yml
@@ -137,6 +140,7 @@ jobs:
           GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
           GITHUB_APP_INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
           GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           owner: QueenFi703
           repo: amazon-iap-kotlin
           workflow_id: aws-gradle-pipeline.yml
