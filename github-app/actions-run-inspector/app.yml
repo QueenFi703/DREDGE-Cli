@@ -1,0 +1,37 @@
+# GitHub App manifest for "Actions Run Inspector"
+# Published under QueenFi703 — https://github.com/apps/actions-run-inspector-queenfi703
+#
+# This file is read by the publish-github-app workflow to generate the
+# one-click registration URL at https://github.com/apps/new?manifest=...
+#
+# See: https://docs.github.com/en/apps/sharing-github-apps/registering-a-github-app-from-a-manifest
+
+name: "Actions Run Inspector"
+description: >
+  Inspects GitHub Actions workflow runs, classifies failures, and posts
+  structured JSON summaries. Monitors QueenFi703/DREDGE-Cli and
+  QueenFi703/amazon-iap-kotlin on a 12-hour schedule.
+url: "https://github.com/QueenFi703/DREDGE-Cli"
+
+# After the user approves the app on GitHub, they are redirected here.
+# The publish-github-app workflow's "save-credentials" job reads the
+# `code` query parameter from this URL and exchanges it for credentials.
+redirect_url: "https://github.com/QueenFi703/DREDGE-Cli/actions/workflows/publish-github-app.yml"
+
+# Webhooks are not needed — the app is used as a bot that calls the API
+hook_attributes:
+  url: ""
+  active: false
+
+# Make the app publicly installable under QueenFi703
+public: true
+
+# Subscribe to workflow events so the app can be extended later
+default_events:
+  - workflow_run
+  - workflow_job
+
+# Minimal read-only permissions required to inspect workflow runs
+default_permissions:
+  actions: read
+  metadata: read
