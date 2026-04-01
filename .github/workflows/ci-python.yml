@@ -47,3 +47,13 @@ jobs:
         run: |
           dredge-cli --version
           dredge-cli --help
+
+      - name: Report build to Grafana Cloud
+        if: always()
+        uses: ./.github/actions/grafana-build-report
+        with:
+          status: ${{ job.status }}
+          logs_url: ${{ secrets.GCLOUD_HOSTED_LOGS_URL }}
+          logs_id: ${{ secrets.GCLOUD_HOSTED_LOGS_ID }}
+          api_key: ${{ secrets.GCLOUD_RW_API_KEY }}
+          extra_labels: '{"python_version":"${{ matrix.python-version }}"}'
