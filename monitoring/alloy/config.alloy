@@ -157,3 +157,46 @@ prometheus.scrape "dredge_network_probes" {
   scrape_interval = env("GCLOUD_SCRAPE_INTERVAL")
   job_name        = "dredge/network-probes"
 }
+
+// ──────────────────────────────────────────────────────────────────────
+// OTLP trace pipeline → Grafana Cloud
+// Additional required environment variables:
+//   GRAFANA_CLOUD_OTLP_ENDPOINT — OTLP gRPC endpoint (e.g. tempo-prod-XX.grafana.net:443)
+//   GRAFANA_CLOUD_AUTH          — Base64-encoded "instance_id:api_key"
+// ──────────────────────────────────────────────────────────────────────
+
+otelcol.receiver.otlp "ci" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+}
+
+otelcol.processor.batch "default" {}
+
+otelcol.exporter.otlp "grafana" {
+  client {
+    endpoint = env("GRAFANA_CLOUD_OTLP_ENDPOINT")
+    headers = {
+      "Authorization" = "Basic " + env("GRAFANA_CLOUD_AUTH"),
+    }
+  }
+}
+
+otelcol.connector.servicegraph "default" {
+  dimensions = ["service.name", "deployment.environment"]
+  latency_histogram_buckets = ["100ms", "250ms", "500ms", "1s", "2.5s", "5s"]
+  forward_to = [otelcol.exporter.otlp.grafana.input]
+}
+
+otelcol.service "traces" {
+  pipelines {
+    traces = {
+      receivers  = [otelcol.receiver.otlp.ci.output]
+      processors = [otelcol.processor.batch.default.output]
+      exporters  = [otelcol.exporter.otlp.grafana.input]
+    }
+  }
+}
