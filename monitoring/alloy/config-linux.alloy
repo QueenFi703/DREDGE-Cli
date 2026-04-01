@@ -252,7 +252,7 @@ prometheus.exporter.blackbox "dredge_network_probes" {
   targets = [
     {
       name    = "dredge-server-health",
-      address = "http://localhost:3001/health",
+      address = "http://localhost:3000/health",
       module  = "http_2xx",
       service = "dredge-api",
     },

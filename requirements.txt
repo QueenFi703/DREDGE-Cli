@@ -5,6 +5,10 @@ flask>=3.0.0
 requests>=2.31.0
 aiohttp>=3.9.0
 
+# OAuth2 / authentication
+authlib>=1.6.9
+flask-login>=0.6.3
+
 # PyTorch - Platform-specific installations:
 # 
 # For CUDA (Linux with NVIDIA GPU):

@@ -7,7 +7,8 @@ import os
 import logging
 from functools import lru_cache
 from pathlib import Path
-from flask import Flask, jsonify, request, send_file
+from flask import Flask, jsonify, request, send_file, redirect, url_for
+from flask_login import login_required, current_user
 
 from . import __version__
 from .config import load_config
@@ -44,32 +45,60 @@ def _compute_insight_hash(insight_text: str) -> str:
 def create_app():
     """Create and configure the Flask application."""
     app = Flask(__name__)
-    
+
+    # ── Session secret key ────────────────────────────────────────────
+    secret_key = os.environ.get("SECRET_KEY", "")
+    if not secret_key:
+        import secrets as _secrets
+        secret_key = _secrets.token_hex(32)
+        logging.getLogger(__name__).warning(
+            "SECRET_KEY not set — using a random key. "
+            "Sessions will not survive restarts. Set SECRET_KEY in your environment."
+        )
+    app.secret_key = secret_key
+
+    # ── OAuth / login ─────────────────────────────────────────────────
+    from .auth import init_auth
+    init_auth(app)
+
+    # ── Application routes ────────────────────────────────────────────
+
     @app.route('/')
+    @login_required
     def index():
         """Root endpoint with API information."""
         return jsonify({
             "name": "DREDGE x Dolly",
             "version": __version__,
             "description": "GPU-CPU Lifter · Save · Files · Print",
+            "user": {
+                "name":     current_user.name,
+                "email":    current_user.email,
+                "provider": current_user.provider,
+            },
             "endpoints": {
-                "/": "API information",
-                "/health": "Health check",
-                "/lift": "Lift an insight (POST)",
-                "/quasimoto-gpu": "Quasimoto GPU visualization",
+                "/":              "API information (this page)",
+                "/health":        "Health check (public)",
+                "/lift":          "Lift an insight (POST, authenticated)",
+                "/quasimoto-gpu": "Quasimoto GPU visualization (authenticated)",
+                "/auth/login":    "Sign-in page",
+                "/auth/logout":   "Sign out",
+                "/auth/me":       "Current user profile (JSON)",
+                "/auth/status":   "Authentication status (public)",
             }
         })
-    
+
     @app.route('/health')
     def health():
-        """Health check endpoint."""
+        """Health check endpoint (public — no auth required)."""
         return jsonify({"status": "healthy", "version": __version__})
-    
+
     @app.route('/lift', methods=['POST'])
+    @login_required
     def lift_insight():
         """
         Lift an insight with Dolly integration.
-        
+
         Expected JSON payload:
         {
             "insight_text": "Your insight text here"
@@ -84,11 +113,9 @@ def create_app():
         
         insight_text = data['insight_text']
         
-        # Optimized: Use cached hash computation for duplicate insights
+        # Optimised: use cached hash computation for duplicate insights
         insight_id = _compute_insight_hash(insight_text)
         
-        # Basic insight structure
-        # Note: Full Dolly GPU integration would require PyTorch
         result = {
             "id": insight_id,
             "text": insight_text,
@@ -97,8 +124,9 @@ def create_app():
         }
         
         return jsonify(result)
-    
+
     @app.route('/quasimoto-gpu')
+    @login_required
     def quasimoto_gpu():
         """Serve the Quasimoto GPU visualization page."""
         static_dir = Path(__file__).parent / 'static'
@@ -108,30 +136,31 @@ def create_app():
             return jsonify({"error": "Visualization file not found"}), 404
         
         return send_file(html_file, mimetype='text/html')
-    
+
     return app
 
 
-def run_server(host='0.0.0.0', port=3001, debug=False):
+def run_server(host='0.0.0.0', port=3000, debug=False):
     """
     Run the DREDGE x Dolly server.
-    
+
     Args:
-        host: Host to bind to (default: 0.0.0.0 for codespaces)
-        port: Port to listen on (default: 3001)
+        host:  Host to bind to (default: 0.0.0.0)
+        port:  Port to listen on (default: 3000)
         debug: Enable debug mode (default: False)
     """
     logger = setup_logging(debug)
-    
+
     logger.info(f"Starting DREDGE x Dolly Server v{__version__}")
     logger.info(f"Host: {host}, Port: {port}, Debug: {debug}")
-    
+
     app = create_app()
-    
+
     print(f"🚀 Starting DREDGE x Dolly server on http://{host}:{port}")
     print(f"📡 API Version: {__version__}")
-    print(f"🔧 Debug mode: {debug}")
-    
+    print(f"🔐 Sign in at:  http://localhost:{port}/auth/login")
+    print(f"🔧 Debug mode:  {debug}")
+
     logger.info("Server ready. Press CTRL+C to stop.")
     app.run(host=host, port=port, debug=debug)
 

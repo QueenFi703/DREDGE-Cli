@@ -32,7 +32,7 @@ prometheus.scrape "dredge_metrics" {
 }
 
 prometheus.scrape "dredge_server" {
-  targets = [{ "__address__" = "localhost:3001", "service" = "dredge-api" }]
+  targets = [{ "__address__" = "localhost:3000", "service" = "dredge-api" }]
   scrape_interval = env("GCLOUD_SCRAPE_INTERVAL")
   forward_to = [prometheus.remote_write.grafana_cloud.receiver]
 
@@ -126,7 +126,7 @@ prometheus.exporter.blackbox "dredge_network_probes" {
   targets = [
     {
       name    = "dredge-server-health",
-      address = "http://localhost:3001/health",
+      address = "http://localhost:3000/health",
       module  = "http_2xx",
       service = "dredge-api",
     },
