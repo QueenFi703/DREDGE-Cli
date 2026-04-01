@@ -78,8 +78,8 @@ def main(argv=None):
     server_parser.add_argument(
         "--port", 
         type=int, 
-        default=3001, 
-        help="Port to listen on (default: 3001)"
+        default=3000, 
+        help="Port to listen on (default: 3000)"
     )
     server_parser.add_argument(
         "--debug", 
@@ -252,7 +252,7 @@ def main(argv=None):
     
     if args.command == "serve":
         # Load config and merge with CLI args
-        host, port, debug, _ = _merge_server_args(args, "server", "0.0.0.0", 3001)
+        host, port, debug, _ = _merge_server_args(args, "server", "0.0.0.0", 3000)
         
         try:
             validate_server_config(host, port, debug)
