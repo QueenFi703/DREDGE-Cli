@@ -1,0 +1,70 @@
+name: Auto Inject Alloy
+
+on:
+  push:
+    paths:
+      - ".github/workflows/*.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  inject:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Fetch full history so the push doesn't trigger extra runs
+          fetch-depth: 0
+
+      - name: Inject Alloy step into uninstrumented workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          changed=0
+          for file in .github/workflows/*.yml; do
+            # Skip this file itself to avoid infinite loops
+            [[ "$file" == *"auto-inject-alloy.yml" ]] && continue
+
+            if grep -q "grafana/alloy\|actions/alloy" "$file"; then
+              echo "✔ Already instrumented: $file"
+              continue
+            fi
+
+            echo "⚡ Injecting Alloy into $file"
+
+            awk '
+            BEGIN { injected=0 }
+            /^[[:space:]]+steps:/ && !injected {
+              print;
+              print "      - name: Start Alloy (OTLP collector)";
+              print "        uses: ./.github/actions/alloy";
+              print "        env:";
+              print "          GRAFANA_CLOUD_OTLP_ENDPOINT: ${{ secrets.GRAFANA_CLOUD_OTLP_ENDPOINT }}";
+              print "          GRAFANA_CLOUD_AUTH: ${{ secrets.GRAFANA_CLOUD_AUTH }}";
+              injected=1;
+              next;
+            }
+            { print }
+            ' "$file" > "$file.tmp"
+
+            mv "$file.tmp" "$file"
+            changed=1
+          done
+
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+        id: inject
+
+      - name: Commit and push instrumented workflows
+        if: steps.inject.outputs.changed == '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "dot-bot"
+          git config user.email "dot@users.noreply.github.com"
+          git add .github/workflows/*.yml
+          git diff --cached --quiet || \
+            git commit -m "🔧 Auto-inject Alloy OTLP collector into workflows"
+          git push || true
