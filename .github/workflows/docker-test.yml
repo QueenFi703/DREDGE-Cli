@@ -118,6 +118,17 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       # Phase 6: Post-test Cleanup (Cadence: Terminal)
+      - name: Report build to Grafana Cloud
+        if: always()
+        uses: ./.github/actions/grafana-build-report
+        with:
+          status: ${{ job.status }}
+          logs_url: ${{ secrets.GCLOUD_HOSTED_LOGS_URL }}
+          logs_id: ${{ secrets.GCLOUD_HOSTED_LOGS_ID }}
+          api_key: ${{ secrets.GCLOUD_RW_API_KEY }}
+          grafana_url: ${{ secrets.GCLOUD_GRAFANA_URL }}
+          extra_labels: '{"docker_target":"${{ matrix.target }}","docker_suffix":"${{ matrix.suffix }}"}'
+
       - name: Cleanup test artifacts
         if: always()
         run: |
@@ -155,6 +166,16 @@ jobs:
         run: |
           docker compose -f docker-compose.profiles.yml config > /dev/null
           echo "✅ docker-compose.profiles.yml is valid"
+
+      - name: Report build to Grafana Cloud
+        if: always()
+        uses: ./.github/actions/grafana-build-report
+        with:
+          status: ${{ job.status }}
+          logs_url: ${{ secrets.GCLOUD_HOSTED_LOGS_URL }}
+          logs_id: ${{ secrets.GCLOUD_HOSTED_LOGS_ID }}
+          api_key: ${{ secrets.GCLOUD_RW_API_KEY }}
+          grafana_url: ${{ secrets.GCLOUD_GRAFANA_URL }}
 
   validate-kubernetes:
     runs-on: ubuntu-latest
@@ -200,3 +221,4 @@ jobs:
           logs_url: ${{ secrets.GCLOUD_HOSTED_LOGS_URL }}
           logs_id: ${{ secrets.GCLOUD_HOSTED_LOGS_ID }}
           api_key: ${{ secrets.GCLOUD_RW_API_KEY }}
+          grafana_url: ${{ secrets.GCLOUD_GRAFANA_URL }}
