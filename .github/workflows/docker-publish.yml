@@ -143,6 +143,16 @@ jobs:
         continue-on-error: true
 
       # Phase 6: Post-build Cleanup (Cadence: Terminal)
+      - name: Report build to Grafana Cloud
+        if: always()
+        uses: ./.github/actions/grafana-build-report
+        with:
+          status: ${{ job.status }}
+          logs_url: ${{ secrets.GCLOUD_HOSTED_LOGS_URL }}
+          logs_id: ${{ secrets.GCLOUD_HOSTED_LOGS_ID }}
+          api_key: ${{ secrets.GCLOUD_RW_API_KEY }}
+          extra_labels: '{"docker_target":"${{ matrix.target }}","docker_suffix":"${{ matrix.suffix }}"}'
+
       - name: Cleanup build artifacts
         if: always()
         run: |
@@ -209,3 +219,13 @@ jobs:
         env:
           REGISTRY: ghcr.io
           IMAGE_NAME: ${{ github.repository }}
+
+      - name: Report build to Grafana Cloud
+        if: always()
+        uses: ./.github/actions/grafana-build-report
+        with:
+          status: ${{ job.status }}
+          logs_url: ${{ secrets.GCLOUD_HOSTED_LOGS_URL }}
+          logs_id: ${{ secrets.GCLOUD_HOSTED_LOGS_ID }}
+          api_key: ${{ secrets.GCLOUD_RW_API_KEY }}
+          extra_labels: '{"docker_target":"${{ matrix.target }}","docker_suffix":"${{ matrix.suffix }}"}'
