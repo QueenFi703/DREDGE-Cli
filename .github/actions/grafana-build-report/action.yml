@@ -2,6 +2,7 @@ name: 'Report Build to Grafana Cloud'
 description: >
   Sends CI job status, metadata, and timing to Grafana Cloud Loki after
   every job.  Runs with `if: always()` so failures are captured too.
+  Writes a GitHub Step Summary linking the build to its Grafana logs.
   Gracefully skips if Grafana Cloud secrets are not configured.
 
 inputs:
@@ -18,6 +19,13 @@ inputs:
     default: ''
   api_key:
     description: 'Grafana Cloud read/write API key (secret: GCLOUD_RW_API_KEY)'
+    required: false
+    default: ''
+  grafana_url:
+    description: >
+      Base URL of your Grafana Cloud instance, e.g.
+      `https://myorg.grafana.net` (secret: GCLOUD_GRAFANA_URL).
+      When set, the Step Summary includes a direct Explore link.
     required: false
     default: ''
   extra_labels:
@@ -38,6 +46,7 @@ runs:
         INPUT_LOGS_URL: ${{ inputs.logs_url }}
         INPUT_LOGS_ID: ${{ inputs.logs_id }}
         INPUT_API_KEY: ${{ inputs.api_key }}
+        INPUT_GRAFANA_URL: ${{ inputs.grafana_url }}
         INPUT_EXTRA_LABELS: ${{ inputs.extra_labels }}
       run: |
         import base64
@@ -46,21 +55,32 @@ runs:
         import sys
         import time
         import urllib.error
+        import urllib.parse
         import urllib.request
 
         # ── Inputs ────────────────────────────────────────────────────
-        status      = os.environ.get("INPUT_STATUS",      "unknown").strip()
-        logs_url    = os.environ.get("INPUT_LOGS_URL",    "").strip()
-        logs_id     = os.environ.get("INPUT_LOGS_ID",     "").strip()
-        api_key     = os.environ.get("INPUT_API_KEY",     "").strip()
-        extra_raw   = os.environ.get("INPUT_EXTRA_LABELS","{}").strip() or "{}"
+        status       = os.environ.get("INPUT_STATUS",       "unknown").strip()
+        logs_url     = os.environ.get("INPUT_LOGS_URL",     "").strip()
+        logs_id      = os.environ.get("INPUT_LOGS_ID",      "").strip()
+        api_key      = os.environ.get("INPUT_API_KEY",      "").strip()
+        grafana_url  = os.environ.get("INPUT_GRAFANA_URL",  "").strip().rstrip("/")
+        extra_raw    = os.environ.get("INPUT_EXTRA_LABELS", "{}").strip() or "{}"
 
-        # ── Skip gracefully if credentials are absent ─────────────────
-        if not all([logs_url, logs_id, api_key]):
-            print("::notice title=Grafana Build Report::Skipped — "
-                  "GCLOUD_HOSTED_LOGS_URL / GCLOUD_HOSTED_LOGS_ID / "
-                  "GCLOUD_RW_API_KEY secrets are not configured.")
-            sys.exit(0)
+        # ── GitHub context ─────────────────────────────────────────────
+        repo         = os.environ.get("GITHUB_REPOSITORY", "")
+        sha          = os.environ.get("GITHUB_SHA",         "")
+        run_id       = os.environ.get("GITHUB_RUN_ID",      "")
+        run_num      = os.environ.get("GITHUB_RUN_NUMBER",  "")
+        actor        = os.environ.get("GITHUB_ACTOR",       "")
+        ref          = os.environ.get("GITHUB_REF",         "")
+        workflow     = os.environ.get("GITHUB_WORKFLOW",    "unknown")
+        job          = os.environ.get("GITHUB_JOB",         "unknown")
+        event        = os.environ.get("GITHUB_EVENT_NAME",  "unknown")
+        runner_os    = os.environ.get("RUNNER_OS",          "unknown").lower()
+        step_summary = os.environ.get("GITHUB_STEP_SUMMARY", "")
+
+        branch = ref.replace("refs/heads/", "").replace("refs/tags/", "") or "unknown"
+        run_url = f"https://github.com/{repo}/actions/runs/{run_id}"
 
         # ── Parse extra labels ─────────────────────────────────────────
         try:
@@ -70,65 +90,118 @@ runs:
         except json.JSONDecodeError:
             extra_labels = {}
 
-        # ── Build Loki stream labels ───────────────────────────────────
-        ref    = os.environ.get("GITHUB_REF", "")
-        branch = ref.replace("refs/heads/", "").replace("refs/tags/", "") or "unknown"
-        # Loki label values: truncate, strip unsafe chars
+        # ── Helpers ────────────────────────────────────────────────────
         def safe(v, maxlen=100):
             return str(v).replace('"', "'")[:maxlen]
 
+        icon = {"success": "✅", "failure": "❌", "cancelled": "⚠️"}.get(status, "ℹ️")
+
+        # ── Build Loki stream labels (low-cardinality only) ────────────
         labels = {
-            "source":     "github_actions",
-            "repo":       safe(os.environ.get("GITHUB_REPOSITORY", "unknown")),
-            "workflow":   safe(os.environ.get("GITHUB_WORKFLOW",   "unknown")),
-            "job":        safe(os.environ.get("GITHUB_JOB",        "unknown")),
-            "branch":     safe(branch),
-            "event":      safe(os.environ.get("GITHUB_EVENT_NAME", "unknown")),
-            "runner_os":  safe(os.environ.get("RUNNER_OS",         "unknown").lower()),
-            "status":     safe(status),
+            "source":    "github_actions",
+            "repo":      safe(repo),
+            "workflow":  safe(workflow),
+            "job":       safe(job),
+            "branch":    safe(branch),
+            "event":     safe(event),
+            "runner_os": safe(runner_os),
+            "status":    safe(status),
         }
         labels.update({k: safe(v) for k, v in extra_labels.items()})
 
-        # ── Build structured log line ──────────────────────────────────
-        repo      = os.environ.get("GITHUB_REPOSITORY", "")
-        sha       = os.environ.get("GITHUB_SHA",        "")
-        run_id    = os.environ.get("GITHUB_RUN_ID",     "")
-        run_num   = os.environ.get("GITHUB_RUN_NUMBER", "")
-        actor     = os.environ.get("GITHUB_ACTOR",      "")
-        run_url   = f"https://github.com/{repo}/actions/runs/{run_id}"
-
-        icon = {"success": "✅", "failure": "❌", "cancelled": "⚠️"}.get(status, "ℹ️")
+        # ── Build structured log line (high-cardinality values here) ───
         message = (
-            f"{icon} [{labels['workflow']}] {labels['job']} "
-            f"on {labels['branch']} — {status.upper()}"
+            f"{icon} [{workflow}] {job} "
+            f"on {branch} — {status.upper()}"
         )
-
         log_line = json.dumps({
             "message":    message,
             "status":     status,
-            "workflow":   labels["workflow"],
-            "job":        labels["job"],
-            "branch":     labels["branch"],
-            "event":      labels["event"],
-            "runner_os":  labels["runner_os"],
+            "workflow":   workflow,
+            "job":        job,
+            "branch":     branch,
+            "event":      event,
+            "runner_os":  runner_os,
             "sha":        sha[:12] if sha else "unknown",
             "actor":      actor,
             "run_id":     run_id,
             "run_number": run_num,
             "run_url":    run_url,
-            **{k: v for k, v in extra_labels.items()},
+            **{k: safe(v) for k, v in extra_labels.items()},
         })
 
-        # ── Build Loki push payload ────────────────────────────────────
+        # ── Build Grafana Explore deep-link ────────────────────────────
+        explore_url = ""
+        if grafana_url:
+            loki_query = (
+                '{source="github_actions",'
+                f'repo="{safe(repo)}",'
+                f'workflow="{safe(workflow)}",'
+                f'job="{safe(job)}",'
+                f'status="{safe(status)}"'
+                "}"
+            )
+            params = urllib.parse.urlencode({
+                "orgId": "1",
+                "left": json.dumps({
+                    "datasource": "loki",
+                    "queries": [{"expr": loki_query, "refId": "A"}],
+                    "range": {"from": "now-1h", "to": "now"},
+                }),
+            })
+            explore_url = f"{grafana_url}/explore?{params}"
+
+        # ── Write GitHub Step Summary ──────────────────────────────────
+        if step_summary:
+            extra_rows = "".join(
+                f"| `{k}` | `{v}` |\n"
+                for k, v in extra_labels.items()
+            )
+            grafana_row = (
+                f"| 🔍 Grafana Logs | [Explore]({explore_url}) |\n"
+                if explore_url else
+                "| 🔍 Grafana Logs | *(set `GCLOUD_GRAFANA_URL` secret for direct link)* |\n"
+            )
+            loki_status = (
+                "*(skipped — secrets not configured)*"
+                if not all([logs_url, logs_id, api_key])
+                else "pending…"
+            )
+            summary = (
+                f"## {icon} Grafana Cloud Build Report\n\n"
+                f"| Field | Value |\n"
+                f"|-------|-------|\n"
+                f"| 🏷️ Status | `{status}` |\n"
+                f"| ⚙️ Workflow | `{workflow}` |\n"
+                f"| 🔧 Job | `{job}` |\n"
+                f"| 🌿 Branch | `{branch}` |\n"
+                f"| 🔖 SHA | `{sha[:12] if sha else 'unknown'}` |\n"
+                f"| 👤 Actor | `{actor}` |\n"
+                f"| 🖥️ Runner | `{runner_os}` |\n"
+                f"| 🔗 Actions Run | [#{run_num}]({run_url}) |\n"
+                f"{extra_rows}"
+                f"{grafana_row}"
+                f"| 📡 Loki Push | {loki_status} |\n"
+            )
+            try:
+                with open(step_summary, "a", encoding="utf-8") as fh:
+                    fh.write(summary)
+            except OSError:
+                pass  # Non-fatal
+
+        # ── Skip Loki push if credentials absent ──────────────────────
+        if not all([logs_url, logs_id, api_key]):
+            print("::notice title=Grafana Build Report::Skipped — "
+                  "GCLOUD_HOSTED_LOGS_URL / GCLOUD_HOSTED_LOGS_ID / "
+                  "GCLOUD_RW_API_KEY secrets are not configured.")
+            sys.exit(0)
+
+        # ── Push to Loki ───────────────────────────────────────────────
         timestamp_ns = str(int(time.time() * 1e9))
         payload = json.dumps({
-            "streams": [{
-                "stream": labels,
-                "values": [[timestamp_ns, log_line]],
-            }]
+            "streams": [{"stream": labels, "values": [[timestamp_ns, log_line]]}]
         }).encode("utf-8")
 
-        # ── HTTP POST to Loki ──────────────────────────────────────────
         credentials = base64.b64encode(f"{logs_id}:{api_key}".encode()).decode()
         req = urllib.request.Request(
             logs_url,
@@ -140,22 +213,27 @@ runs:
             method="POST",
         )
 
+        # ── Update Step Summary with Loki result ───────────────────────
+        def update_summary(loki_result: str):
+            if not step_summary:
+                return
+            try:
+                with open(step_summary, "a", encoding="utf-8") as fh:
+                    fh.write(f"\n> **Loki:** {loki_result}\n")
+            except OSError:
+                pass
+
         try:
             with urllib.request.urlopen(req, timeout=10) as resp:
-                print(
-                    f"::notice title=Grafana Build Report::"
-                    f"{message} → Loki HTTP {resp.status} ✓"
-                )
+                result = f"HTTP {resp.status} — accepted ✓"
+                update_summary(result)
+                print(f"::notice title=Grafana Build Report::{message} → Loki {result}")
         except urllib.error.HTTPError as exc:
             body = exc.read().decode("utf-8", errors="replace")[:200]
-            print(
-                f"::warning title=Grafana Build Report::"
-                f"Loki push failed — HTTP {exc.code}: {body}"
-            )
-            sys.exit(0)  # Never fail the build due to reporting
+            update_summary(f"HTTP {exc.code} — {body}")
+            print(f"::warning title=Grafana Build Report::Loki push failed — HTTP {exc.code}: {body}")
+            sys.exit(0)
         except Exception as exc:
-            print(
-                f"::warning title=Grafana Build Report::"
-                f"Loki push failed — {exc}"
-            )
+            update_summary(f"error — {exc}")
+            print(f"::warning title=Grafana Build Report::Loki push failed — {exc}")
             sys.exit(0)

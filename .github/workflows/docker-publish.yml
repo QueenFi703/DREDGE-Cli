@@ -151,6 +151,7 @@ jobs:
           logs_url: ${{ secrets.GCLOUD_HOSTED_LOGS_URL }}
           logs_id: ${{ secrets.GCLOUD_HOSTED_LOGS_ID }}
           api_key: ${{ secrets.GCLOUD_RW_API_KEY }}
+          grafana_url: ${{ secrets.GCLOUD_GRAFANA_URL }}
           extra_labels: '{"docker_target":"${{ matrix.target }}","docker_suffix":"${{ matrix.suffix }}"}'
 
       - name: Cleanup build artifacts
@@ -228,4 +229,5 @@ jobs:
           logs_url: ${{ secrets.GCLOUD_HOSTED_LOGS_URL }}
           logs_id: ${{ secrets.GCLOUD_HOSTED_LOGS_ID }}
           api_key: ${{ secrets.GCLOUD_RW_API_KEY }}
+          grafana_url: ${{ secrets.GCLOUD_GRAFANA_URL }}
           extra_labels: '{"docker_target":"${{ matrix.target }}","docker_suffix":"${{ matrix.suffix }}"}'

@@ -100,3 +100,60 @@ loki.write "grafana_cloud" {
     environment = "local",
   }
 }
+
+// ──────────────────────────────────────────────────────────────────────
+// Network probes — HTTP/TCP health checks (ESTEEMED NETWORKING)
+// ──────────────────────────────────────────────────────────────────────
+
+prometheus.exporter.blackbox "dredge_network_probes" {
+  config = `
+    modules:
+      http_2xx:
+        prober: http
+        timeout: 5s
+        http:
+          valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+          valid_status_codes: []
+          method: GET
+          follow_redirects: true
+          preferred_ip_protocol: ip4
+
+      tcp_connect:
+        prober: tcp
+        timeout: 5s
+  `
+
+  targets = [
+    {
+      name    = "dredge-server-health",
+      address = "http://localhost:3001/health",
+      module  = "http_2xx",
+      service = "dredge-api",
+    },
+    {
+      name    = "quasimoto-mcp-root",
+      address = "http://localhost:3002/",
+      module  = "http_2xx",
+      service = "mcp-server",
+    },
+    {
+      name    = "prometheus-local",
+      address = "http://localhost:9090/-/healthy",
+      module  = "http_2xx",
+      service = "prometheus",
+    },
+    {
+      name    = "alloy-ui",
+      address = "http://localhost:12345/-/ready",
+      module  = "http_2xx",
+      service = "alloy",
+    },
+  ]
+}
+
+prometheus.scrape "dredge_network_probes" {
+  targets         = prometheus.exporter.blackbox.dredge_network_probes.targets
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+  scrape_interval = env("GCLOUD_SCRAPE_INTERVAL")
+  job_name        = "dredge/network-probes"
+}
