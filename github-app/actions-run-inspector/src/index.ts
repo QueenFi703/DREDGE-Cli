@@ -112,6 +112,12 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error(err);
+  const message = err instanceof Error ? err.message : String(err);
+  // Newlines must be encoded so the annotation command stays on one line.
+  const annotation = message.replace(/%/g, "%25").replace(/\r/g, "%0D").replace(/\n/g, "%0A");
+  console.error(`::error::${annotation}`);
+  if (err instanceof Error && err.stack) {
+    console.error(err.stack);
+  }
   process.exit(1);
 });
