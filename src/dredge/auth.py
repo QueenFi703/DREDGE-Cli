@@ -14,6 +14,7 @@ Callback URLs to register with each provider:
     Google:  {OAUTH_REDIRECT_BASE}/auth/google/callback
     GitHub:  {OAUTH_REDIRECT_BASE}/auth/github/callback
 """
+from __future__ import annotations
 import os
 import logging
 from functools import wraps
