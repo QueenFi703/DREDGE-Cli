@@ -17,6 +17,11 @@ runs:
       shell: bash
       run: npm install
 
+    - name: Create dist directory
+      working-directory: github-app/actions-run-inspector
+      shell: bash
+      run: mkdir -p dist
+
     - name: Build
       working-directory: github-app/actions-run-inspector
       shell: bash
