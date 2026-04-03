@@ -7,7 +7,7 @@ description: >
 
 inputs:
   status:
-    description: 'Job completion status — pass `${{ job.status }}`'
+    description: 'Job completion status (pass job.status from the calling workflow)'
     required: true
   logs_url:
     description: 'Grafana Cloud Loki push URL (secret: GCLOUD_HOSTED_LOGS_URL)'
