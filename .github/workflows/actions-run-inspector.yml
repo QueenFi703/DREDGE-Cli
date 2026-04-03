@@ -28,41 +28,27 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
+      GITHUB_APP_INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
+      GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Node 24
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-
-      - name: Install
-        working-directory: github-app/actions-run-inspector
-        run: npm install
-
-      - name: Build
-        working-directory: github-app/actions-run-inspector
-        run: npm run build
+      - uses: ./.github/actions/inspector-setup
 
       - name: Run Inspector
         working-directory: github-app/actions-run-inspector
         env:
-          GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
-          GITHUB_APP_INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
-          GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
-          # GITHUB_TOKEN is used as a fallback when App secrets are not configured
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-          owner: ${{ github.event.inputs.owner }}
-          repo: ${{ github.event.inputs.repo }}
+          owner: ${{ github.event.inputs.owner || github.repository_owner }}
+          repo:  ${{ github.event.inputs.repo  || github.event.repository.name }}
           run_id: ${{ github.event.inputs.run_id }}
           run_url: ${{ github.event.inputs.run_url }}
           workflow_id: ${{ github.event.inputs.workflow_id }}
-
           post_comment: ${{ github.event.inputs.post_comment }}
           comment_url: ${{ github.event.inputs.comment_url }}
-
         run: npm start
 
       - name: Upload Artifact
@@ -72,82 +58,39 @@ jobs:
           path: github-app/actions-run-inspector/result.json
 
   # Scheduled cross-repo monitoring for QueenFi703/amazon-iap-kotlin
-  inspect-amazon-iap-android:
+  inspect-amazon-iap:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
+      GITHUB_APP_INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
+      GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    strategy:
+      matrix:
+        include:
+          - workflow_id: android.yml
+            artifact: run-inspector-amazon-iap-android
+          - workflow_id: aws-gradle-pipeline.yml
+            artifact: run-inspector-amazon-iap-aws-pipeline
 
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Node 24
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
+      - uses: ./.github/actions/inspector-setup
 
-      - name: Install
-        working-directory: github-app/actions-run-inspector
-        run: npm install
-
-      - name: Build
-        working-directory: github-app/actions-run-inspector
-        run: npm run build
-
-      - name: Inspect latest android.yml run
+      - name: Inspect latest ${{ matrix.workflow_id }} run
         working-directory: github-app/actions-run-inspector
         env:
-          GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
-          GITHUB_APP_INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
-          GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           owner: QueenFi703
           repo: amazon-iap-kotlin
-          workflow_id: android.yml
+          workflow_id: ${{ matrix.workflow_id }}
         run: npm start
 
-      - name: Upload Artifact (android)
+      - name: Upload Artifact
         uses: actions/upload-artifact@v7
         with:
-          name: run-inspector-amazon-iap-android
-          path: github-app/actions-run-inspector/result.json
-
-  inspect-amazon-iap-aws-pipeline:
-    if: github.event_name == 'schedule'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Setup Node 24
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-
-      - name: Install
-        working-directory: github-app/actions-run-inspector
-        run: npm install
-
-      - name: Build
-        working-directory: github-app/actions-run-inspector
-        run: npm run build
-
-      - name: Inspect latest aws-gradle-pipeline.yml run
-        working-directory: github-app/actions-run-inspector
-        env:
-          GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
-          GITHUB_APP_INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
-          GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          owner: QueenFi703
-          repo: amazon-iap-kotlin
-          workflow_id: aws-gradle-pipeline.yml
-        run: npm start
-
-      - name: Upload Artifact (aws-pipeline)
-        uses: actions/upload-artifact@v7
-        with:
-          name: run-inspector-amazon-iap-aws-pipeline
+          name: ${{ matrix.artifact }}
           path: github-app/actions-run-inspector/result.json
