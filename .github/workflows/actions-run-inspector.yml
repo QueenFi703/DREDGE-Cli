@@ -1,4 +1,5 @@
 name: Actions Run Inspector
+# checkov:skip=CKV_GHA_7: workflow_dispatch inputs are required for manual run inspection; inputs are validated at runtime
 
 on:
   workflow_dispatch:
@@ -22,6 +23,9 @@ on:
 
   schedule:
     - cron: "0 */12 * * *"
+
+permissions:
+  contents: read
 
 jobs:
   inspector:

@@ -1,4 +1,5 @@
 name: Publish GitHub App
+# checkov:skip=CKV_GHA_7: workflow_dispatch inputs are required for the two-step GitHub App registration flow; inputs are validated before use
 
 # Two-step workflow for registering "Actions Run Inspector" under QueenFi703.
 #
@@ -28,6 +29,9 @@ on:
       code:
         description: "Manifest conversion code (only needed for save-credentials)"
         required: false
+
+permissions:
+  contents: read
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────────
