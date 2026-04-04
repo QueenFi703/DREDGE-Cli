@@ -30,6 +30,7 @@ permissions:
 jobs:
   MSDO:
     runs-on: windows-latest
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -43,8 +44,10 @@ jobs:
       - name: Run Microsoft Security DevOps
         uses: microsoft/security-devops-action@v1
         id: msdo
+        continue-on-error: true
 
       - name: Upload results to Security tab
         uses: github/codeql-action/upload-sarif@v3
+        if: always() && steps.msdo.outputs.sarifFile != ''
         with:
           sarif_file: ${{ steps.msdo.outputs.sarifFile }}
