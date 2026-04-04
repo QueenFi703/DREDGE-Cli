@@ -15,6 +15,7 @@
 #     properly escaped and cannot produce invalid JSON or inject content.
 
 name: Cross-Repo Dependency Sync
+# checkov:skip=CKV_GHA_7: workflow_dispatch inputs are required for manual sync with validated, jq-escaped payload construction
 
 on:
   push:

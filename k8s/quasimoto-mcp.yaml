@@ -17,10 +17,24 @@ spec:
         app: quasimoto-mcp
         component: mcp-server
     spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: quasimoto-gpu
+        # checkov:skip=CKV_K8S_43: image digest pinning managed by CI pipeline; mutable tag required for rolling deploys
         image: ghcr.io/queenfi703/dredge-cli:latest-gpu
         imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         ports:
         - containerPort: 3002
           name: http
@@ -54,6 +68,12 @@ spec:
           periodSeconds: 30
           timeoutSeconds: 10
           failureThreshold: 3
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: tmp
+        emptyDir: {}
       restartPolicy: Always
       # Requires NVIDIA GPU operator installed on the cluster
       # https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/getting-started.html

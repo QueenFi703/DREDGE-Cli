@@ -6,6 +6,9 @@ on:
       - 'v*'
       - 'V*'  # Handles both lowercase and uppercase version tags
 
+permissions:
+  contents: read
+
 jobs:
   build-n-publish:
     runs-on: ubuntu-latest
