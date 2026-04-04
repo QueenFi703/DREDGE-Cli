@@ -12,6 +12,10 @@
 # Please note this workflow does not integrate your GitHub Org with Microsoft Defender For DevOps. You have to create an integration
 # and provide permission before this can report data back to azure.
 # Read the official documentation here : https://learn.microsoft.com/en-us/azure/defender-for-cloud/quickstart-onboard-github
+#
+# This workflow runs on ubuntu-latest (Linux). Bandit and Checkov are installed
+# via pip before the MSDO action runs so that Linux-native tool binaries are used
+# instead of Windows redistributables.
 
 name: "Microsoft Defender For Devops"
 
@@ -29,17 +33,30 @@ permissions:
 
 jobs:
   MSDO:
-    runs-on: windows-latest
+    # Run on Linux so that Linux-native tool binaries are used (not Windows .exe redistributables).
+    runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-dotnet@v4
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
-          dotnet-version: |
-            6.0.x
-            8.0.x
+          python-version: '3.12'
+
+      - name: Cache pip packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-msdo-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-msdo-
+
+      - name: Install Bandit and Checkov
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit checkov
 
       - name: Run Microsoft Security DevOps
         uses: microsoft/security-devops-action@v1
