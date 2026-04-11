@@ -162,8 +162,9 @@ npm run inspect -- --run-url <url> | jq .
    - **owner** + **repo** + **run_id** – explicit coordinates
    - **include_logs** – `true` to include step-level detail
 3. Click **Run workflow**.
-4. After the job finishes, download the `run-inspection-<run_id>` artifact for
-   the full JSON output.
+4. After the job finishes, download the artifact named
+   `run-inspection-<inspector_workflow_run_id>` from the inspector workflow
+   run’s **Artifacts** section for the full JSON output.
 5. The **Summary** tab shows a human-readable table with status, conclusion, and
    job counts.
 
