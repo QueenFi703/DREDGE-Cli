@@ -112,10 +112,23 @@ jobs:
             echo "No inspection output found." >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      - name: Extract inspected run id
+        if: always()
+        id: inspected-run
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f run-inspection.json ]; then
+            RUN_ID=$(jq -r '.run.id // empty' run-inspection.json || true)
+            if [ -n "$RUN_ID" ]; then
+              echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
       - name: Upload inspection artifact
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: run-inspection-${{ github.run_id }}
+          name: run-inspection-${{ steps.inspected-run.outputs.run_id || inputs.run_id || github.run_id }}
           path: run-inspection.json
           retention-days: 30
