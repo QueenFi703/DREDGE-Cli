@@ -19,7 +19,7 @@ export interface RunCoordinates {
  */
 export function parseRunUrl(url: string): RunCoordinates | null {
   const pattern =
-    /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/actions\/runs\/(\d+)/;
+    /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/actions\/runs\/(\d+)(?:[/?#]|$)/;
   const match = pattern.exec(url);
   if (!match) {
     return null;
