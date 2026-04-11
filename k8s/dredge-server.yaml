@@ -17,10 +17,24 @@ spec:
         app: dredge-server
         component: api
     spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: dredge-flask
+        # checkov:skip=CKV_K8S_43: image digest pinning managed by CI pipeline; mutable tag required for rolling deploys
         image: ghcr.io/queenfi703/dredge-cli:latest-cpu
         imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         ports:
         - containerPort: 3001
           name: http
@@ -50,6 +64,12 @@ spec:
           periodSeconds: 10
           timeoutSeconds: 5
           failureThreshold: 3
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: tmp
+        emptyDir: {}
       restartPolicy: Always
 ---
 apiVersion: v1

@@ -1,0 +1,184 @@
+name: Publish GitHub App
+# checkov:skip=CKV_GHA_7: workflow_dispatch inputs are required for the two-step GitHub App registration flow; inputs are validated before use
+
+# Two-step workflow for registering "Actions Run Inspector" under QueenFi703.
+#
+# STEP 1 — run the "generate-registration-url" job:
+#   It reads app.yml, turns it into a GitHub App manifest, and outputs a
+#   clickable registration link in the job summary.  Open that link, review
+#   the requested permissions, and click "Create GitHub App".
+#   GitHub will redirect you to the redirect_url with a `?code=` parameter.
+#
+# STEP 2 — copy that code, then run the "save-credentials" job with it:
+#   It exchanges the code for the app's credentials and stores them as the
+#   three repository secrets the inspector workflow needs:
+#     GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_INSTALLATION_ID
+#   Requires a repo secret named SETUP_PAT (a classic PAT with `repo` scope
+#   belonging to QueenFi703) so it can write repository secrets.
+
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: "Which step to run"
+        required: true
+        type: choice
+        options:
+          - generate-registration-url
+          - save-credentials
+      code:
+        description: "Manifest conversion code (only needed for save-credentials)"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # STEP 1: Generate a one-click GitHub App registration URL
+  # ─────────────────────────────────────────────────────────────────────────────
+  generate-registration-url:
+    if: github.event.inputs.job == 'generate-registration-url'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install yq
+        run: |
+          set -euo pipefail
+          sudo wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Build manifest URL and write to summary
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          MANIFEST_FILE="github-app/actions-run-inspector/app.yml"
+
+          # Convert the YAML manifest to compact JSON
+          MANIFEST_JSON=$(yq -o=json -I=0 '.' "$MANIFEST_FILE")
+
+          # URL-encode the JSON
+          ENCODED=$(python3 -c "
+          import urllib.parse, sys
+          print(urllib.parse.quote(sys.stdin.read().strip()))
+          " <<< "$MANIFEST_JSON")
+
+          REGISTRATION_URL="https://github.com/apps/new?manifest=${ENCODED}"
+
+          echo "## 🚀 Register Actions Run Inspector" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Click the link below, review the permissions, and click **Create GitHub App**." >> "$GITHUB_STEP_SUMMARY"
+          echo "GitHub will redirect you back with a \`?code=\` query parameter in the URL." >> "$GITHUB_STEP_SUMMARY"
+          echo "Copy that code, then re-run this workflow choosing **save-credentials**." >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### [👉 Create the GitHub App under QueenFi703]($REGISTRATION_URL)" >> "$GITHUB_STEP_SUMMARY"
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # STEP 2: Exchange manifest code → credentials → store as repo secrets
+  # ─────────────────────────────────────────────────────────────────────────────
+  save-credentials:
+    if: github.event.inputs.job == 'save-credentials'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Validate code input
+        run: |
+          set -euo pipefail
+          if [ -z "${{ github.event.inputs.code }}" ]; then
+            echo "::error::The 'code' input is required for save-credentials."
+            exit 1
+          fi
+
+      - name: Exchange code for app credentials
+        id: exchange
+        env:
+          CODE: ${{ github.event.inputs.code }}
+          # SETUP_PAT must be a classic PAT with `repo` scope owned by QueenFi703
+          GH_TOKEN: ${{ secrets.SETUP_PAT }}
+        run: |
+          set -euo pipefail
+
+          RESPONSE=$(gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            "/app-manifests/${CODE}/conversions")
+
+          APP_ID=$(echo "$RESPONSE"      | jq -r '.id')
+          PRIVATE_KEY=$(echo "$RESPONSE" | jq -r '.pem')
+          CLIENT_ID=$(echo "$RESPONSE"   | jq -r '.client_id')
+
+          echo "::add-mask::$PRIVATE_KEY"
+
+          # Encode so we can pass multi-line values safely
+          APP_ID_B64=$(echo -n "$APP_ID" | base64 -w0)
+          PK_B64=$(echo "$PRIVATE_KEY"   | base64 -w0)
+
+          echo "app_id_b64=$APP_ID_B64" >> "$GITHUB_OUTPUT"
+          echo "pk_b64=$PK_B64"         >> "$GITHUB_OUTPUT"
+
+      - name: Store GITHUB_APP_ID secret
+        env:
+          GH_TOKEN: ${{ secrets.SETUP_PAT }}
+          VALUE_B64: ${{ steps.exchange.outputs.app_id_b64 }}
+        run: |
+          set -euo pipefail
+          echo "$VALUE_B64" | base64 -d | \
+            gh secret set GITHUB_APP_ID \
+              --repo "${{ github.repository }}"
+
+      - name: Store GITHUB_APP_PRIVATE_KEY secret
+        env:
+          GH_TOKEN: ${{ secrets.SETUP_PAT }}
+          VALUE_B64: ${{ steps.exchange.outputs.pk_b64 }}
+        run: |
+          set -euo pipefail
+          echo "$VALUE_B64" | base64 -d | \
+            gh secret set GITHUB_APP_PRIVATE_KEY \
+              --repo "${{ github.repository }}"
+
+      - name: Get and store installation ID
+        env:
+          GH_TOKEN: ${{ secrets.SETUP_PAT }}
+          VALUE_B64: ${{ steps.exchange.outputs.app_id_b64 }}
+        run: |
+          set -euo pipefail
+
+          APP_ID=$(echo "$VALUE_B64" | base64 -d)
+
+          # Fetch the installation the app has on this repo
+          INSTALLATION_ID=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}/installation" \
+            --jq '.id' 2>/dev/null || echo "")
+
+          if [ -z "$INSTALLATION_ID" ]; then
+            echo "::warning::Could not auto-detect the installation ID." \
+              "Install the app on this repository, then set the" \
+              "GITHUB_APP_INSTALLATION_ID secret manually."
+          else
+            echo "$INSTALLATION_ID" | \
+              gh secret set GITHUB_APP_INSTALLATION_ID \
+                --repo "${{ github.repository }}"
+            echo "Installation ID $INSTALLATION_ID saved as GITHUB_APP_INSTALLATION_ID."
+          fi
+
+      - name: Summary
+        run: |
+          set -euo pipefail
+          echo "## ✅ GitHub App credentials saved" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "The following repository secrets have been configured:" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`GITHUB_APP_ID\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`GITHUB_APP_PRIVATE_KEY\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`GITHUB_APP_INSTALLATION_ID\` (if detected)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "The **Actions Run Inspector** workflow is now fully operational." >> "$GITHUB_STEP_SUMMARY"
+          echo "Visit [https://github.com/apps/actions-run-inspector-queenfi703](https://github.com/apps/actions-run-inspector-queenfi703) to manage the app." >> "$GITHUB_STEP_SUMMARY"

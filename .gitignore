@@ -13,6 +13,9 @@ build/
 dist/
 *.egg-info/
 
+# Node.js
+node_modules/
+
 # Editor directories and files
 # Note: We allow .vscode/ for shared workspace configuration
 .idea/
@@ -65,3 +68,7 @@ github-app/dist/
 *.lib
 .ninja_deps
 .ninja_log
+
+# Node.js (github-app)
+github-app/node_modules/
+github-app/dist/

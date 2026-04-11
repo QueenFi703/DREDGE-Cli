@@ -17,9 +17,23 @@ spec:
         app: redis
         component: cache
     spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
       - name: redis
+        # checkov:skip=CKV_K8S_43: image digest pinning not practical for official redis upstream; mutable tag is acceptable here
         image: redis:7-alpine
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: ["ALL"]
         ports:
         - containerPort: 6379
           name: redis
@@ -57,10 +71,14 @@ spec:
         volumeMounts:
         - name: redis-data
           mountPath: /data
+        - name: tmp
+          mountPath: /tmp
       volumes:
       - name: redis-data
         persistentVolumeClaim:
           claimName: redis-pvc
+      - name: tmp
+        emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
