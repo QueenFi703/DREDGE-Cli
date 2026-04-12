@@ -55,6 +55,10 @@ monitoring/grafana/data/
 prometheus-data/
 grafana-data/
 
+# GitHub App package – dependencies and build output
+github-app/node_modules/
+github-app/dist/
+
 # CUDA/C++ extension build artifacts
 *.so
 *.o
