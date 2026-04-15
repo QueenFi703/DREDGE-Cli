@@ -157,6 +157,77 @@ def main(argv=None):
         "path", help="Show configuration file path", formatter_class=formatter
     )
 
+    # run-agent command
+    run_agent_parser = subparsers.add_parser(
+        "run-agent",
+        help="Dispatch an AI inference workload to the Jetson Thor GPU",
+        formatter_class=formatter,
+    )
+    run_agent_parser.add_argument(
+        "--agent",
+        choices=["vision", "planner", "reasoning", "pipeline"],
+        default="pipeline",
+        help=(
+            "Agent to run: 'vision', 'planner', 'reasoning', or 'pipeline' "
+            "(full Vision→Planner→Reasoning chain, default: pipeline)"
+        ),
+    )
+    run_agent_parser.add_argument(
+        "--input",
+        metavar="FLOATS",
+        default=None,
+        help=(
+            "Comma-separated list of float values to use as input data "
+            "(e.g. '0.1,0.2,0.3').  Defaults to a random tensor."
+        ),
+    )
+    run_agent_parser.add_argument(
+        "--input-dim",
+        type=int,
+        default=64,
+        help="Input feature dimensionality (default: 64; used with --agent=vision)",
+    )
+    run_agent_parser.add_argument(
+        "--device",
+        choices=["auto", "cpu", "cuda"],
+        default="auto",
+        help="Target device for JetsonThor adapter (default: auto-detect)",
+    )
+    run_agent_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output result as JSON",
+    )
+
+    # agent-server command
+    agent_server_parser = subparsers.add_parser(
+        "agent-server",
+        help="Start the DREDGE MCP AI-agent server (Jetson Thor / FastAPI)",
+        formatter_class=formatter,
+    )
+    agent_server_parser.add_argument(
+        "--host",
+        default="0.0.0.0",
+        help="Host to bind to (default: 0.0.0.0)",
+    )
+    agent_server_parser.add_argument(
+        "--port",
+        type=int,
+        default=3003,
+        help="Port to listen on (default: 3003)",
+    )
+    agent_server_parser.add_argument(
+        "--device",
+        choices=["auto", "cpu", "cuda"],
+        default="auto",
+        help="Target device for JetsonThor adapter (default: auto-detect)",
+    )
+    agent_server_parser.add_argument(
+        "--reload",
+        action="store_true",
+        help="Enable auto-reload (development mode)",
+    )
+
     # GitHub event command
     github_event_parser = subparsers.add_parser(
         "github-event",
@@ -331,6 +402,121 @@ def main(argv=None):
             print(f"Errors:    {summary['errors']}")
             print(f"Elapsed:   {summary['elapsed_seconds']:.3f}s")
             print(f"Throughput:{summary['throughput_per_sec']:.1f} events/sec")
+        return 0
+
+    if args.command == "run-agent":
+        import torch
+
+        from .events.ai_event import AIEvent, dispatch
+        from .hardware.jetson_thor import JetsonThor
+
+        agent_type = args.agent
+        device = args.device
+        output_json = getattr(args, "json", False)
+
+        # Build input tensor
+        if args.input:
+            try:
+                values = [float(v) for v in args.input.split(",")]
+            except ValueError:
+                print(
+                    "Error: --input must be a comma-separated list of floats "
+                    "(e.g. '0.1,0.2,0.3')",
+                    file=sys.stderr,
+                )
+                return 1
+        else:
+            values = None
+
+        try:
+            if agent_type == "pipeline":
+                from .agents.planner_agent import PlannerAgent
+                from .agents.reasoning_agent import ReasoningAgent
+                from .agents.vision_agent import VisionAgent
+
+                input_dim = len(values) if values else args.input_dim
+                sensor_input = (
+                    torch.tensor(values, dtype=torch.float32).unsqueeze(0)
+                    if values
+                    else torch.randn(1, input_dim)
+                )
+                vision = VisionAgent(input_dim=input_dim, output_dim=32)
+                planner = PlannerAgent(input_dim=32, num_actions=8)
+                reasoning = ReasoningAgent(input_dim=8, output_dim=1)
+
+                embedding = vision.run(sensor_input)
+                action_logits = planner.run(embedding)
+                decision = reasoning.run(action_logits)
+
+                result = {
+                    "pipeline": "Vision → Planner → Reasoning",
+                    "embedding": embedding.detach().cpu().tolist(),
+                    "action_logits": action_logits.detach().cpu().tolist(),
+                    "decision": decision.detach().cpu().tolist(),
+                }
+            else:
+                # Single-agent dispatch
+                if agent_type == "vision":
+                    from .agents.vision_agent import VisionAgent
+
+                    input_dim = len(values) if values else args.input_dim
+                    agent = VisionAgent(input_dim=input_dim, output_dim=32)
+                elif agent_type == "planner":
+                    from .agents.planner_agent import PlannerAgent
+
+                    input_dim = len(values) if values else args.input_dim
+                    agent = PlannerAgent(input_dim=input_dim, num_actions=8)
+                else:  # reasoning
+                    from .agents.reasoning_agent import ReasoningAgent
+
+                    input_dim = len(values) if values else args.input_dim
+                    agent = ReasoningAgent(input_dim=input_dim, output_dim=1)
+
+                tensor = (
+                    torch.tensor(values, dtype=torch.float32).unsqueeze(0)
+                    if values
+                    else torch.randn(1, input_dim)
+                )
+                output = agent.run(tensor)
+                result = {
+                    "agent": agent_type,
+                    "result": output.detach().cpu().tolist(),
+                }
+
+            if output_json:
+                print(json.dumps(result, indent=2))
+            else:
+                if "pipeline" in result:
+                    print(f"Pipeline : {result['pipeline']}")
+                    print(f"Decision : {result['decision']}")
+                else:
+                    print(f"Agent  : {result['agent']}")
+                    print(f"Result : {result['result']}")
+            return 0
+
+        except Exception as exc:
+            print(f"Error running agent: {exc}", file=sys.stderr)
+            return 1
+
+    if args.command == "agent-server":
+        try:
+            from .mcp.server import run_mcp_agent_server
+        except ImportError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 1
+
+        try:
+            validate_server_config(args.host, args.port, False)
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 1
+
+        run_mcp_agent_server(
+            host=args.host,
+            port=args.port,
+            device=args.device,
+            reload=args.reload,
+        )
         return 0
 
     parser.print_help()
