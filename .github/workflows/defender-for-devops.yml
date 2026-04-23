@@ -55,6 +55,14 @@ jobs:
             -o sarif \
             --output-file-path checkov.sarif || true
 
+      - name: 🛠 Normalize Checkov SARIF path
+        run: |
+          if [ -d checkov.sarif ] && [ -f checkov.sarif/results_sarif.sarif ]; then
+            mv checkov.sarif/results_sarif.sarif checkov-results.sarif
+            rmdir checkov.sarif
+            mv checkov-results.sarif checkov.sarif
+          fi
+
       # -----------------------------
       # Ensure SARIF exists
       # -----------------------------
@@ -63,6 +71,8 @@ jobs:
           ls -lah *.sarif
           test -s bandit.sarif
           test -s checkov.sarif
+          jq -e . bandit.sarif > /dev/null
+          jq -e . checkov.sarif > /dev/null
 
       # -----------------------------
       # Upload results to GitHub Security tab
