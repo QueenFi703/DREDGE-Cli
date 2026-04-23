@@ -13,6 +13,9 @@ on:
       - develop
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
@@ -78,7 +81,7 @@ jobs:
       # Phase 3: Registry Authentication (Cadence: Pre-build)
       - name: Log in to Container Registry
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -86,7 +89,7 @@ jobs:
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
@@ -103,7 +106,7 @@ jobs:
       # Phase 4: Build and Push (Cadence: Main)
       - name: Build and push Docker image
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: ${{ matrix.platforms }}
@@ -143,6 +146,17 @@ jobs:
         continue-on-error: true
 
       # Phase 6: Post-build Cleanup (Cadence: Terminal)
+      - name: Report build to Grafana Cloud
+        if: always()
+        uses: ./.github/actions/grafana-build-report
+        with:
+          status: ${{ job.status }}
+          logs_url: ${{ secrets.GCLOUD_HOSTED_LOGS_URL }}
+          logs_id: ${{ secrets.GCLOUD_HOSTED_LOGS_ID }}
+          api_key: ${{ secrets.GCLOUD_RW_API_KEY }}
+          grafana_url: ${{ secrets.GCLOUD_GRAFANA_URL }}
+          extra_labels: '{"docker_target":"${{ matrix.target }}","docker_suffix":"${{ matrix.suffix }}"}'
+
       - name: Cleanup build artifacts
         if: always()
         run: |
@@ -172,7 +186,7 @@ jobs:
     steps:
       # Test-images job: Authentication and Testing (2-step flow)
       - name: Log in to Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -209,3 +223,14 @@ jobs:
         env:
           REGISTRY: ghcr.io
           IMAGE_NAME: ${{ github.repository }}
+
+      - name: Report build to Grafana Cloud
+        if: always()
+        uses: ./.github/actions/grafana-build-report
+        with:
+          status: ${{ job.status }}
+          logs_url: ${{ secrets.GCLOUD_HOSTED_LOGS_URL }}
+          logs_id: ${{ secrets.GCLOUD_HOSTED_LOGS_ID }}
+          api_key: ${{ secrets.GCLOUD_RW_API_KEY }}
+          grafana_url: ${{ secrets.GCLOUD_GRAFANA_URL }}
+          extra_labels: '{"docker_target":"${{ matrix.target }}","docker_suffix":"${{ matrix.suffix }}"}'

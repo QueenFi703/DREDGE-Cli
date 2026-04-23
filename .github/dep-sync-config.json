@@ -1,0 +1,12 @@
+{
+  "schema_version": "1",
+  "description": "DREDGE cross-repo dependency sync — schedule anchor: 03:10 UTC daily",
+  "schedule_utc": "03:10",
+  "target_repos": [
+    "QueenFi703/DREDGE",
+    "QueenFi703/quasimoto-physics"
+  ],
+  "telemetry": {
+    "iss_position_api": "https://api.open-notify.org/iss-now.json"
+  }
+}

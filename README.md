@@ -1,6 +1,6 @@
 # DREDGE
 
-[![DEPENDADREDGEABOT](https://img.shields.io/badge/dependencies-DEPENDADREDGEABOT-blueviolet?style=for-the-badge&logo=dependabot)](https://github.com/QueenFi703/DREDGE-Cli/blob/main/.github/dependabot.yml)
+[![FiBot](https://img.shields.io/badge/dependencies-FiBot-blueviolet?style=for-the-badge&logo=dependabot)](https://github.com/QueenFi703/DREDGE-Cli/blob/main/.github/dependabot.yml)
 [![Docker Image CI/CD](https://github.com/QueenFi703/DREDGE-Cli/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/QueenFi703/DREDGE-Cli/actions/workflows/docker-publish.yml)
 [![Python CI](https://github.com/QueenFi703/DREDGE-Cli/actions/workflows/ci-python.yml/badge.svg)](https://github.com/QueenFi703/DREDGE-Cli/actions/workflows/ci-python.yml)
 
@@ -15,6 +15,7 @@ DREDGE — small Python package scaffold with String Theory integration.
 - **[docs/CONTAINER_ARCHITECTURE.md](docs/CONTAINER_ARCHITECTURE.md)** - Container architecture and deployment guide
 - **[docs/CONTAINER_QUICKSTART.md](docs/CONTAINER_QUICKSTART.md)** - Quick start for container deployment
 - **[docs/GITHUB_ACTIONS_CONTAINERS.md](docs/GITHUB_ACTIONS_CONTAINERS.md)** - GitHub Actions workflows for containers
+- **[docs/github-app.md](docs/github-app.md)** - GitHub App (Actions Inspector): setup, environment variables, and API reference
 
 ## 🚀 Quick Start
 

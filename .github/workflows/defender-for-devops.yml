@@ -1,0 +1,78 @@
+name: Defender for DevOps (Linux Compatible)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  security-scan:
+    name: Security Scan (Bandit + Checkov)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repo
+        uses: actions/checkout@v6
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: ⚡ Cache pip
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: 📦 Install security tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit checkov
+
+      # -----------------------------
+      # Bandit (Python SAST)
+      # -----------------------------
+      - name: 🔍 Run Bandit (SARIF)
+        run: |
+          bandit -r . \
+            -f sarif \
+            -o bandit.sarif || true
+
+      # -----------------------------
+      # Checkov (IaC scanning)
+      # -----------------------------
+      - name: 🔍 Run Checkov (SARIF)
+        run: |
+          checkov -d . \
+            -o sarif \
+            --output-file-path checkov.sarif || true
+
+      # -----------------------------
+      # Ensure SARIF exists
+      # -----------------------------
+      - name: 🧪 Verify SARIF files
+        run: |
+          ls -lah *.sarif
+          test -s bandit.sarif
+          test -s checkov.sarif
+
+      # -----------------------------
+      # Upload results to GitHub Security tab
+      # -----------------------------
+      - name: 📤 Upload Bandit SARIF
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: bandit.sarif
+
+      - name: 📤 Upload Checkov SARIF
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: checkov.sarif

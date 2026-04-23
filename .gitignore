@@ -13,6 +13,9 @@ build/
 dist/
 *.egg-info/
 
+# Node.js
+node_modules/
+
 # Editor directories and files
 # Note: We allow .vscode/ for shared workspace configuration
 .idea/
@@ -52,6 +55,10 @@ monitoring/grafana/data/
 prometheus-data/
 grafana-data/
 
+# GitHub App package – dependencies and build output
+github-app/node_modules/
+github-app/dist/
+
 # CUDA/C++ extension build artifacts
 *.so
 *.o
@@ -61,3 +68,7 @@ grafana-data/
 *.lib
 .ninja_deps
 .ninja_log
+
+# Node.js (github-app)
+github-app/node_modules/
+github-app/dist/

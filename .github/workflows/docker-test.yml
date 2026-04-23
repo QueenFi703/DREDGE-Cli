@@ -14,6 +14,9 @@ on:
       - 'src/**'
       - '.github/workflows/docker-*.yml'
 
+permissions:
+  contents: read
+
 jobs:
   validate-docker:
     runs-on: ubuntu-latest
@@ -69,7 +72,7 @@ jobs:
 
       # Phase 3: Build Execution (Cadence: Main)
       - name: Build Docker image (test only)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: ${{ matrix.platforms }}
@@ -118,6 +121,17 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       # Phase 6: Post-test Cleanup (Cadence: Terminal)
+      - name: Report build to Grafana Cloud
+        if: always()
+        uses: ./.github/actions/grafana-build-report
+        with:
+          status: ${{ job.status }}
+          logs_url: ${{ secrets.GCLOUD_HOSTED_LOGS_URL }}
+          logs_id: ${{ secrets.GCLOUD_HOSTED_LOGS_ID }}
+          api_key: ${{ secrets.GCLOUD_RW_API_KEY }}
+          grafana_url: ${{ secrets.GCLOUD_GRAFANA_URL }}
+          extra_labels: '{"docker_target":"${{ matrix.target }}","docker_suffix":"${{ matrix.suffix }}"}'
+
       - name: Cleanup test artifacts
         if: always()
         run: |
@@ -156,6 +170,16 @@ jobs:
           docker compose -f docker-compose.profiles.yml config > /dev/null
           echo "✅ docker-compose.profiles.yml is valid"
 
+      - name: Report build to Grafana Cloud
+        if: always()
+        uses: ./.github/actions/grafana-build-report
+        with:
+          status: ${{ job.status }}
+          logs_url: ${{ secrets.GCLOUD_HOSTED_LOGS_URL }}
+          logs_id: ${{ secrets.GCLOUD_HOSTED_LOGS_ID }}
+          api_key: ${{ secrets.GCLOUD_RW_API_KEY }}
+          grafana_url: ${{ secrets.GCLOUD_GRAFANA_URL }}
+
   validate-kubernetes:
     runs-on: ubuntu-latest
     permissions:
@@ -191,3 +215,13 @@ jobs:
           
           sys.exit(1 if failed else 0)
           "
+
+      - name: Report build to Grafana Cloud
+        if: always()
+        uses: ./.github/actions/grafana-build-report
+        with:
+          status: ${{ job.status }}
+          logs_url: ${{ secrets.GCLOUD_HOSTED_LOGS_URL }}
+          logs_id: ${{ secrets.GCLOUD_HOSTED_LOGS_ID }}
+          api_key: ${{ secrets.GCLOUD_RW_API_KEY }}
+          grafana_url: ${{ secrets.GCLOUD_GRAFANA_URL }}

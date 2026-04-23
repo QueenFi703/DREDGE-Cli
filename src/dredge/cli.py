@@ -78,8 +78,8 @@ def main(argv=None):
     server_parser.add_argument(
         "--port", 
         type=int, 
-        default=3001, 
-        help="Port to listen on (default: 3001)"
+        default=3000, 
+        help="Port to listen on (default: 3000)"
     )
     server_parser.add_argument(
         "--debug", 
@@ -156,7 +156,35 @@ def main(argv=None):
     config_path_parser = config_subparsers.add_parser(
         "path", help="Show configuration file path", formatter_class=formatter
     )
-    
+
+    # GitHub event command
+    github_event_parser = subparsers.add_parser(
+        "github-event",
+        help="Process one or more GitHub events (streaming batch mode)",
+        formatter_class=formatter,
+    )
+    github_event_parser.add_argument(
+        "--event-file",
+        metavar="FILE",
+        help="JSON file containing a single event or a newline-delimited list of events",
+    )
+    github_event_parser.add_argument(
+        "--stdin",
+        action="store_true",
+        help="Read newline-delimited JSON events from stdin",
+    )
+    github_event_parser.add_argument(
+        "--workers",
+        type=int,
+        default=4,
+        help="Number of concurrent event-processing workers (default: 4)",
+    )
+    github_event_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output processing summary as JSON",
+    )
+
     args = parser.parse_args(argv)
     
     if args.version:
@@ -224,7 +252,7 @@ def main(argv=None):
     
     if args.command == "serve":
         # Load config and merge with CLI args
-        host, port, debug, _ = _merge_server_args(args, "server", "0.0.0.0", 3001)
+        host, port, debug, _ = _merge_server_args(args, "server", "0.0.0.0", 3000)
         
         try:
             validate_server_config(host, port, debug)
@@ -251,6 +279,60 @@ def main(argv=None):
         run_mcp_server(host=host, port=port, debug=debug, device=device)
         return 0
     
+    if args.command == "github-event":
+        from .event_stream_handler import (
+            process_events_from_list,
+            process_events_from_stdin,
+        )
+
+        def _default_handler(event):
+            """Echo the event type back as a minimal stub handler."""
+            return {"event_type": event.get("type", "unknown"), "status": "processed"}
+
+        output_json = getattr(args, "json", False)
+
+        if getattr(args, "stdin", False):
+            summary = process_events_from_stdin(
+                handler=_default_handler,
+                num_workers=args.workers,
+            )
+        elif args.event_file:
+            event_path = Path(args.event_file)
+            if not event_path.exists():
+                print(f"Error: event file not found: {args.event_file}", file=sys.stderr)
+                return 1
+            raw = event_path.read_text()
+            # Support both a single JSON object and newline-delimited objects
+            events = []
+            for line in raw.splitlines():
+                line = line.strip()
+                if line:
+                    try:
+                        events.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        pass
+            if not events:
+                print("Error: no valid JSON events found in file", file=sys.stderr)
+                return 1
+            summary = process_events_from_list(
+                events=events,
+                handler=_default_handler,
+                num_workers=args.workers,
+            )
+        else:
+            github_event_parser.print_help()
+            return 0
+
+        if output_json:
+            print(json.dumps(summary, indent=2))
+        else:
+            print(f"Processed: {summary['total_processed']} events")
+            print(f"Successful: {summary['successful']}")
+            print(f"Errors:    {summary['errors']}")
+            print(f"Elapsed:   {summary['elapsed_seconds']:.3f}s")
+            print(f"Throughput:{summary['throughput_per_sec']:.1f} events/sec")
+        return 0
+
     parser.print_help()
     return 0
 

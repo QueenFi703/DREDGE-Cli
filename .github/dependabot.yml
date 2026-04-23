@@ -1,5 +1,5 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# DEPENDADREDGEABOT
+# FiBot
 # The DREDGE Dependency Oracle - Where Automation Meets Philosophy
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #
@@ -23,7 +23,7 @@ updates:
     schedule:
       interval: "daily"
       time: "03:10"
-      timezone: "America/New_York"
+      timezone: "UTC"
     open-pull-requests-limit: 10
     target-branch: "main"
     
@@ -79,7 +79,7 @@ updates:
           - "patch"
     
     labels:
-      - "🤖 dependadredgeabot"
+      - "🤖 FiBot"
       - "dependencies"
       - "python"
       - "dredge-core"
@@ -88,8 +88,8 @@ updates:
       - "QueenFi703"
     
     commit-message:
-      prefix: "⬆️ [DEPENDADREDGEABOT/Python]"
-      prefix-development: "⬆️ [DEPENDADREDGEABOT/Dev]"
+      prefix: "⬆️ [FiBot/Python]"
+      prefix-development: "⬆️ [FiBot/Dev]"
       include: "scope"
     
     ignore:
@@ -124,18 +124,18 @@ updates:
     schedule:
       interval: "daily"
       time: "03:10"
-      timezone: "America/New_York"
+      timezone: "UTC"
     open-pull-requests-limit: 10
     target-branch: "main"
     labels:
-      - "🤖 dependadredgeabot"
+      - "🤖 FiBot"
       - "dependencies"
       - "swift"
       - "dredge-cli"
     reviewers:
       - "QueenFi703"
     commit-message:
-      prefix: "⬆️ [DEPENDADREDGEABOT/Swift]"
+      prefix: "⬆️ [FiBot/Swift]"
       include: "scope"
     ignore:
       - dependency-name: "*"
@@ -146,18 +146,18 @@ updates:
     schedule:
       interval: "daily"
       time: "03:10"
-      timezone: "America/New_York"
+      timezone: "UTC"
     open-pull-requests-limit: 10
     target-branch: "main"
     labels:
-      - "🤖 dependadredgeabot"
+      - "🤖 FiBot"
       - "dependencies"
       - "swift"
       - "dredge-cli-module"
     reviewers:
       - "QueenFi703"
     commit-message:
-      prefix: "⬆️ [DEPENDADREDGEABOT/Swift-Module]"
+      prefix: "⬆️ [FiBot/Swift-Module]"
       include: "scope"
     ignore:
       - dependency-name: "*"
@@ -172,18 +172,25 @@ updates:
     schedule:
       interval: "daily"
       time: "03:10"
-      timezone: "America/New_York"
+      timezone: "UTC"
     open-pull-requests-limit: 10
     target-branch: "main"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
     labels:
-      - "🤖 dependadredgeabot"
+      - "🤖 FiBot"
       - "dependencies"
       - "github-actions"
       - "ci-cd"
     reviewers:
       - "QueenFi703"
     commit-message:
-      prefix: "⬆️ [DEPENDADREDGEABOT/CI]"
+      prefix: "⬆️ [FiBot/CI]"
       include: "scope"
   
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -195,18 +202,18 @@ updates:
     schedule:
       interval: "daily"
       time: "03:10"
-      timezone: "America/New_York"
+      timezone: "UTC"
     open-pull-requests-limit: 10
     target-branch: "main"
     labels:
-      - "🤖 dependadredgeabot"
+      - "🤖 FiBot"
       - "dependencies"
       - "docker"
       - "infrastructure"
     reviewers:
       - "QueenFi703"
     commit-message:
-      prefix: "⬆️ [DEPENDADREDGEABOT/Docker]"
+      prefix: "⬆️ [FiBot/Docker]"
       include: "scope"
     ignore:
       # Python 3.15+: Not yet compatible with current dependency ecosystem
@@ -224,27 +231,8 @@ updates:
       - dependency-name: "debian"
         update-types: ["version-update:semver-major"]
   
-  - package-ecosystem: "docker"
-    directory: "/docker"
-    schedule:
-      interval: "daily"
-      time: "03:10"
-      timezone: "America/New_York"
-    open-pull-requests-limit: 10
-    target-branch: "main"
-    labels:
-      - "🤖 dependadredgeabot"
-      - "dependencies"
-      - "docker-compose"
-      - "infrastructure"
-    reviewers:
-      - "QueenFi703"
-    commit-message:
-      prefix: "⬆️ [DEPENDADREDGEABOT/Compose]"
-      include: "scope"
-
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 📜 DEPENDADREDGEABOT PHILOSOPHY
+# 📜 FiBot PHILOSOPHY
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #
-# "Be Literal. Be Philosophical. Be DEPENDADREDGEABOT." 🤖🔮
+# "Be Literal. Be Philosophical. Be FiBot." 🤖🔮
