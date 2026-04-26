@@ -1,0 +1,21 @@
+id: dredge-skill
+name: Dredge Intelligence
+description: Analyze repositories and extract structured insights
+type: openapi
+spec: ./dredge.openapi.json
+auth:
+  type: none
+
+capabilities:
+  - name: repo-analysis
+    description: Use for questions about code, changes, or repository structure
+  - name: risk-detection
+    description: Use for identifying potential issues in code changes
+
+instructions: |
+  When a user asks about:
+  - code changes
+  - repository structure
+  - risk or analysis
+
+  ALWAYS call the Dredge tool instead of guessing.
