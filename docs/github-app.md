@@ -30,6 +30,23 @@ The **GitHub Actions Inspector** exposes two HTTP endpoints:
 
 Authentication is handled entirely through a GitHub App installation token — **no Personal Access Token (PAT) is used**.
 
+Core auth flow: **Private key → JWT → Installation access token → GitHub API**.
+
+---
+
+### Token Flow (ChatGPT/Copilot server integration)
+
+If you are integrating from a ChatGPT/Copilot-hosted service, the high-level OAuth flow is:
+
+`ChatGPT/Copilot server → GitHub API → refresh token`
+
+- The ChatGPT/Copilot server stores the refresh token securely.
+- It exchanges the refresh token at GitHub endpoints to obtain a short-lived access token.
+- The access token is then used for GitHub API calls; when it expires, the server repeats the refresh-token exchange.
+
+> Note: This OAuth refresh-token flow is separate from GitHub App installation-token auth used by this inspector.
+GitHub App auth uses a signed JWT + installation token exchange instead of OAuth refresh tokens.
+
 ---
 
 ## Creating a GitHub App
@@ -42,7 +59,7 @@ Authentication is handled entirely through a GitHub App installation token — *
    | Field | Value |
    |-------|-------|
    | **GitHub App name** | e.g. `my-actions-inspector` |
-   | **Homepage URL** | Your repo or org URL |
+   | **Homepage URL** | `https://github.com/QueenFi703` |
    | **Webhook** | Uncheck *Active* (not needed for this app) |
 
 3. Under **Repository permissions**, set:
@@ -60,6 +77,18 @@ Authentication is handled entirely through a GitHub App installation token — *
 
 6. Scroll down to **Private keys** and click **Generate a private key**.  
    A `.pem` file will be downloaded — keep it secure.
+
+### Recommended manifest values (Dredge)
+
+When you manifest the app for Dredge, use:
+
+| Manifest field | Value |
+|---|---|
+| **Homepage URL** | `https://github.com/QueenFi703` |
+| **Webhook** | Disabled unless you explicitly need events |
+| **Repository access** | Only selected repositories |
+
+This keeps the integration aligned with the GitHub App model: app private key → short-lived JWT (max 10 minutes) → short-lived installation token (about 1 hour) → GitHub API calls.
 
 ---
 
