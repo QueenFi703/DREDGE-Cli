@@ -1,0 +1,180 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Dredge API",
+    "version": "1.0.0",
+    "description": "Queryable repository intelligence API for agent tooling."
+  },
+  "servers": [
+    {
+      "url": "https://your-domain.com"
+    }
+  ],
+  "paths": {
+    "/query": {
+      "post": {
+        "operationId": "queryDredge",
+        "summary": "Query repository intelligence",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "repo": {
+                    "type": "string",
+                    "description": "Repository in owner/repo format"
+                  },
+                  "question": {
+                    "type": "string"
+                  },
+                  "depth": {
+                    "type": "string",
+                    "enum": [
+                      "quick",
+                      "semantic",
+                      "deep"
+                    ],
+                    "default": "semantic"
+                  }
+                },
+                "required": [
+                  "repo",
+                  "question"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Structured insight",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "summary": {
+                      "type": "string"
+                    },
+                    "files_changed": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "risk_score": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1
+                    },
+                    "insights": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    }
+                  },
+                  "required": [
+                    "summary",
+                    "files_changed",
+                    "risk_score",
+                    "insights"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/repos": {
+      "get": {
+        "operationId": "listRepos",
+        "summary": "List repositories currently indexed by Dredge",
+        "responses": {
+          "200": {
+            "description": "List of repos"
+          }
+        }
+      }
+    },
+    "/repos/{owner}/{repo}/summary": {
+      "get": {
+        "operationId": "getRepoSummary",
+        "summary": "Get high-level repository summary",
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Repository summary"
+          }
+        }
+      }
+    },
+    "/repos/{owner}/{repo}/changes": {
+      "get": {
+        "operationId": "getRepoChanges",
+        "summary": "Get recent file and commit changes",
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Repository changes"
+          }
+        }
+      }
+    },
+    "/repos/{owner}/{repo}/risk": {
+      "get": {
+        "operationId": "getRepoRisk",
+        "summary": "Get current risk indicators for recent changes",
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Risk report"
+          }
+        }
+      }
+    }
+  }
+}
