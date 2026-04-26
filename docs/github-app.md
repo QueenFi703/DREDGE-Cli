@@ -34,6 +34,21 @@ Core auth flow: **Private key → JWT → Installation access token → GitHub A
 
 ---
 
+### Token Flow (ChatGPT/Copilot server integration)
+
+If you are integrating from a ChatGPT/Copilot-hosted service, the high-level OAuth flow is:
+
+`ChatGPT/Copilot server → GitHub API → refresh token`
+
+- The ChatGPT/Copilot server stores the refresh token securely.
+- It exchanges the refresh token at GitHub endpoints to obtain a short-lived access token.
+- The access token is then used for GitHub API calls; when it expires, the server repeats the refresh-token exchange.
+
+> Note: This OAuth refresh-token flow is separate from GitHub App installation-token auth used by this inspector.
+GitHub App auth uses a signed JWT + installation token exchange instead of OAuth refresh tokens.
+
+---
+
 ## Creating a GitHub App
 
 1. Go to **GitHub → Settings → Developer settings → GitHub Apps → New GitHub App**
