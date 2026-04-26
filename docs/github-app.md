@@ -30,6 +30,8 @@ The **GitHub Actions Inspector** exposes two HTTP endpoints:
 
 Authentication is handled entirely through a GitHub App installation token — **no Personal Access Token (PAT) is used**.
 
+Core auth flow: **Private key → JWT → Installation access token → GitHub API**.
+
 ---
 
 ## Creating a GitHub App
@@ -42,7 +44,7 @@ Authentication is handled entirely through a GitHub App installation token — *
    | Field | Value |
    |-------|-------|
    | **GitHub App name** | e.g. `my-actions-inspector` |
-   | **Homepage URL** | Your repo or org URL |
+   | **Homepage URL** | `https://github.com/QueenFi703` |
    | **Webhook** | Uncheck *Active* (not needed for this app) |
 
 3. Under **Repository permissions**, set:
@@ -60,6 +62,18 @@ Authentication is handled entirely through a GitHub App installation token — *
 
 6. Scroll down to **Private keys** and click **Generate a private key**.  
    A `.pem` file will be downloaded — keep it secure.
+
+### Recommended manifest values (Dredge)
+
+When you manifest the app for Dredge, use:
+
+| Manifest field | Value |
+|---|---|
+| **Homepage URL** | `https://github.com/QueenFi703` |
+| **Webhook** | Disabled unless you explicitly need events |
+| **Repository access** | Only selected repositories |
+
+This keeps the integration aligned with the GitHub App model: app private key → short-lived JWT (max 10 minutes) → short-lived installation token (about 1 hour) → GitHub API calls.
 
 ---
 
