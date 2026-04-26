@@ -1,0 +1,136 @@
+name: Dredge UI (VS Code Use Cases - Others)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "agents/**"
+      - "tools/**"
+      - ".github/workflows/dredge-ui-others.yml"
+  pull_request:
+    paths:
+      - "agents/**"
+      - "tools/**"
+  workflow_dispatch:
+
+concurrency:
+  group: dredge-ui-others-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dredge-ui-others:
+    name: Dredge UI E2E (Non-Core Scenarios)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+
+    env:
+      NODE_VERSION: "20"
+      CI: true
+
+    steps:
+      # 1. Checkout
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # 2. Setup Node
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      # 3. Install deps
+      - name: Install dependencies
+        run: npm ci
+
+      # 4. Install Playwright (UI automation layer)
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps
+
+      # 5. Auth: GitHub App → short-lived token
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ secrets.DREDGE_APP_ID }}
+          private-key: ${{ secrets.DREDGE_APP_PRIVATE_KEY }}
+
+      # 6. Export token for agent runtime
+      - name: Set runtime env
+        run: |
+          echo "GITHUB_TOKEN=${{ steps.app-token.outputs.token }}" >> $GITHUB_ENV
+          echo "DREDGE_ENV=ci" >> $GITHUB_ENV
+
+      # 7. Build agent
+      - name: Build Dredge agent
+        run: npm run build
+
+      # 8. Start agent (background)
+      - name: Start Dredge agent
+        run: |
+          npm run start:agent > agent.log 2>&1 &
+          echo $! > agent.pid
+
+      # 9. Wait for readiness
+      - name: Wait for agent ready
+        run: |
+          for i in {1..20}; do
+            curl -s http://localhost:3000/health && exit 0
+            sleep 2
+          done
+          echo "Agent failed to start"
+          exit 1
+
+      # 10. Run UI scenario tests (non-core flows)
+      - name: Run UI tests (others)
+        run: |
+          npx playwright test tests/ui/others
+
+      # 11. Validate agent → GitHub tool loop
+      - name: Validate Dredge → GitHub integration
+        run: |
+          node tests/integration/github-roundtrip.js
+
+      # 12. Capture logs for debugging
+      - name: Capture agent logs
+        if: always()
+        run: |
+          if [ -f agent.log ]; then
+            echo "agent.log found"
+          else
+            echo "agent.log not found"
+          fi
+
+      # 12. Upload artifacts (debugging)
+      - name: Upload Playwright Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+
+      - name: Upload traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces
+          path: test-results/
+
+      - name: Upload agent log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-log
+          path: agent.log
+          if-no-files-found: ignore
+
+      # 13. Cleanup
+      - name: Stop agent
+        if: always()
+        run: |
+          if [ -f agent.pid ]; then
+            kill "$(cat agent.pid)" || true
+          fi
