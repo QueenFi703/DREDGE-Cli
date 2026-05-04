@@ -1,42 +1,10 @@
-# =========================================================
-# DREDGE GATE AGENT v0.1
-# Phase 1 + Phase 2 Bootstrap
-#
-# DROP-IN FILE:
-# .github/workflows/dredge-gate-agent.yml
-#
-# PURPOSE:
-# - Intent classification
-# - Risk scoring
-# - Policy enforcement
-# - Feedback assimilation
-# - Audit telemetry
-# - Workflow mutation detection
-# - Recursive execution detection
-#
-# REQUIRED SECRETS:
-# - DREDGE_WEBHOOK (optional)
-#
-# OPTIONAL:
-# - GATE_STRICT_MODE=true
-#
-# =========================================================
-
 name: Dredge Gate Agent
 
 on:
   pull_request:
-    types:
-      - opened
-      - synchronize
-      - reopened
-
+    types: [opened, synchronize, reopened]
   push:
-    branches:
-      - main
-      - dev
-      - "release/**"
-
+    branches: [main, dev, 'release/**']
   workflow_dispatch:
 
 permissions:
@@ -46,124 +14,102 @@ permissions:
   pull-requests: write
 
 env:
-  GATE_VERSION: "0.1"
+  GATE_VERSION: '0.2'
   GATE_STRICT_MODE: ${{ vars.GATE_STRICT_MODE || 'false' }}
 
 jobs:
   gate-agent:
     name: Gate Agent
     runs-on: ubuntu-latest
-
     outputs:
       risk_score: ${{ steps.classify.outputs.risk_score }}
       verdict: ${{ steps.classify.outputs.verdict }}
 
     steps:
-
-      # =====================================================
-      # Checkout
-      # =====================================================
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # =====================================================
-      # Collect Change Surface
-      # =====================================================
+      - name: Synchronize upstream references
+        id: sync
+        shell: bash
+        run: |
+          set -euo pipefail
+          M365_REPO="OfficeDev/microsoft-365-agents-toolkit"
+          ACTIONS_REPO="openai/codex-action"
+
+          M365_SHA=$(git ls-remote "https://github.com/${M365_REPO}.git" HEAD | awk '{print $1}')
+          CODEX_SHA=$(git ls-remote "https://github.com/${ACTIONS_REPO}.git" HEAD | awk '{print $1}')
+
+          echo "m365_repo=$M365_REPO" >> "$GITHUB_OUTPUT"
+          echo "codex_repo=$ACTIONS_REPO" >> "$GITHUB_OUTPUT"
+          echo "m365_sha=$M365_SHA" >> "$GITHUB_OUTPUT"
+          echo "codex_sha=$CODEX_SHA" >> "$GITHUB_OUTPUT"
+
+          echo "Microsoft 365 toolkit HEAD: $M365_SHA"
+          echo "Codex action HEAD: $CODEX_SHA"
 
       - name: Detect Changed Files
         id: changes
         shell: bash
         run: |
+          set -euo pipefail
+
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            git fetch origin ${{ github.base_ref }} --depth=1
-            CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+            git fetch origin "${{ github.base_ref }}" --depth=1
+            CHANGED=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
           else
             CHANGED=$(git diff --name-only HEAD~1 HEAD || true)
           fi
 
-          echo "changed_files<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGED" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-          echo "$CHANGED"
-
-      # =====================================================
-      # Intent Classification + Risk Engine
-      # =====================================================
+          echo "changed_files<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CHANGED" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: Intent Classification
         id: classify
         shell: bash
         run: |
+          set -euo pipefail
 
           SCORE=0
-          VERDICT="safe"
-
+          VERDICT="low"
           CHANGED="${{ steps.changes.outputs.changed_files }}"
 
           echo "----- DREDGE GATE ANALYSIS -----"
           echo "$CHANGED"
 
-          # ==========================================
-          # Workflow Mutation
-          # ==========================================
-
-          if echo "$CHANGED" | grep -E '^\.github/workflows/' ; then
+          if echo "$CHANGED" | grep -E '^\.github/workflows/' >/dev/null; then
             echo "Workflow mutation detected"
             SCORE=$((SCORE + 40))
           fi
 
-          # ==========================================
-          # Security Sensitive
-          # ==========================================
-
-          if echo "$CHANGED" | grep -Ei '(secret|token|credential|auth|permission)' ; then
+          if echo "$CHANGED" | grep -Ei '(secret|token|credential|auth|permission)' >/dev/null; then
             echo "Sensitive auth surface detected"
             SCORE=$((SCORE + 25))
           fi
 
-          # ==========================================
-          # Infra / Deployment
-          # ==========================================
-
-          if echo "$CHANGED" | grep -Ei '(docker|terraform|deploy|k8s|helm)' ; then
+          if echo "$CHANGED" | grep -Ei '(docker|terraform|deploy|k8s|helm)' >/dev/null; then
             echo "Infrastructure mutation detected"
             SCORE=$((SCORE + 30))
           fi
 
-          # ==========================================
-          # Recursive / Self Mutation
-          # ==========================================
-
-          if echo "$CHANGED" | grep -Ei '(gate-agent|self-hosted|dispatch|workflow_run)' ; then
+          if echo "$CHANGED" | grep -Ei '(gate-agent|self-hosted|dispatch|workflow_run)' >/dev/null; then
             echo "Recursive execution surface detected"
             SCORE=$((SCORE + 35))
           fi
 
-          # ==========================================
-          # Package Mutation
-          # ==========================================
-
-          if echo "$CHANGED" | grep -Ei '(package-lock|pnpm-lock|yarn.lock|requirements.txt)' ; then
+          if echo "$CHANGED" | grep -Ei '(package-lock|pnpm-lock|yarn.lock|requirements.txt)' >/dev/null; then
             echo "Dependency graph mutation detected"
             SCORE=$((SCORE + 15))
           fi
 
-          # ==========================================
-          # Binary / Obfuscated
-          # ==========================================
-
-          if find . -type f \( -name "*.exe" -o -name "*.dll" -o -name "*.bin" \) | grep . ; then
-            echo "Binary artifact detected"
+          BIN_CHANGED=$(echo "$CHANGED" | grep -Ei '\.(exe|dll|bin)$' || true)
+          if [[ -n "$BIN_CHANGED" ]]; then
+            echo "Binary artifact change detected"
             SCORE=$((SCORE + 50))
           fi
-
-          # ==========================================
-          # Risk Verdict
-          # ==========================================
 
           if [[ $SCORE -ge 80 ]]; then
             VERDICT="critical"
@@ -171,108 +117,63 @@ jobs:
             VERDICT="high"
           elif [[ $SCORE -ge 25 ]]; then
             VERDICT="medium"
-          else
-            VERDICT="low"
           fi
 
-          echo "risk_score=$SCORE" >> $GITHUB_OUTPUT
-          echo "verdict=$VERDICT" >> $GITHUB_OUTPUT
-
-          echo "Risk Score: $SCORE"
-          echo "Verdict: $VERDICT"
-
-      # =====================================================
-      # Feedback Assimilation
-      # =====================================================
+          echo "risk_score=$SCORE" >> "$GITHUB_OUTPUT"
+          echo "verdict=$VERDICT" >> "$GITHUB_OUTPUT"
 
       - name: Historical Failure Heuristics
         id: feedback
         shell: bash
         run: |
-
+          set -euo pipefail
           echo "Analyzing historical telemetry..."
-
-          FAILED_RUNS=$(gh run list \
-            --limit 20 \
-            --json conclusion \
-            --jq '[.[] | select(.conclusion=="failure")] | length' || echo 0)
-
-          echo "Recent failed runs: $FAILED_RUNS"
-
+          FAILED_RUNS=$(gh run list --limit 20 --json conclusion --jq '[.[] | select(.conclusion=="failure")] | length' || echo 0)
           if [[ "$FAILED_RUNS" -gt 5 ]]; then
-            echo "Elevated instability detected"
-            echo "feedback_state=unstable" >> $GITHUB_OUTPUT
+            echo "feedback_state=unstable" >> "$GITHUB_OUTPUT"
           else
-            echo "feedback_state=stable" >> $GITHUB_OUTPUT
+            echo "feedback_state=stable" >> "$GITHUB_OUTPUT"
           fi
         env:
           GH_TOKEN: ${{ github.token }}
 
-      # =====================================================
-      # Policy Engine
-      # =====================================================
-
       - name: Policy Enforcement
         shell: bash
         run: |
-
-          SCORE="${{ steps.classify.outputs.risk_score }}"
+          set -euo pipefail
           VERDICT="${{ steps.classify.outputs.verdict }}"
           STRICT="${{ env.GATE_STRICT_MODE }}"
-
-          echo "Gate Strict Mode: $STRICT"
-
-          # ==========================================
-          # Hard Stops
-          # ==========================================
 
           if [[ "$STRICT" == "true" && "$VERDICT" == "critical" ]]; then
             echo "CRITICAL RISK BLOCKED"
             exit 1
           fi
 
-          # ==========================================
-          # Soft Gate
-          # ==========================================
-
           if [[ "$VERDICT" == "high" ]]; then
             echo "::warning::High risk mutation detected"
           fi
-
           if [[ "$VERDICT" == "critical" ]]; then
             echo "::warning::Critical execution surface detected"
           fi
-
-      # =====================================================
-      # PR Annotation
-      # =====================================================
 
       - name: Annotate Pull Request
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
+            const body = `## 🜂 Dredge Gate Agent
 
-            const body = `
-            ## 🜂 Dredge Gate Agent
-
-            | Signal | Value |
-            |---|---|
-            | Risk Score | ${{ steps.classify.outputs.risk_score }} |
-            | Verdict | ${{ steps.classify.outputs.verdict }} |
-            | Feedback State | ${{ steps.feedback.outputs.feedback_state }} |
-            | Gate Version | ${process.env.GATE_VERSION} |
-
-            ### Observations
-            - Intent surface classified
-            - Recursive mutation scan complete
-            - Workflow mutation analysis complete
-            - Feedback heuristics assimilated
-
-            ---
-            Dredge Gate Agent Phase 1 + 2
-            `
-
+| Signal | Value |
+|---|---|
+| Risk Score | ${{ steps.classify.outputs.risk_score }} |
+| Verdict | ${{ steps.classify.outputs.verdict }} |
+| Feedback State | ${{ steps.feedback.outputs.feedback_state }} |
+| Gate Version | ${process.env.GATE_VERSION} |
+| M365 Toolkit Repo | ${{ steps.sync.outputs.m365_repo }} |
+| M365 Toolkit HEAD | ${{ steps.sync.outputs.m365_sha }} |
+| Codex Action Repo | ${{ steps.sync.outputs.codex_repo }} |
+| Codex Action HEAD | ${{ steps.sync.outputs.codex_sha }} |
+`
             github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -280,15 +181,11 @@ jobs:
               body
             })
 
-      # =====================================================
-      # Dredge Telemetry Export
-      # =====================================================
-
       - name: Export Telemetry
         if: always() && env.DREDGE_WEBHOOK != ''
         shell: bash
         run: |
-
+          set -euo pipefail
           payload=$(jq -n \
             --arg repo "${{ github.repository }}" \
             --arg actor "${{ github.actor }}" \
@@ -296,34 +193,18 @@ jobs:
             --arg score "${{ steps.classify.outputs.risk_score }}" \
             --arg run "${{ github.run_id }}" \
             --arg feedback "${{ steps.feedback.outputs.feedback_state }}" \
-            '{
-              repository: $repo,
-              actor: $actor,
-              verdict: $verdict,
-              risk_score: $score,
-              run_id: $run,
-              feedback_state: $feedback
-            }'
-          )
-
-          curl -X POST \
-            -H "Content-Type: application/json" \
-            -d "$payload" \
-            "${{ secrets.DREDGE_WEBHOOK }}"
+            --arg m365_sha "${{ steps.sync.outputs.m365_sha }}" \
+            --arg codex_sha "${{ steps.sync.outputs.codex_sha }}" \
+            '{repository:$repo,actor:$actor,verdict:$verdict,risk_score:$score,run_id:$run,feedback_state:$feedback,m365_toolkit_sha:$m365_sha,codex_action_sha:$codex_sha}')
+          curl -X POST -H "Content-Type: application/json" -d "$payload" "${{ secrets.DREDGE_WEBHOOK }}"
         env:
           DREDGE_WEBHOOK: ${{ secrets.DREDGE_WEBHOOK }}
-
-      # =====================================================
-      # Final Gate Output
-      # =====================================================
 
       - name: Final Gate State
         shell: bash
         run: |
-          echo "===================================="
           echo "DREDGE GATE COMPLETE"
           echo "Version: $GATE_VERSION"
           echo "Risk: ${{ steps.classify.outputs.risk_score }}"
           echo "Verdict: ${{ steps.classify.outputs.verdict }}"
           echo "Feedback: ${{ steps.feedback.outputs.feedback_state }}"
-          echo "===================================="
