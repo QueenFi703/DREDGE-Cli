@@ -74,7 +74,7 @@ jobs:
             CHANGED_DEPS=$(
               git diff --name-only HEAD~1 HEAD 2>/dev/null \
                 | grep -E '^(requirements\.txt|pyproject\.toml|Package\.swift|Package\.resolved)$' \
-                | jq -R -s 'split("\n") | map(select(length > 0))' \
+                | jq -R -s -c 'split("\n") | map(select(length > 0))' \
               || echo "[]"
             )
           fi
@@ -117,13 +117,21 @@ jobs:
                 | tr ',' '\n' \
                 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
                 | grep -v '^$' \
-                | jq -R -s 'split("\n") | map(select(length > 0))'
+                | jq -R -s -c 'split("\n") | map(select(length > 0))'
             )
           else
-            TARGET_REPOS_JSON=$(jq '.target_repos' .github/dep-sync-config.json)
+            TARGET_REPOS_JSON=$(jq -c '.target_repos' .github/dep-sync-config.json)
           fi
 
-          echo "repos=${TARGET_REPOS_JSON}" >> "${GITHUB_OUTPUT}"
+          # Validate repository slugs early for clearer failures.
+          jq -e 'all(.[]; type == "string" and test("^[^/]+/[^/]+$"))'             <<<"${TARGET_REPOS_JSON}" >/dev/null
+
+          # Use block output format to safely support any valid JSON content.
+          {
+            echo "repos<<EOF"
+            echo "${TARGET_REPOS_JSON}"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
 
       - name: Emit cross-repo dependency sync signal
         env:
