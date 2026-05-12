@@ -319,22 +319,31 @@ cp .env.example .env
 
 ```python
 # src/dredge/orion_config.py
-TIER_CONFIGS = {
+STRIPE_PRODUCTS = {
     "free": {
-        "price": "$0",
+        "name": "Orion Free",
+        "price": 0,
         "requests_per_month": 100,
         "features": ["standard_mode"]
     },
     "pro": {
-        "price": "$29/month",
+        "name": "Orion Pro",
+        "price": 2900,  # $29/month in cents
         "requests_per_month": 10000,
-        "features": ["all_modes", "analytics"]
+        "features": ["all_modes", "analytics", "priority_support"]
     },
     "enterprise": {
-        "price": "custom",
+        "name": "Orion Enterprise",
+        "price": None,  # Custom pricing
         "requests_per_month": 1000000,
-        "features": ["all", "sso", "sla"]
+        "features": ["unlimited", "sso", "sla", "dedicated_support"]
     }
+}
+
+# Stripe product IDs (set after creation)
+STRIPE_PRODUCT_IDS = {
+    "pro": "prod_xxx",
+    "enterprise": "prod_yyy"
 }
 ```
 
