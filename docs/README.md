@@ -19,3 +19,4 @@ This directory contains all documentation files for the DREDGE project.
 - **QUASIMOTO_6D_README.md** - Quasimoto 6D documentation
 - **RESUME_CONTENT.md** - Resume content
 - **dredge-x-dolly_pitch_deck_Version6.md** - Pitch deck
+- **SELL_ITSELF_PLAYBOOK.md** - Product-led growth and monetization playbook
