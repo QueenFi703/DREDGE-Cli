@@ -111,3 +111,185 @@ Add the following to turn Dredge into a first-class cognitive layer:
 - Overloading one endpoint with mixed concerns
 - No caching (causes immediate latency issues)
 - Letting the LLM guess when Dredge can answer directly
+
+## 8) DREDGE Agent Descriptor (DAD) Pattern
+
+For mobile/edge agents, define a signed, self-describing descriptor that lets orchestration reason about identity, capability, trust, and routing before dispatch.
+
+Example `dad.yaml`:
+
+```yaml
+version: "1.0"
+
+dad:
+  id: "taskmaster-mobile-01"
+  genesis: "DREDGE"
+  class: "mobile-edge-agent"
+  role: "observer-builder"
+  spirit: "adaptive"
+
+identity:
+  name: "Fi"
+  sigil: "queenfi"
+  instance: "ios-crios-edge"
+  fingerprint:
+    ua: |
+      Mozilla/5.0 (iPhone; CPU iPhone OS 26_2_0 like Mac OS X)
+      AppleWebKit/605.1.15 (KHTML, like Gecko)
+      CriOS/147.0.7727.47
+      Mobile/15E148 Safari/604.1
+    network:
+      internal_ip: "172.17.17.160"
+      trust_zone: "mesh"
+
+capabilities:
+  cognition:
+    autonomous: true
+    recursive: true
+    reflective: true
+
+  execution:
+    shell: false
+    api_calls: true
+    workflow_dispatch: true
+    edge_compute: limited
+
+  perception:
+    touch: true
+    speech: true
+    camera: true
+    notifications: true
+
+  rendering:
+    webkit: true
+    webgpu: limited
+    animations: optimized
+
+limits:
+  battery_sensitive: true
+  background_execution: restricted
+  memory_class: mobile
+
+routing:
+  preferred_orchestrator: "taskmaster"
+  failover:
+    - "gatekeeper"
+    - "oracle"
+    - "dredge-shadow"
+
+security:
+  auth:
+    provider: "github-oidc"
+    token_rotation: true
+
+  trust:
+    signed_descriptors: true
+    ua_verification: advisory
+    workload_identity: enforced
+
+behavior:
+  on_connect:
+    - sync_state
+    - fetch_orders
+    - hydrate_memory
+
+  on_task:
+    - validate_permissions
+    - evaluate_capabilities
+    - spawn_execution_chain
+
+  on_failure:
+    - snapshot_context
+    - emit_trace
+    - retry_with_fallback
+
+scripture:
+  genesis:
+    - "Every node shall declare itself."
+    - "Every task shall know its steward."
+    - "No execution shall wander without memory."
+
+  commandments:
+    - "Trust is signed."
+    - "Context is sacred."
+    - "Agents adapt or decay."
+    - "Telemetry without orchestration is noise."
+
+mesh:
+  topology:
+    mode: "distributed-consciousness"
+    discovery: "event-bus"
+    heartbeat_interval: "30s"
+
+observability:
+  traces: true
+  metrics: true
+  logs:
+    level: "adaptive"
+
+future:
+  evolution:
+    self_describing_agents: true
+    autonomous_routing: true
+    memory_weaving: true
+    multi_body_execution: true
+```
+
+Drop-in loader:
+
+```python
+from pathlib import Path
+import yaml
+
+
+class DAD:
+    def __init__(self, path: str):
+        self.path = path
+        self.spec = yaml.safe_load(Path(path).read_text())
+
+    @property
+    def identity(self):
+        return self.spec["identity"]
+
+    @property
+    def capabilities(self):
+        return self.spec["capabilities"]
+
+    def can(self, capability: str):
+        section, key = capability.split(".")
+        return self.capabilities.get(section, {}).get(key, False)
+
+    def route(self):
+        return self.spec["routing"]["preferred_orchestrator"]
+
+    def scripture(self):
+        return self.spec["scripture"]
+
+    def summary(self):
+        return {
+            "id": self.spec["dad"]["id"],
+            "class": self.spec["dad"]["class"],
+            "route": self.route(),
+            "autonomous": self.can("cognition.autonomous"),
+        }
+
+
+dad = DAD("dad.yaml")
+print(dad.summary())
+```
+
+Interpreter pattern:
+
+```python
+def awaken(dad):
+    if dad.can("cognition.autonomous"):
+        spawn("autonomous-chain")
+
+    if dad.can("execution.workflow_dispatch"):
+        connect("github-actions")
+
+    if dad.identity["fingerprint"]["network"]["trust_zone"] == "mesh":
+        elevate("internal-routing")
+```
+
+This turns agent identity into executable orchestration policy: what the agent is, what it can carry, and where it belongs in the mesh.
