@@ -20,3 +20,4 @@ This directory contains all documentation files for the DREDGE project.
 - **RESUME_CONTENT.md** - Resume content
 - **dredge-x-dolly_pitch_deck_Version6.md** - Pitch deck
 - **SELL_ITSELF_PLAYBOOK.md** - Product-led growth and monetization playbook
+- **dredge-agent-integration.md** - Agent integration blueprint, tool routing, and DREDGE Agent Descriptor (DAD) pattern
