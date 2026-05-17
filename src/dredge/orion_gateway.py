@@ -152,7 +152,7 @@ def route_to_reasoning_engine(payload: str, mode: str, context: Optional[Dict] =
 def verify_and_get_org(api_key: str) -> Dict[str, Any]:
     """Verify API key and return organization details."""
     if api_key not in ORGANIZATIONS:
-        logger.warning("Invalid API key attempt: %s...", api_key[:8])
+        logger.warning("Invalid API key attempt")
         raise HTTPException(status_code=401, detail="Invalid API key")
 
     return ORGANIZATIONS[api_key]
