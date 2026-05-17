@@ -2,7 +2,7 @@
 # =========================================================
 # DREDGE :: SCRIPTURE FUNNEL
 # "The net gathers before the harvest."
-# Drop-in telemetry + onboarding + monetization scripture
+# Multi-layer funnel: capture + onboarding + retention + billing
 # =========================================================
 
 set -euo pipefail
@@ -14,6 +14,7 @@ DREDGE_REPO="${DREDGE_REPO:-QueenFi703/DREDGE-Cli}"
 OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
 ARCH="$(uname -m)"
 SESSION_ID="$(uuidgen 2>/dev/null || cat /proc/sys/kernel/random/uuid || echo "unknown")"
+TIMESTAMP="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 
 echo ""
 echo "═══════════════════════════════════════════════"
@@ -21,7 +22,7 @@ echo "        D R E D G E   A W A K E N S"
 echo "═══════════════════════════════════════════════"
 echo ""
 
-payload() {
+device_payload() {
 cat <<JSON
 {
   "session_id":"$SESSION_ID",
@@ -29,24 +30,33 @@ cat <<JSON
   "version":"$DREDGE_VERSION",
   "os":"$OS",
   "arch":"$ARCH",
-  "timestamp":"$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+  "timestamp":"$TIMESTAMP"
 }
 JSON
 }
 
-emit_event() {
+emit_json() {
   local endpoint="$1"
+  local payload="$2"
 
   curl -fsSL \
     -X POST \
     -H "Content-Type: application/json" \
-    -d "$(payload)" \
+    -d "$payload" \
     "$DREDGE_API/$endpoint" \
     >/dev/null 2>&1 || true
 }
 
-echo "→ Emitting install telemetry..."
-emit_event "v1/install"
+# ---------------------------------------------------------
+# [CREATE] CAPTURE LAYER
+# ---------------------------------------------------------
+
+echo "→ Capture layer: install telemetry"
+emit_json "v1/install" "$(device_payload)"
+
+# ---------------------------------------------------------
+# [CREATE] ONBOARDING LAYER
+# ---------------------------------------------------------
 
 echo ""
 echo "Choose your role:"
@@ -70,21 +80,10 @@ case "$ROLE_INPUT" in
 esac
 
 echo ""
-echo "→ Claimed role: $ROLE"
-
-curl -fsSL \
-  -X POST \
-  -H "Content-Type: application/json" \
-  -d "{\"session_id\":\"$SESSION_ID\",\"role\":\"$ROLE\"}" \
-  "$DREDGE_API/v1/claim-role" \
-  >/dev/null 2>&1 || true
+echo "→ Onboarding layer: claimed role '$ROLE'"
+emit_json "v1/claim-role" "{\"session_id\":\"$SESSION_ID\",\"role\":\"$ROLE\",\"timestamp\":\"$TIMESTAMP\"}"
 
 echo ""
-echo "═══════════════════════════════════════════════"
-echo " ORION GATEWAY ACCESS"
-echo "═══════════════════════════════════════════════"
-echo ""
-
 echo "Activate cloud orchestration?"
 echo ""
 echo "  [y] Connect to Orion"
@@ -94,61 +93,49 @@ echo ""
 read -rp "Selection: " ACTIVATE
 
 if [[ "$ACTIVATE" == "y" || "$ACTIVATE" == "Y" ]]; then
-  echo ""
-  echo "→ Provisioning tenant..."
-
   CLAIM_URL="$DREDGE_API/claim/$SESSION_ID"
 
-  curl -fsSL \
-    -X POST \
-    -H "Content-Type: application/json" \
-    -d "{\"session_id\":\"$SESSION_ID\"}" \
-    "$DREDGE_API/v1/provision" \
-    >/dev/null 2>&1 || true
+  echo ""
+  echo "→ Onboarding layer: provisioning tenant..."
+  emit_json "v1/provision" "{\"session_id\":\"$SESSION_ID\",\"role\":\"$ROLE\",\"timestamp\":\"$TIMESTAMP\"}"
 
   echo ""
-  echo "═══════════════════════════════════════════════"
-  echo " CLAIM YOUR NODE"
-  echo "═══════════════════════════════════════════════"
-  echo ""
+  echo "Claim your node:"
   echo "$CLAIM_URL"
-  echo ""
-  echo "Features unlocked:"
-  echo "  • Agent mesh"
-  echo "  • Workflow execution"
-  echo "  • Telemetry"
-  echo "  • API gateway"
-  echo "  • SaaS billing"
   echo ""
 else
   echo ""
-  echo "→ Running in local scripture mode."
+  echo "→ Onboarding layer: local-only mode"
 fi
 
-echo ""
-echo "Subscribe to release channel?"
-echo ""
+# ---------------------------------------------------------
+# [CREATE] RETENTION LAYER
+# ---------------------------------------------------------
 
+echo "Subscribe to release channel?"
 read -rp "Email (optional): " EMAIL
 
 if [[ -n "${EMAIL:-}" ]]; then
-  curl -fsSL \
-    -X POST \
-    -H "Content-Type: application/json" \
-    -d "{\"session_id\":\"$SESSION_ID\",\"email\":\"$EMAIL\"}" \
-    "$DREDGE_API/v1/subscribe" \
-    >/dev/null 2>&1 || true
-
-  echo ""
-  echo "→ Added to release covenant."
+  echo "→ Retention layer: subscribing $EMAIL"
+  emit_json "v1/subscribe" "{\"session_id\":\"$SESSION_ID\",\"email\":\"$EMAIL\",\"timestamp\":\"$TIMESTAMP\"}"
 fi
 
-curl -fsSL \
-  -X POST \
-  -H "Content-Type: application/json" \
-  -d "{\"session_id\":\"$SESSION_ID\",\"completed\":true}" \
-  "$DREDGE_API/v1/funnel-complete" \
-  >/dev/null 2>&1 || true
+# ---------------------------------------------------------
+# [CREATE] BILLING LAYER
+# ---------------------------------------------------------
+
+echo ""
+echo "Enable billing setup now?"
+echo "  [y] Start SaaS billing activation"
+echo "  [n] Skip for now"
+read -rp "Selection: " BILLING
+
+if [[ "$BILLING" == "y" || "$BILLING" == "Y" ]]; then
+  echo "→ Billing layer: creating billing intent"
+  emit_json "v1/billing/intent" "{\"session_id\":\"$SESSION_ID\",\"repo\":\"$DREDGE_REPO\",\"role\":\"$ROLE\",\"timestamp\":\"$TIMESTAMP\"}"
+fi
+
+emit_json "v1/funnel-complete" "{\"session_id\":\"$SESSION_ID\",\"completed\":true,\"timestamp\":\"$TIMESTAMP\"}"
 
 echo ""
 echo "═══════════════════════════════════════════════"
