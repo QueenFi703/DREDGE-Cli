@@ -234,6 +234,75 @@ JWT_SECRET=your-super-secret-key
 JWT_ALGORITHM=HS256
 ```
 
+### PostgreSQL Schema (Production Baseline)
+
+Use the following schema as a starting point for production deployments.
+
+```sql
+-- Organizations
+CREATE TABLE organizations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    tier VARCHAR(50) NOT NULL CHECK (tier IN ('free', 'pro', 'enterprise')),
+    api_key VARCHAR(255) UNIQUE NOT NULL,
+    requests_limit INT NOT NULL,
+    billing_email VARCHAR(255),
+    stripe_customer_id VARCHAR(255),
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- API Keys
+CREATE TABLE api_keys (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID NOT NULL REFERENCES organizations(id),
+    key VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(255),
+    active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT NOW(),
+    last_used TIMESTAMP
+);
+
+-- Request Logs
+CREATE TABLE request_logs (
+    id BIGSERIAL PRIMARY KEY,
+    org_id UUID NOT NULL REFERENCES organizations(id),
+    request_id UUID NOT NULL,
+    mode VARCHAR(50) NOT NULL,
+    input_length INT,
+    status VARCHAR(50),
+    latency_ms INT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Usage Tracking
+CREATE TABLE usage (
+    id BIGSERIAL PRIMARY KEY,
+    org_id UUID NOT NULL REFERENCES organizations(id),
+    year_month VARCHAR(7) NOT NULL,
+    requests_count INT DEFAULT 0,
+    tokens_consumed INT DEFAULT 0,
+    UNIQUE (org_id, year_month)
+);
+
+-- Billing Events
+CREATE TABLE billing_events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID NOT NULL REFERENCES organizations(id),
+    event_type VARCHAR(50) NOT NULL,
+    amount DECIMAL(10, 2),
+    invoice_id VARCHAR(255),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Recommended indexes
+CREATE INDEX idx_organizations_tier ON organizations(tier);
+CREATE INDEX idx_api_keys_key ON api_keys(key);
+CREATE INDEX idx_request_logs_org_id ON request_logs(org_id);
+CREATE INDEX idx_request_logs_created_at ON request_logs(created_at);
+CREATE INDEX idx_usage_org_month ON usage(org_id, year_month);
+```
+
 ### Local Development with Docker
 
 ```bash
