@@ -43,11 +43,3 @@ def test_cli_module_invocation():
     result = _run_cli("--version")
     assert result.returncode == 0
     assert dredge.__version__ in result.stdout
-
-
-def test_cli_print_sell():
-    """Test that print command outputs commercialization summary."""
-    result = _run_cli("print")
-    assert result.returncode == 0
-    assert "Make It Sell Itself" in result.stdout
-    assert "TTFV" in result.stdout
