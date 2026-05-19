@@ -1,0 +1,42 @@
+# Railway-specific image: CPU-only Flask service
+# Builds only the cpu-build stage from the main multi-stage Dockerfile logic.
+
+FROM python:3.14-slim AS base
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    git \
+    curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /tmp/* \
+    && rm -rf /var/tmp/*
+
+COPY requirements.txt pyproject.toml ./
+
+FROM base AS cpu-build
+
+RUN pip install --no-cache-dir \
+    flask>=3.0.0 \
+    numpy>=1.24.0 \
+    matplotlib>=3.5.0 \
+    && rm -rf /tmp/*
+
+COPY src/ ./src/
+COPY README.md LICENSE ./
+
+RUN pip install -e . \
+    && rm -rf /tmp/*
+
+EXPOSE 3001
+
+# Railway runs the Flask HTTP service directly.
+CMD ["dredge-cli", "serve", "--host", "0.0.0.0", "--port", "3001"]
