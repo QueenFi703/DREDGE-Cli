@@ -168,14 +168,14 @@ jobs:
       - name: Run Trivy vulnerability scanner
         if: github.event_name != 'pull_request'
 
-        uses: aquasecurity/trivy-action@0.28.0
-
-        with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}-${{ matrix.suffix }}
-
-          format: sarif
-
-          output: trivy-results.sarif
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "${PWD}:/workspace" \
+            aquasec/trivy:0.65.0 image \
+            --format sarif \
+            --output /workspace/trivy-results.sarif \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}-${{ matrix.suffix }}"
 
         continue-on-error: true
 
