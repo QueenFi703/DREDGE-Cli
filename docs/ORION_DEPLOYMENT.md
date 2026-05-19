@@ -152,6 +152,29 @@ volumes:
   postgres_data:
 ```
 
+
+### GitHub + Vercel + Railway Bootstrap
+
+Use the helper script to set Orion-related GitHub repository secrets and link hosting projects:
+
+```bash
+export GITHUB_REPOSITORY=QueenFi703/DREDGE-Cli
+export ORION_API_KEY=...
+export ORION_BASE_URL=https://api.oriongateway.io
+export DATABASE_URL=postgresql://...
+export REDIS_URL=redis://...
+export JWT_SECRET=...
+export STRIPE_SECRET_KEY=sk_...
+
+# Optional non-interactive linking
+export VERCEL_PROJECT_NAME=dredge-cli
+export RAILWAY_PROJECT_ID=<railway-project-id>
+
+bash scripts/setup-orion-platforms.sh
+```
+
+The script requires `gh`, `vercel`, and `railway` CLIs to be authenticated in your shell session.
+
 ### Build Docker Image
 
 ```bash
