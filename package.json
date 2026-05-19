@@ -1,0 +1,15 @@
+{
+  "name": "dredge-cli",
+  "version": "0.2.0",
+  "description": "DREDGE CLI - GPU-CPU Lifter · Save · Files · Print",
+  "private": true,
+  "scripts": {
+    "analytics:enable": "echo 'Vercel Analytics configured. Enable in dashboard at vercel.com/[your-project]/analytics'"
+  },
+  "dependencies": {
+    "@vercel/analytics": "^1.4.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
