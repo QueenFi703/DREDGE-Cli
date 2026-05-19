@@ -1,4 +1,6 @@
 [build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.railway"
 dockerfilePath = "Dockerfile.railway"
 
 [deploy]

@@ -29,6 +29,10 @@ RUN pip install --no-cache-dir \
 COPY src/ ./src/
 COPY README.md LICENSE ./
 
-RUN pip install -e .
+RUN pip install -e . \
+    && rm -rf /tmp/*
 
-CMD ["sh", "-c", "dredge-cli serve --host 0.0.0.0 --port ${PORT:-3001}"]
+EXPOSE 3001
+
+# Railway runs the Flask HTTP service directly.
+CMD ["dredge-cli", "serve", "--host", "0.0.0.0", "--port", "3001"]
