@@ -17,6 +17,7 @@ DREDGE — small Python package scaffold with String Theory integration.
 - **[docs/GITHUB_ACTIONS_CONTAINERS.md](docs/GITHUB_ACTIONS_CONTAINERS.md)** - GitHub Actions workflows for containers
 - **[docs/github-app.md](docs/github-app.md)** - GitHub App (Actions Inspector): setup, environment variables, and API reference
 - **[docs/dredge-agent-integration.md](docs/dredge-agent-integration.md)** - Dredge as an agent tool: OpenAPI spec, skill wiring, webhook ingestion, and advanced roadmap, including the DREDGE Agent Descriptor (DAD) pattern for mobile/edge orchestration
+- **[docs/ORCHESTRATION_CONTRACT.md](docs/ORCHESTRATION_CONTRACT.md)** - Contract-first architecture and orchestration rules
 
 ## 🚀 Quick Start
 

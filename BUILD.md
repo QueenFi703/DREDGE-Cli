@@ -43,6 +43,25 @@ pip install pytest pytest-cov black ruff mypy
 - **MPS (macOS Apple Silicon):** `pip install torch` (MPS included in standard wheels, requires macOS 12.3+)
 - **CPU-only:** `pip install torch` (auto-detects)
 
+### Restricted Egress / Offline Dependency Flow
+
+If `pip install` returns `403 Forbidden` while fetching from an index, the issue is network egress policy (registry tunnel restriction), not a package/version issue.
+
+Use this decision flow:
+
+```bash
+# 1) Check whether PyYAML is already available
+python -c "import yaml; print(yaml.__version__)"
+
+# 2) If egress is blocked, install from vendored wheels
+pip install --no-index --find-links=vendor PyYAML
+```
+
+For reproducible CI/container builds in sealed environments:
+- Prefer pre-baked images that already contain Python dependencies.
+- Or vendor wheels in `vendor/` and install with `--no-index`.
+- Avoid relying on live fetches from PyPI during runtime jobs.
+
 ### Swift Dependencies
 
 **Primary method: Swift Package Manager**
