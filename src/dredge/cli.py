@@ -196,6 +196,14 @@ def main(argv=None):
         action="store_true",
         help="Output processing summary as JSON",
     )
+    sync_parser = subparsers.add_parser(
+        "sync", help="Compile orchestration manifest into generated surfaces", formatter_class=formatter
+    )
+    sync_parser.add_argument(
+        "--manifest",
+        default="dredge.manifest.yaml",
+        help="Path to orchestration manifest (default: dredge.manifest.yaml)",
+    )
 
     args = parser.parse_args(argv)
     
@@ -352,6 +360,17 @@ def main(argv=None):
             print(f"Errors:    {summary['errors']}")
             print(f"Elapsed:   {summary['elapsed_seconds']:.3f}s")
             print(f"Throughput:{summary['throughput_per_sec']:.1f} events/sec")
+        return 0
+
+    if args.command == "sync":
+        from pathlib import Path
+        from .sync import sync
+        try:
+            sync(manifest_path=Path(args.manifest))
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 1
+        print("DREDGE sync complete.")
         return 0
 
     parser.print_help()

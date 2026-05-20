@@ -1,68 +1,44 @@
-version: 1
 system:
   name: DREDGE
-  canonical_contract: dredge.manifest.yaml
-  description: Single-source-of-truth orchestration system.
+  version: 1.0
 
-policies:
-  deterministic_runtime: true
-  append_only_events: true
-  state_changes_must_come_from_events: true
-  execution_must_follow_declared_edges: true
-
-telemetry:
-  enabled: true
-  event_log:
-    mode: append_only
-    replayable: true
-    causally_linked: true
+topology: autonomous-agent-grid
 
 agents:
-  - id: Forge
-    role: execution
-  - id: Sentinel
-    role: policy_enforcement
-  - id: Oracle
-    role: inference
-  - id: Replay
-    role: state_reconstruction
-  - id: Gate
-    role: transition_authorization
+  forge:
+    role: execution_engine
+  sentinel:
+    role: security_policy_enforcement
+  oracle:
+    role: decision_and_inference
+  replay:
+    role: event_reconstruction
+  gate:
+    role: ingress_control
 
 graph:
-  states:
-    - contract_loaded
-    - transition_authorized
-    - agent_executing
-    - event_emitted
-    - state_reconstructed
+  entry: entry.initialize
   edges:
-    - from: contract_loaded
-      to: transition_authorized
-      via: Gate
-    - from: transition_authorized
-      to: agent_executing
-      via: Forge
-    - from: agent_executing
-      to: event_emitted
-      via: Sentinel
-    - from: event_emitted
-      to: state_reconstructed
-      via: Replay
+    - from: entry.initialize
+      to: graph.resolve
+    - from: graph.resolve
+      to: execution.first_run
+    - from: execution.first_run
+      to: introspection.emit
+    - from: introspection.emit
+      to: stability.confirm
+    - from: stability.confirm
+      to: composition.create
+    - from: composition.create
+      to: continuity.persist
 
-projections:
-  infrastructure:
-    derived_only: true
-    includes:
-      - github_actions
-      - docker
-      - deployment_manifests
-  documentation:
-    derived_only: true
-  ux:
-    derived_only: true
-    onboarding_model:
-      name: "5:24"
-      max_time_seconds: 324
-      read_only: true
-      authoritative: false
+policies:
+  determinism: strict
+  state_mutation: explicit_only
+  event_emission: required
+  replayability: full
+
+telemetry:
+  trace_events: true
+  graph_stream: true
+  event_log: append_only
