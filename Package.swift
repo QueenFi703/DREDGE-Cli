@@ -19,16 +19,25 @@ let package = Package(
             targets: ["DREDGEMVPApp"]
         )
     ],
+    dependencies: [
+        // DREDGE orchestration framework
+        .package(path: "swift/DREDGE")
+    ],
     targets: [
         // CLI executable target (from swift/Sources/main.swift)
         .executableTarget(
             name: "DREDGECli",
+            dependencies: [
+                .product(name: "DREDGE", package: "DREDGE")
+            ],
             path: "swift/Sources"
         ),
         // iOS MVP App library target
         .target(
             name: "DREDGEMVPApp",
-            dependencies: [],
+            dependencies: [
+                .product(name: "DREDGE", package: "DREDGE")
+            ],
             path: "swift/DREDGE_MVP_App",
             resources: [
                 .process("AboutStrings.strings")

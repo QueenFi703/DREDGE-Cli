@@ -17,14 +17,22 @@ let package = Package(
             targets: ["DREDGEMVPApp"]
         )
     ],
+    dependencies: [
+        .package(path: "DREDGE")
+    ],
     targets: [
         .executableTarget(
             name: "DREDGECli",
+            dependencies: [
+                .product(name: "DREDGE", package: "DREDGE")
+            ],
             path: "Sources"
         ),
         .target(
             name: "DREDGEMVPApp",
-            dependencies: [],
+            dependencies: [
+                .product(name: "DREDGE", package: "DREDGE")
+            ],
             path: "DREDGE_MVP_App",
             resources: [
                 .process("AboutStrings.strings")

@@ -1,44 +1,45 @@
-system:
-  name: DREDGE
-  version: 1.0
+manifest:
+  system:
+    name: DREDGE
+    version: 1.0
 
-topology: autonomous-agent-grid
+  topology: autonomous-agent-grid
 
-agents:
-  forge:
-    role: execution_engine
-  sentinel:
-    role: security_policy_enforcement
-  oracle:
-    role: decision_and_inference
-  replay:
-    role: event_reconstruction
-  gate:
-    role: ingress_control
+  agents:
+    forge:
+      role: execution_engine
+    sentinel:
+      role: security_policy_enforcement
+    oracle:
+      role: decision_and_inference
+    replay:
+      role: event_reconstruction
+    gate:
+      role: ingress_control
 
-graph:
-  entry: entry.initialize
-  edges:
-    - from: entry.initialize
-      to: graph.resolve
-    - from: graph.resolve
-      to: execution.first_run
-    - from: execution.first_run
-      to: introspection.emit
-    - from: introspection.emit
-      to: stability.confirm
-    - from: stability.confirm
-      to: composition.create
-    - from: composition.create
-      to: continuity.persist
+  graph:
+    entry: entry.initialize
+    edges:
+      - from: entry.initialize
+        to: graph.resolve
+      - from: graph.resolve
+        to: execution.first_run
+      - from: execution.first_run
+        to: introspection.emit
+      - from: introspection.emit
+        to: stability.confirm
+      - from: stability.confirm
+        to: composition.create
+      - from: composition.create
+        to: continuity.persist
 
-policies:
-  determinism: strict
-  state_mutation: explicit_only
-  event_emission: required
-  replayability: full
+  policies:
+    determinism: strict
+    state_mutation: explicit_only
+    event_emission: required
+    replayability: full
 
-telemetry:
-  trace_events: true
-  graph_stream: true
-  event_log: append_only
+  telemetry:
+    trace_events: true
+    graph_stream: true
+    event_log: append_only

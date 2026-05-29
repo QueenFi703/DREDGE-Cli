@@ -21,6 +21,7 @@ dependencies = [
 ]
 
 [project.scripts]
+dredge = "dredge.cli:main"
 dredge-cli = "dredge.cli:main"
 
 [project.urls]

@@ -37,15 +37,15 @@ try:
             )
         ]
         cmdclass = {"build_ext": BuildExtension}
-        print("✓ CUDA available - building custom extensions")
+        print("OK: CUDA available - building custom extensions")
     else:
         ext_modules = []
         cmdclass = {}
-        print("ℹ CUDA not available - skipping custom extensions")
+        print("INFO: CUDA not available - skipping custom extensions")
 except ImportError:
     ext_modules = []
     cmdclass = {}
-    print("ℹ PyTorch not installed - skipping custom extensions")
+    print("INFO: PyTorch not installed - skipping custom extensions")
 except Exception as e:
     ext_modules = []
     cmdclass = {}
