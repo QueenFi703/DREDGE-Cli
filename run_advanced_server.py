@@ -40,6 +40,7 @@ def index():
             "Code Generation"
         ],
         "dashboard": "http://127.0.0.1:8000/advanced",
+        "docs": "http://127.0.0.1:8000/docs",
         "api_base": "http://127.0.0.1:8000/api/advanced"
     })
 
@@ -51,9 +52,18 @@ def advanced_dashboard():
         return send_file(str(html_path), mimetype='text/html')
     return jsonify({"error": "Dashboard not found"}), 404
 
+@app.route('/docs')
+def api_docs():
+    """Serve API documentation"""
+    html_path = Path('dredge-cli-repo/src/dredge/static/docs.html')
+    if html_path.exists():
+        return send_file(str(html_path), mimetype='text/html')
+    return jsonify({"error": "Documentation not found"}), 404
+
 if __name__ == '__main__':
     print("Starting DREDGE Studio Advanced on http://127.0.0.1:8000")
     print("Dashboard: http://127.0.0.1:8000/advanced")
+    print("Documentation: http://127.0.0.1:8000/docs")
     print("API: http://127.0.0.1:8000/api/advanced/")
     print("Press Ctrl+C to stop")
     app.run(host='127.0.0.1', port=8000, debug=True, use_reloader=False)
