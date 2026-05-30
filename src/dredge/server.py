@@ -61,6 +61,10 @@ def create_app():
     from .auth import init_auth
     init_auth(app)
 
+    # ── Advanced Features ─────────────────────────────────────────────
+    from .advanced_features import register_advanced_features
+    register_advanced_features(app)
+
     # ── Application routes ────────────────────────────────────────────
 
     @app.route('/')
@@ -81,6 +85,7 @@ def create_app():
                 "/health":        "Health check (public)",
                 "/lift":          "Lift an insight (POST, authenticated)",
                 "/quasimoto-gpu": "Quasimoto GPU visualization (authenticated)",
+                "/advanced":      "Advanced features dashboard (authenticated)",
                 "/auth/login":    "Sign-in page",
                 "/auth/logout":   "Sign out",
                 "/auth/me":       "Current user profile (JSON)",
@@ -124,6 +129,18 @@ def create_app():
         }
         
         return jsonify(result)
+
+    @app.route('/advanced')
+    @login_required
+    def advanced_dashboard():
+        """Serve the advanced features dashboard."""
+        static_dir = Path(__file__).parent / 'static'
+        html_file = static_dir / 'advanced_dashboard.html'
+        
+        if not html_file.exists():
+            return jsonify({"error": "Dashboard file not found"}), 404
+        
+        return send_file(html_file, mimetype='text/html')
 
     @app.route('/quasimoto-gpu')
     @login_required
