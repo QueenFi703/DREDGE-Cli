@@ -1,0 +1,20 @@
+include README.md
+include LICENSE
+include PULL_REQUEST.md
+include DEPLOYMENT_SUMMARY.txt
+include DEPENDABOT_FIBOT_GUIDE.txt
+include FIBOT_ARCHITECTURE.md
+include FIBOT_QUICK_REFERENCE.txt
+
+recursive-include src/dredge *.py
+recursive-include src/dredge/static *.html *.css *.js *.json
+
+recursive-exclude * __pycache__
+recursive-exclude * *.py[cod]
+recursive-exclude * .DS_Store
+recursive-exclude * .git*
+recursive-exclude * .tox
+recursive-exclude * .eggs
+recursive-exclude * *.egg-info
+recursive-exclude * .pytest_cache
+recursive-exclude * .mypy_cache

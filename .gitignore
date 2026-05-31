@@ -3,72 +3,138 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Virtual environments
-.venv/
-env/
-venv/
+# C extensions
+*.so
 
 # Distribution / packaging
+.Python
 build/
+develop-eggs/
 dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
 *.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-# Node.js
-node_modules/
+# PyInstaller
+*.manifest
+*.spec
 
-# Editor directories and files
-# Note: We allow .vscode/ for shared workspace configuration
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# IDEs
+.vscode/
 .idea/
 *.swp
+*.swo
+*~
+.DS_Store
 
-# Swift build artifacts
-.build/
-*.xcodeproj
-DerivedData/
-.swiftpm/
+# OS
+Thumbs.db
+.DS_Store
 
-# Xcode workspace: allow DREDGE-Cli.xcworkspace but exclude user-specific data
-*.xcworkspace
-!DREDGE-Cli.xcworkspace/
-DREDGE-Cli.xcworkspace/xcuserdata/
-
-# Archives and temporary files
-archives/
-*.zip
-*.torrent
-*.docx
-
-# Configuration files (user-specific)
-.dredge.json
-
-# Environment files
-.env
+# Project specific
+*.db
+config.local.py
 .env.local
-
-# SSL certificates
-nginx/ssl/*.pem
-nginx/ssl/*.key
-nginx/ssl/*.crt
-
-# Monitoring data
-monitoring/grafana/data/
-prometheus-data/
-grafana-data/
-
-# GitHub App package – dependencies and build output
-github-app/node_modules/
-github-app/dist/
-
-# CUDA/C++ extension build artifacts
-*.so
-*.o
-*.a
-*.dylib
-*.dll
-*.lib
-.ninja_deps
-.ninja_log
-
-# Node.js (github-app)
-github-app/node_modules/
-github-app/dist/
