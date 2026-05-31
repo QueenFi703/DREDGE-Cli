@@ -484,3 +484,7 @@ def generate_code():
 def register_advanced_features(app):
     """Register the advanced features blueprint with the Flask app."""
     app.register_blueprint(dredge_advanced)
+    
+    # Register Dependabot alerts with FiBot integration
+    from dredge.dependabot_alerts import register_dependabot_alerts
+    register_dependabot_alerts(app)

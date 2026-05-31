@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dependabot Alerts - DREDGE Studio</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #0066cc;
+            --secondary: #00d9ff;
+            --danger: #ff3333;
+            --warning: #ffaa00;
+            --success: #00cc00;
+            --dark: #1a1a1a;
+            --darker: #0f0f0f;
+            --border: #333;
+            --text: #e0e0e0;
+            --critical: #ff0000;
+            --high: #ff6600;
+            --medium: #ffcc00;
+            --low: #00cc99;
+        }
+        
+        body {
+            font-family: 'Monaco', monospace;
+            background: var(--dark);
+            color: var(--text);
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--border);
+        }
+        
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--secondary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .fibot-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #0066cc, #00d9ff);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            background: var(--secondary);
+            color: var(--dark);
+        }
+        
+        .btn-secondary {
+            background: #666;
+        }
+        
+        .btn-secondary:hover {
+            background: #888;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: var(--darker);
+            border: 1px solid var(--border);
+            padding: 20px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: var(--secondary);
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .tab {
+            padding: 10px 15px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: var(--text);
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            font-size: 13px;
+        }
+        
+        .tab:hover {
+            color: var(--secondary);
+        }
+        
+        .tab.active {
+            color: var(--secondary);
+            border-bottom-color: var(--secondary);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .alerts-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .alert-item {
+            background: var(--darker);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--border);
+            padding: 15px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        
+        .alert-item:hover {
+            border-color: var(--primary);
+            box-shadow: 0 0 10px rgba(0, 102, 204, 0.3);
+        }
+        
+        .alert-item.critical {
+            border-left-color: var(--critical);
+        }
+        
+        .alert-item.high {
+            border-left-color: var(--high);
+        }
+        
+        .alert-item.medium {
+            border-left-color: var(--medium);
+        }
+        
+        .alert-item.low {
+            border-left-color: var(--low);
+        }
+        
+        .alert-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+        
+        .alert-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--secondary);
+            flex: 1;
+        }
+        
+        .severity-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .severity-critical {
+            background: var(--critical);
+            color: white;
+        }
+        
+        .severity-high {
+            background: var(--high);
+            color: white;
+        }
+        
+        .severity-medium {
+            background: var(--medium);
+            color: var(--darker);
+        }
+        
+        .severity-low {
+            background: var(--low);
+            color: var(--darker);
+        }
+        
+        .alert-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 12px;
+            color: #999;
+        }
+        
+        .meta-item {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .meta-label {
+            font-weight: bold;
+            color: var(--text);
+        }
+        
+        .alert-description {
+            font-size: 13px;
+            color: #ccc;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+        
+        .alert-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .action-btn {
+            padding: 6px 12px;
+            font-size: 11px;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--secondary);
+            border-radius: 3px;
+            transition: all 0.2s;
+        }
+        
+        .action-btn:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        
+        .fibot-chat {
+            background: var(--darker);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .chat-input-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .chat-input {
+            flex: 1;
+            padding: 8px;
+            background: var(--dark);
+            border: 1px solid var(--border);
+            border-radius: 3px;
+            color: var(--text);
+            font-family: monospace;
+        }
+        
+        .chat-response {
+            margin-top: 10px;
+            padding: 10px;
+            background: var(--dark);
+            border-left: 3px solid var(--secondary);
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        
+        .recommendations-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        
+        .rec-card {
+            background: var(--darker);
+            border: 1px solid var(--border);
+            padding: 15px;
+            border-radius: 4px;
+        }
+        
+        .rec-priority {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .priority-urgent {
+            background: var(--critical);
+            color: white;
+        }
+        
+        .priority-high {
+            background: var(--high);
+            color: white;
+        }
+        
+        .priority-medium {
+            background: var(--medium);
+            color: var(--darker);
+        }
+        
+        .rec-package {
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--secondary);
+            margin-bottom: 8px;
+        }
+        
+        .rec-text {
+            font-size: 12px;
+            color: #ccc;
+            line-height: 1.4;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+        }
+        
+        .error {
+            background: rgba(255, 51, 51, 0.1);
+            border: 1px solid var(--danger);
+            padding: 12px;
+            border-radius: 3px;
+            color: var(--danger);
+            margin-bottom: 20px;
+        }
+        
+        .success {
+            background: rgba(0, 204, 0, 0.1);
+            border: 1px solid var(--success);
+            padding: 12px;
+            border-radius: 3px;
+            color: var(--success);
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="title">
+                <i class="fas fa-shield-alt"></i> Dependabot Security Alerts
+                <span class="fibot-badge">FiBot v1.0</span>
+            </div>
+            <div class="controls">
+                <button class="btn" onclick="refreshAlerts()"><i class="fas fa-sync"></i> Refresh</button>
+                <button class="btn btn-secondary" onclick="openSettings()"><i class="fas fa-cog"></i> Settings</button>
+            </div>
+        </div>
+        
+        <!-- Status Message -->
+        <div id="message-container"></div>
+        
+        <!-- Stats -->
+        <div class="stats-grid" id="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-total">0</div>
+                <div class="stat-label">Total Alerts</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-open">0</div>
+                <div class="stat-label">Open Issues</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-high">0</div>
+                <div class="stat-label">High Severity</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-packages">0</div>
+                <div class="stat-label">Packages Affected</div>
+            </div>
+        </div>
+        
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('alerts')"><i class="fas fa-list"></i> Alerts</button>
+            <button class="tab" onclick="switchTab('recommendations')"><i class="fas fa-lightbulb"></i> FiBot Recommendations</button>
+            <button class="tab" onclick="switchTab('chat')"><i class="fas fa-comments"></i> FiBot Chat</button>
+            <button class="tab" onclick="switchTab('stats')"><i class="fas fa-chart-bar"></i> Statistics</button>
+        </div>
+        
+        <!-- Tab: Alerts -->
+        <div id="alerts" class="tab-content active">
+            <div class="alerts-list" id="alerts-list">
+                <div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading alerts...</div>
+            </div>
+        </div>
+        
+        <!-- Tab: Recommendations -->
+        <div id="recommendations" class="tab-content">
+            <div class="recommendations-grid" id="recommendations-grid">
+                <div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading recommendations...</div>
+            </div>
+        </div>
+        
+        <!-- Tab: Chat -->
+        <div id="chat" class="tab-content">
+            <div class="fibot-chat">
+                <div style="margin-bottom: 15px; color: var(--secondary); font-weight: bold;">
+                    <i class="fas fa-robot"></i> FiBot Security Assistant
+                </div>
+                <div class="chat-input-group">
+                    <input type="text" id="chat-input" class="chat-input" placeholder="Ask FiBot about security, vulnerabilities, patches, etc..." />
+                    <button class="btn" onclick="sendChatMessage()"><i class="fas fa-paper-plane"></i> Send</button>
+                </div>
+                <div id="chat-response"></div>
+            </div>
+        </div>
+        
+        <!-- Tab: Statistics -->
+        <div id="stats" class="tab-content">
+            <div id="stats-content" style="background: var(--darker); border: 1px solid var(--border); padding: 20px; border-radius: 4px;">
+                <div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading statistics...</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_BASE = '/api/dependabot';
+        
+        // Initialize on load
+        window.addEventListener('load', () => {
+            loadAlerts();
+            loadStats();
+        });
+        
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.closest('.tab').classList.add('active');
+            
+            // Load content if needed
+            if (tabName === 'recommendations') {
+                loadRecommendations();
+            } else if (tabName === 'stats') {
+                loadFullStats();
+            }
+        }
+        
+        async function loadAlerts() {
+            try {
+                const response = await fetch(`${API_BASE}/alerts`);
+                const data = await response.json();
+                
+                const alertsList = document.getElementById('alerts-list');
+                alertsList.innerHTML = '';
+                
+                if (data.alerts.length === 0) {
+                    alertsList.innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">No alerts found</div>';
+                    return;
+                }
+                
+                data.alerts.forEach(alert => {
+                    const severity = alert.security_advisory.severity;
+                    const alertEl = document.createElement('div');
+                    alertEl.className = `alert-item ${severity}`;
+                    alertEl.innerHTML = `
+                        <div class="alert-header">
+                            <div class="alert-title">${alert.dependency.package.name}</div>
+                            <span class="severity-badge severity-${severity}">${severity.toUpperCase()}</span>
+                        </div>
+                        <div class="alert-meta">
+                            <div class="meta-item"><span class="meta-label">CVE:</span> ${alert.security_advisory.cve_id || 'N/A'}</div>
+                            <div class="meta-item"><span class="meta-label">GHSA:</span> ${alert.security_advisory.ghsa_id}</div>
+                            <div class="meta-item"><span class="meta-label">State:</span> ${alert.state}</div>
+                        </div>
+                        <div class="alert-description">${alert.security_advisory.summary}</div>
+                        <div class="alert-actions">
+                            <button class="action-btn" onclick="analyzeWithFiBot(${alert.id})"><i class="fas fa-wand-magic-sparkles"></i> FiBot Analysis</button>
+                            <button class="action-btn" onclick="dismissAlertUI(${alert.id})"><i class="fas fa-times"></i> Dismiss</button>
+                            <button class="action-btn" onclick="viewDetails(${alert.id})"><i class="fas fa-external-link-alt"></i> View Details</button>
+                        </div>
+                    `;
+                    alertsList.appendChild(alertEl);
+                });
+            } catch (error) {
+                console.error('Error loading alerts:', error);
+                showMessage('Error loading alerts: ' + error.message, 'error');
+            }
+        }
+        
+        async function loadStats() {
+            try {
+                const response = await fetch(`${API_BASE}/stats`);
+                const data = await response.json();
+                
+                document.getElementById('stat-total').textContent = data.total_alerts;
+                document.getElementById('stat-open').textContent = data.open_alerts;
+                document.getElementById('stat-high').textContent = data.severity_breakdown.high + data.severity_breakdown.critical;
+                document.getElementById('stat-packages').textContent = data.packages_affected;
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+        
+        async function loadRecommendations() {
+            try {
+                const response = await fetch(`${API_BASE}/recommendations`);
+                const data = await response.json();
+                
+                const grid = document.getElementById('recommendations-grid');
+                grid.innerHTML = '';
+                
+                if (data.recommendations.length === 0) {
+                    grid.innerHTML = '<div style="text-align: center; color: #999; padding: 20px; grid-column: 1/-1;">No recommendations available</div>';
+                    return;
+                }
+                
+                data.recommendations.forEach(rec => {
+                    const priorityClass = rec.priority_score >= 80 ? 'priority-urgent' : rec.priority_score >= 50 ? 'priority-high' : 'priority-medium';
+                    const recEl = document.createElement('div');
+                    recEl.className = 'rec-card';
+                    recEl.innerHTML = `
+                        <div class="rec-priority ${priorityClass}">Priority: ${rec.priority_score}</div>
+                        <div class="rec-package">${rec.package}</div>
+                        <div class="severity-badge severity-${rec.severity}">Severity: ${rec.severity}</div>
+                        <div style="margin-top: 10px; margin-bottom: 10px; color: var(--secondary); font-size: 11px; font-weight: bold;">FiBot Recommendation:</div>
+                        <div class="rec-text">${rec.fibot_recommendation}</div>
+                    `;
+                    grid.appendChild(recEl);
+                });
+            } catch (error) {
+                console.error('Error loading recommendations:', error);
+                showMessage('Error loading recommendations: ' + error.message, 'error');
+            }
+        }
+        
+        async function loadFullStats() {
+            try {
+                const response = await fetch(`${API_BASE}/vulnerabilities`);
+                const data = await response.json();
+                
+                const html = `
+                    <h3 style="color: var(--secondary); margin-bottom: 15px;">Vulnerability Statistics</h3>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                        ${Object.entries(data.by_severity).map(([sev, count]) => `
+                            <div style="background: var(--dark); padding: 10px; border-radius: 3px; border-left: 3px solid ${getColorForSeverity(sev)};">
+                                <div style="font-size: 18px; font-weight: bold; color: var(--secondary);">${count}</div>
+                                <div style="font-size: 12px; color: #999;">${sev.charAt(0).toUpperCase() + sev.slice(1)}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <h3 style="color: var(--secondary); margin-bottom: 15px; margin-top: 20px;">By Vulnerability Type</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                        ${Object.entries(data.by_type).map(([type, count]) => `
+                            <div style="background: var(--dark); padding: 8px; border-radius: 3px; text-align: center; border: 1px solid var(--border);">
+                                <div style="font-size: 16px; font-weight: bold; color: var(--secondary);">${count}</div>
+                                <div style="font-size: 11px; color: #999;">${type.replace(/_/g, ' ')}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                
+                document.getElementById('stats-content').innerHTML = html;
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+        
+        function getColorForSeverity(severity) {
+            const colors = {
+                'critical': '#ff0000',
+                'high': '#ff6600',
+                'medium': '#ffcc00',
+                'low': '#00cc99'
+            };
+            return colors[severity] || '#0066cc';
+        }
+        
+        async function analyzeWithFiBot(alertId) {
+            showMessage('Analyzing with FiBot...', 'info');
+            try {
+                const response = await fetch(`${API_BASE}/alerts/${alertId}/analyze`);
+                const data = await response.json();
+                
+                const analysis = data.fibot_analysis.analysis;
+                const insights = analysis.fibot_insights;
+                
+                const detailsHtml = `
+                    <h4 style="color: var(--secondary); margin-bottom: 10px;">FiBot Analysis for ${data.package}</h4>
+                    <div style="font-size: 12px; line-height: 1.6;">
+                        <p><strong>Risk Assessment:</strong> ${analysis.risk_assessment}</p>
+                        <p><strong>Recommended Action:</strong> ${analysis.recommended_action}</p>
+                        <p><strong>Vulnerability Summary:</strong> ${insights.vulnerability_summary}</p>
+                        <p><strong>Impact Assessment:</strong></p>
+                        <ul style="margin-left: 20px; margin-bottom: 10px;">
+                            ${insights.impact_assessment.map(i => `<li>${i}</li>`).join('')}
+                        </ul>
+                        <p><strong>Remediation Steps:</strong></p>
+                        <ol style="margin-left: 20px; margin-bottom: 10px;">
+                            ${insights.remediation_steps.map(s => `<li>${s}</li>`).join('')}
+                        </ol>
+                        <p><strong>FiBot Recommendation:</strong> ${insights.fibot_recommendation}</p>
+                    </div>
+                `;
+                
+                alert(detailsHtml);
+            } catch (error) {
+                showMessage('Error analyzing alert: ' + error.message, 'error');
+            }
+        }
+        
+        async function dismissAlertUI(alertId) {
+            const reason = prompt('Dismiss reason (e.g., tolerable_risk, won\'t_fix):', 'tolerable_risk');
+            if (!reason) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/alerts/${alertId}/dismiss`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reason })
+                });
+                
+                const data = await response.json();
+                showMessage(`Alert dismissed: ${data.status}`, 'success');
+                loadAlerts();
+                loadStats();
+            } catch (error) {
+                showMessage('Error dismissing alert: ' + error.message, 'error');
+            }
+        }
+        
+        async function sendChatMessage() {
+            const question = document.getElementById('chat-input').value;
+            if (!question.trim()) return;
+            
+            try {
+                const response = await fetch(`${API_BASE}/fibot/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question })
+                });
+                
+                const data = await response.json();
+                
+                const responseDiv = document.getElementById('chat-response');
+                responseDiv.innerHTML = `
+                    <div style="margin-bottom: 10px;">
+                        <strong>You:</strong> ${question}
+                    </div>
+                    <div class="chat-response">
+                        <strong>FiBot:</strong> ${data.answer}
+                        <div style="font-size: 10px; color: #666; margin-top: 5px;">Confidence: ${(data.confidence * 100).toFixed(0)}%</div>
+                    </div>
+                `;
+                
+                document.getElementById('chat-input').value = '';
+            } catch (error) {
+                showMessage('Error sending message: ' + error.message, 'error');
+            }
+        }
+        
+        function viewDetails(alertId) {
+            alert('Details for alert ' + alertId + ' - Feature coming soon!');
+        }
+        
+        function refreshAlerts() {
+            loadAlerts();
+            loadStats();
+            showMessage('Alerts refreshed', 'success');
+        }
+        
+        function openSettings() {
+            alert('Settings panel - Feature coming soon!');
+        }
+        
+        function showMessage(text, type = 'info') {
+            const container = document.getElementById('message-container');
+            const msgEl = document.createElement('div');
+            msgEl.className = type;
+            msgEl.innerHTML = `<i class="fas fa-${type === 'error' ? 'exclamation' : type === 'success' ? 'check' : 'info'}-circle"></i> ${text}`;
+            container.innerHTML = '';
+            container.appendChild(msgEl);
+            
+            setTimeout(() => {
+                msgEl.remove();
+            }, 5000);
+        }
+        
+        // Allow Enter key to send chat
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && document.getElementById('chat-input') === document.activeElement) {
+                sendChatMessage();
+            }
+        });
+    </script>
+</body>
+</html>
