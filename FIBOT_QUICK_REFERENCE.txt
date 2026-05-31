@@ -1,0 +1,218 @@
+╔════════════════════════════════════════════════════════════════════╗
+║                    FIBOT QUICK REFERENCE                          ║
+║              Security Intelligence Bot - Command Line             ║
+╚════════════════════════════════════════════════════════════════════╝
+
+MAIN ENDPOINTS
+==============
+
+📊 Statistics
+  curl http://127.0.0.1:8000/api/dependabot/stats
+
+🔔 List Alerts
+  curl http://127.0.0.1:8000/api/dependabot/alerts
+
+📋 Alert Details
+  curl http://127.0.0.1:8000/api/dependabot/alerts/1
+
+🤖 FiBot Analysis
+  curl http://127.0.0.1:8000/api/dependabot/alerts/1/analyze
+
+💡 Recommendations
+  curl http://127.0.0.1:8000/api/dependabot/recommendations
+
+💬 Chat with FiBot
+  curl -X POST http://127.0.0.1:8000/api/dependabot/fibot/chat \
+    -H "Content-Type: application/json" \
+    -d '{"question":"What is a CVE?"}'
+
+❌ Dismiss Alert
+  curl -X POST http://127.0.0.1:8000/api/dependabot/alerts/1/dismiss \
+    -H "Content-Type: application/json" \
+    -d '{"reason":"tolerable_risk"}'
+
+✅ Reopen Alert
+  curl -X POST http://127.0.0.1:8000/api/dependabot/alerts/1/reopen
+
+📈 Vulnerabilities
+  curl http://127.0.0.1:8000/api/dependabot/vulnerabilities
+
+🤖 FiBot Status
+  curl http://127.0.0.1:8000/api/dependabot/fibot/status
+
+
+SEVERITY CODES
+==============
+
+🔴 critical   - Emergency (Score: 100)
+🟠 high       - Urgent (Score: 80)
+🟡 medium     - Important (Score: 50)
+🟢 low        - Monitor (Score: 20)
+
+
+FIBOT FEATURES
+==============
+
+✓ Analyze vulnerabilities
+✓ Score risk (0-100)
+✓ Generate recommendations
+✓ Create fix steps
+✓ Answer security questions
+✓ Identify risk factors
+✓ Suggest timelines
+✓ Explain CVEs
+
+
+TYPICAL WORKFLOW
+================
+
+1. Get stats
+   curl /api/dependabot/stats
+
+2. List open alerts
+   curl "/api/dependabot/alerts?state=open"
+
+3. Analyze with FiBot
+   curl /api/dependabot/alerts/1/analyze
+
+4. Review recommendations
+   curl /api/dependabot/recommendations
+
+5. Get remediation steps
+   (See in /analyze response)
+
+6. Dismiss or fix
+   curl -X POST /api/dependabot/alerts/1/dismiss
+
+7. Track progress
+   curl /api/dependabot/stats
+
+
+CHAT EXAMPLES
+=============
+
+curl -X POST /api/dependabot/fibot/chat \
+  -d '{"question":"What is a vulnerability?"}'
+
+curl -X POST /api/dependabot/fibot/chat \
+  -d '{"question":"How do I patch Flask?"}'
+
+curl -X POST /api/dependabot/fibot/chat \
+  -d '{"question":"What is CVE?"}'
+
+curl -X POST /api/dependabot/fibot/chat \
+  -d '{"question":"What is a patch?"}'
+
+curl -X POST /api/dependabot/fibot/chat \
+  -d '{"question":"How do I mitigate risk?"}'
+
+
+DISMISS REASONS
+===============
+
+tolerable_risk    - Risk is acceptable
+won't_fix         - Not planning to fix
+vulnerable_code_not_in_use  - Code not used
+
+
+DASHBOARD
+=========
+
+http://127.0.0.1:8000/advanced
+→ Select "Dependabot Alerts"
+
+Tabs:
+  • Alerts - Real-time list
+  • Recommendations - FiBot suggestions
+  • Chat - Ask FiBot
+  • Stats - Full statistics
+
+
+SEVERITY ACTIONS
+================
+
+CRITICAL
+  ├─ Timeline: IMMEDIATE (hours)
+  ├─ Action: Emergency patch
+  ├─ Impact: System compromise, RCE
+  └─ FiBot: "URGENT: Patch immediately"
+
+HIGH
+  ├─ Timeline: THIS WEEK (days)
+  ├─ Action: Schedule patch ASAP
+  ├─ Impact: Security bypass, data exposure
+  └─ FiBot: "HIGH PRIORITY: Patch this week"
+
+MEDIUM
+  ├─ Timeline: 2-4 WEEKS
+  ├─ Action: Plan regular patch
+  ├─ Impact: DOS, info disclosure
+  └─ FiBot: "Schedule patch within 2 weeks"
+
+LOW
+  ├─ Timeline: MAINTENANCE WINDOW
+  ├─ Action: Monitor, patch normally
+  ├─ Impact: Minor, edge-case
+  └─ FiBot: "Monitor and patch normally"
+
+
+QUICK TIPS
+==========
+
+💡 Pretty print JSON:
+   curl ... | jq '.'
+
+💡 Get just count:
+   curl ... | jq '.count'
+
+💡 Get just answers:
+   curl ... | jq '.answer'
+
+💡 Save to file:
+   curl ... > alerts.json
+
+💡 Check status:
+   curl /api/dependabot/stats && echo OK
+
+💡 Test chat offline:
+   Set question to common keywords
+
+
+START HERE
+==========
+
+1. Check health:
+   curl http://127.0.0.1:8000/health
+
+2. Get stats:
+   curl http://127.0.0.1:8000/api/dependabot/stats
+
+3. List alerts:
+   curl http://127.0.0.1:8000/api/dependabot/alerts
+
+4. Open dashboard:
+   http://127.0.0.1:8000/advanced → Dependabot Alerts
+
+5. Try FiBot:
+   curl -X POST /api/dependabot/fibot/chat \
+     -d '{"question":"What is a vulnerability?"}'
+
+All Ready! 🚀
+
+
+VERSION INFO
+============
+
+FiBot: 1.0.0
+DREDGE: 2.0.0
+API: v1
+Status: Production Ready ✅
+
+
+DOCUMENTATION
+==============
+
+📖 DEPENDABOT_FIBOT_GUIDE.txt - Complete guide
+📖 FIBOT_ARCHITECTURE.md - System design
+📖 DEPLOYMENT_SUMMARY.txt - Feature checklist
+📖 This file - Quick reference
