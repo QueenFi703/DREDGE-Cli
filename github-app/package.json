@@ -2,6 +2,17 @@
   "name": "@dredge-cli/github-app-actions-inspector",
   "version": "1.0.0",
   "description": "Serverless GitHub App that inspects GitHub Actions workflow run status and jobs",
+  "author": "Dredge Agent",
+  "contributors": [
+    {
+      "name": "QueenFi703",
+      "url": "https://github.com/QueenFi703"
+    },
+    {
+      "name": "Security Fixes",
+      "url": "https://github.com/QueenFi703/DREDGE-Cli"
+    }
+  ],
   "engines": {
     "node": ">=24"
   },
@@ -17,8 +28,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@octokit/auth-app": "^7.1.0",
-    "@octokit/rest": "^21.0.0",
+    "@octokit/auth-app": "^7.2.0",
+    "@octokit/rest": "^21.1.0",
     "tsx": "^4.19.0",
     "@vercel/analytics": "^1.5.0",
     "react": "^19.2.0"

@@ -1,0 +1,48 @@
+<!-- DREDGE Web UI Credits Footer Preview -->
+
+When you visit http://127.0.0.1:8000, the bottom of the Interactive DREDGE Studio will display:
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                    DREDGE Interactive Studio                         │
+│                    (Main application content)                        │
+├─────────────────────────────────────────────────────────────────────┤
+│ ✓ Ready                                           12:34:56 PM        │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  DREDGE  •  Created by QueenFi703  •  Maintained by Dredge Agent   │
+│         •  Security: QueenFi703 & Dredge Agent  •  🔗 GitHub        │
+│                                                                       │
+└─────────────────────────────────────────────────────────────────────┘
+
+STYLING DETAILS:
+================
+
+Title: "DREDGE" (cyan/secondary color, bold, uppercase)
+Author: "Created by QueenFi703" (gray text with cyan name)
+Maintainer: "Maintained by Dredge Agent" (gray text with cyan agent name)
+Security: "Security: QueenFi703 & Dredge Agent" (gray text with cyan names)
+Link: GitHub icon + "GitHub" link (cyan, clickable, opens QueenFi703/DREDGE-Cli)
+
+Separator: "•" (subtle border color)
+Layout: Centered flexbox layout that wraps on smaller screens
+Colors:
+  - Label: var(--secondary) = #00d9ff (cyan)
+  - Text: var(--text) = #e0e0e0 (light gray)
+  - Background: var(--darker) = #0f0f0f (very dark)
+  - Border: 1px solid var(--border) = #333
+
+Font: 11px monospace, aligned with DREDGE's technical aesthetic
+
+INTERACTION:
+============
+- GitHub link is hoverable and clickable
+- On hover: cyan changes to primary blue (#0066cc)
+- Link opens in new tab to: https://github.com/QueenFi703/DREDGE-Cli
+
+RESPONSIVE BEHAVIOR:
+====================
+- Uses flexbox with flex-wrap: wrap
+- Maintains proper spacing on small screens
+- Footer height: minimum 30px (auto-expands if needed)
+- Padding: 8px 20px
+- Font size: 11px (readable on mobile)

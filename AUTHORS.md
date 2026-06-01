@@ -7,10 +7,20 @@
 - Python and Swift implementations
 - Research, benchmarks, and documentation
 
+## Security & Maintenance
+**Dredge Agent**
+- GitHub App Inspector package development and maintenance
+- Dependency security updates and vulnerability fixes
+- URL parsing deprecation fixes (WHATWG URL API migration)
+- Package.json security configurations
+
 ## Contributors
-(This section will be updated as contributions are received)
+**QueenFi703**
+- Security fixes and dependency updates
 
 ## Acknowledgments
 - Inspired by SIREN (Sitzmann et al., 2020) and Random Fourier Features (Rahimi & Recht, 2007)
-- Built with PyTorch, Flask, and Swift
+- Built with PyTorch, Flask, Swift, and Octokit
 - Community feedback and support
+- Maintained with security-first practices
+
