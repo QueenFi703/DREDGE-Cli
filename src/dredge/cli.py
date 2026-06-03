@@ -204,6 +204,15 @@ def main(argv=None):
         default="dredge.manifest.yaml",
         help="Path to orchestration manifest (default: dredge.manifest.yaml)",
     )
+    interactive_parser = subparsers.add_parser(
+        "interactive",
+        help="Start the Interactive DREDGE API and web UI",
+        formatter_class=formatter,
+    )
+    interactive_parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")
+    interactive_parser.add_argument("--port", type=int, default=8000, help="Port to listen on")
+    interactive_parser.add_argument("--reload", action="store_true", help="Enable auto-reload")
+    interactive_parser.add_argument("--config", help="Path to config file")
 
     args = parser.parse_args(argv)
     
@@ -371,6 +380,13 @@ def main(argv=None):
             print(f"Error: {e}", file=sys.stderr)
             return 1
         print("DREDGE sync complete.")
+        return 0
+
+    if args.command == "interactive":
+        from .interactive_api import InteractiveDREDGEApp
+
+        app = InteractiveDREDGEApp(config_path=args.config)
+        app.run(host=args.host, port=args.port, reload=args.reload)
         return 0
 
     parser.print_help()

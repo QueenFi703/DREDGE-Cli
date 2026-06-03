@@ -79,6 +79,7 @@ RUN python3 -m pip install --upgrade pip && \
     python3 -m pip install torch --index-url https://download.pytorch.org/whl/cpu && \
     grep -vE '^[[:space:]]*torch([<>=!~ ].*)?$' requirements.txt > /tmp/requirements-no-torch.txt && \
     python3 -m pip install -r /tmp/requirements-no-torch.txt && \
+    python3 -m pip install -r requirements-interactive.txt && \
     python3 -m pip install -e . && \
     python3 -m pip install pytest black ruff pytest-cov mypy
 

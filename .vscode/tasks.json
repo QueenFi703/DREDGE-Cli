@@ -48,6 +48,41 @@
             "type": "shell",
             "command": "swift run dredge-cli",
             "problemMatcher": []
+        },
+        {
+            "label": "Resolve Swift Dependencies",
+            "type": "shell",
+            "command": "cmd.exe",
+            "args": [
+                "/c",
+                "swift package resolve && cd swift && swift package resolve"
+            ],
+            "problemMatcher": [],
+            "group": "build"
+        },
+        {
+            "label": "Build DREDGE Swift Dependency",
+            "type": "shell",
+            "command": "swift build",
+            "options": {
+                "cwd": "${workspaceFolder}/swift/DREDGE"
+            },
+            "problemMatcher": [],
+            "group": "build"
+        },
+        {
+            "label": "Build Docker Dev Image",
+            "type": "shell",
+            "command": "docker build --target dev -t dredge:dev .",
+            "problemMatcher": [],
+            "group": "build"
+        },
+        {
+            "label": "Build Docker CPU Image",
+            "type": "shell",
+            "command": "docker build --target cpu-build -t dredge:cpu .",
+            "problemMatcher": [],
+            "group": "build"
         }
     ]
 }

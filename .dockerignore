@@ -71,7 +71,8 @@ coverage.xml
 .pre-commit-config.yaml
 Makefile
 *.xcworkspace/
-Package.swift
+!Package.swift
+!swift/Package.swift
 
 # Archives
 archives/

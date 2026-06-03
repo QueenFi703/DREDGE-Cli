@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  # FastAPI Backend Server
+  dredge-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    container_name: dredge-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/workspace
+      - /workspace/.vs  # Exclude .vs folder
+      - /workspace/__pycache__
+      - /workspace/swift/.build
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DREDGE_ENV=development
+    command: python -m dredge.interactive_api --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - dredge-db
+    networks:
+      - dredge-network
+
+  # Optional: Database for storing sessions/logs
+  dredge-db:
+    image: postgres:15-alpine
+    container_name: dredge-db
+    environment:
+      - POSTGRES_DB=dredge
+      - POSTGRES_USER=dredge
+      - POSTGRES_PASSWORD=dredge_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - dredge-db-data:/var/lib/postgresql/data
+    networks:
+      - dredge-network
+
+  # Optional: Redis for caching/sessions
+  dredge-redis:
+    image: redis:7-alpine
+    container_name: dredge-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - dredge-network
+
+networks:
+  dredge-network:
+    driver: bridge
+
+volumes:
+  dredge-db-data:
