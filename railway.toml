@@ -3,4 +3,26 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile.railway"
 
 [deploy]
-startCommand = "dredge-cli serve --host 0.0.0.0 --port ${PORT:-3001}"
+# Start DREDGE server with Gordon integration
+startCommand = "python -m dredge.server --host 0.0.0.0 --port ${PORT:-3001}"
+
+# Environment variables
+[env]
+FLASK_ENV = "production"
+PYTHONUNBUFFERED = "1"
+PYTHONDONTWRITEBYTECODE = "1"
+
+# Health check
+[healthCheck]
+path = "/health"
+interval = 30
+timeout = 5
+startPeriod = 20
+successThreshold = 1
+failureThreshold = 3
+
+# Metadata
+[metadata]
+name = "DREDGE Studio"
+description = "Advanced Security Intelligence & AI Platform with Gordon Integration"
+version = "2.0.0"

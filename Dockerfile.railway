@@ -1,38 +1,66 @@
-# Railway-optimized build — CPU-only Flask server
-FROM python:3.14-slim
+# Railway-optimized build — DREDGE Studio with Gordon Integration
+FROM python:3.10-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PORT=3001
 
 WORKDIR /app
 
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     git \
+    ffmpeg \
+    libsndfile1 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt pyproject.toml ./
+# Copy dependency files
+COPY requirements.txt pyproject.toml setup.py ./
 
+# Install Python dependencies
 RUN pip install --no-cache-dir \
     flask>=3.0.0 \
-    numpy>=1.24.0 \
-    matplotlib>=3.5.0 \
     requests>=2.32.5 \
+    numpy>=1.24.0 \
+    torch>=2.0.0 \
+    openai-whisper>=20240115 \
     aiohttp>=3.13.5 \
     authlib>=1.6.12 \
-    flask-login>=0.6.3
+    flask-login>=0.6.3 \
+    gunicorn>=21.0.0
 
+# Copy source code
 COPY src/ ./src/
+COPY static/ ./static/ 2>/dev/null || true
 COPY README.md LICENSE ./
 
+# Install DREDGE package
 RUN pip install -e . \
-    && rm -rf /tmp/*
+    && rm -rf /tmp/* ~/.cache/pip
 
-EXPOSE 3001
+# Copy Gordon integration
+COPY gordon_dredge_integration.py ./
 
-# Railway runs the Flask HTTP service directly.
-CMD ["dredge-cli", "serve", "--host", "0.0.0.0", "--port", "3001"]
+# Create non-root user
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD python -c "import requests; requests.get('http://localhost:${PORT:-3001}/health', timeout=3)" || exit 1
+
+EXPOSE ${PORT}
+
+# Start DREDGE server with Gordon integration
+CMD ["python", "-m", "gunicorn", \
+     "--bind", "0.0.0.0:${PORT:-3001}", \
+     "--workers", "4", \
+     "--timeout", "60", \
+     "--access-logfile", "-", \
+     "--error-logfile", "-", \
+     "dredge.server:app"]
