@@ -1,15 +1,58 @@
 {
   "version": 2,
+  "name": "dredge-studio",
+  "env": {
+    "FLASK_ENV": "production",
+    "PYTHONUNBUFFERED": "1",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
   "builds": [
     {
       "src": "api/index.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python@3.1.0",
+      "config": {
+        "maxLambdaSize": "500mb",
+        "runtime": "python3.11"
+      }
+    },
+    {
+      "src": "src/dredge/server.py",
+      "use": "@vercel/python@3.1.0",
+      "config": {
+        "maxLambdaSize": "500mb",
+        "runtime": "python3.11"
+      }
     }
   ],
   "routes": [
     {
+      "src": "/api/(.*)",
+      "dest": "api/index.py"
+    },
+    {
+      "src": "/advanced",
+      "dest": "src/dredge/server.py"
+    },
+    {
+      "src": "/health",
+      "dest": "src/dredge/server.py"
+    },
+    {
       "src": "/(.*)",
       "dest": "api/index.py"
     }
-  ]
+  ],
+  "functions": {
+    "api/index.py": {
+      "memory": 1024,
+      "maxDuration": 300,
+      "runtime": "python3.11"
+    },
+    "src/dredge/server.py": {
+      "memory": 1024,
+      "maxDuration": 300,
+      "runtime": "python3.11"
+    }
+  },
+  "regions": ["us-east-1"]
 }
