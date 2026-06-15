@@ -58,6 +58,18 @@ def create_app():
         )
     app.secret_key = secret_key
 
+    # -- Flask-Login configuration
+    from flask_login import LoginManager
+    login_manager = LoginManager()
+    login_manager.login_view = "auth.login"
+    login_manager.login_message = "Please sign in to access this page."
+    login_manager.init_app(app)
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        from .auth import _users
+        return _users.get(user_id)
+
     # -- OAuth / login
     from .auth import init_auth
     init_auth(app)
@@ -72,9 +84,13 @@ def create_app():
     # -- Application routes
 
     @app.route('/')
-    @login_required
     def index():
         """Root endpoint with API information."""
+        from flask_login import current_user
+        
+        if not current_user.is_authenticated:
+            return redirect(url_for('auth.login'))
+        
         return jsonify({
             "name": "DREDGE x Dolly",
             "version": __version__,
