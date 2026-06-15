@@ -10,13 +10,14 @@ readme_path = Path(__file__).parent / "README.md"
 long_description = ""
 if readme_path.exists():
     long_description = readme_path.read_text(encoding="utf-8")
+else:
+    long_description = "DREDGE Studio - Advanced Security Intelligence Platform"
 
 # Read requirements
 requirements = [
     "flask>=2.0.0",
     "requests>=2.25.0",
     "numpy>=1.19.0",
-    "torch>=2.0.0",
 ]
 
 # Development requirements
@@ -56,15 +57,7 @@ setup(
     install_requires=requirements,
     extras_require={
         "dev": dev_requirements,
-        "gpu": ["torch-cuda>=2.0.0"],
         "all": dev_requirements,
-    },
-    entry_points={
-        "console_scripts": [
-            "dredge=dredge.cli:main",
-            "dredge-server=dredge.server:run",
-            "dredge-advanced=dredge.server:run_advanced",
-        ],
     },
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -94,9 +87,6 @@ setup(
         "ai",
         "intelligence",
         "models",
-        "quasimoto",
-        "string-theory",
-        "mcp",
     ],
     zip_safe=False,
 )
