@@ -6,12 +6,17 @@ on:
       - main
       - develop
     tags:
-      - 'v*'
+      - "v*"
+
   pull_request:
     branches:
       - main
       - develop
+
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 env:
   REGISTRY: ghcr.io
@@ -20,6 +25,7 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+
     permissions:
       contents: read
       packages: write
@@ -27,185 +33,297 @@ jobs:
       security-events: write
 
     strategy:
+      fail-fast: false
+
       matrix:
-        target: [cpu-build, gpu-build, dev]
         include:
           - target: cpu-build
             suffix: cpu
             platforms: linux/amd64,linux/arm64
+
           - target: gpu-build
             suffix: gpu
             platforms: linux/amd64
+
           - target: dev
             suffix: dev
             platforms: linux/amd64,linux/arm64
 
     steps:
-      # Phase 1: Repository Setup (Cadence: Initial)
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      ####################################################################
+      # Phase 1 — Checkout
+      ####################################################################
 
-      # Phase 2: Environment Preparation (Cadence: Pre-build)
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      ####################################################################
+      # Phase 2 — Build Environment
+      ####################################################################
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Free up disk space (Pre-build cleanup)
+      - name: Free disk space
         run: |
-          echo "=== Phase 2: Pre-build Disk Cleanup ==="
-          echo "Disk space before cleanup:"
-          df -h | grep -E '(Filesystem|/dev/root)'
-          echo ""
-          echo "Removing unused toolchains (sorted by size impact):"
-          # Sorted by typical size: largest first for maximum space recovery
-          echo "  1. Removing Android SDK (~8GB)..."
-          sudo rm -rf /usr/local/lib/android
-          echo "  2. Removing CodeQL (~6GB)..."
-          sudo rm -rf /opt/hostedtoolcache/CodeQL
-          echo "  3. Removing .NET SDK (~2GB)..."
-          sudo rm -rf /usr/share/dotnet
-          echo "  4. Removing GHC/Haskell (~1.5GB)..."
-          sudo rm -rf /opt/ghc
-          echo "  5. Pruning Docker system..."
-          sudo docker system prune -af --volumes
-          echo ""
-          echo "Disk space after cleanup:"
-          df -h | grep -E '(Filesystem|/dev/root)'
-          echo "=== Pre-build cleanup complete ==="
+          echo "=== Disk cleanup start ==="
 
-      # Phase 3: Registry Authentication (Cadence: Pre-build)
-      - name: Log in to Container Registry
+          df -h
+
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /opt/ghc || true
+
+          docker system prune -af --volumes || true
+
+          echo "=== Disk cleanup complete ==="
+
+          df -h
+
+      ####################################################################
+      # Phase 3 — Registry Login
+      ####################################################################
+
+      - name: Log in to GHCR
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v4
+        uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
+      ####################################################################
+      # Phase 4 — Docker Metadata
+      ####################################################################
+
+      - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@v6
+        uses: docker/metadata-action@v5
+
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
           tags: |
             type=ref,event=branch,suffix=-${{ matrix.suffix }}
-            type=ref,event=pr,suffix=-${{ matrix.suffix }}
             type=ref,event=tag,suffix=-${{ matrix.suffix }}
-            type=semver,pattern={{version}},suffix=-${{ matrix.suffix }}
-            type=semver,pattern={{major}}.{{minor}},suffix=-${{ matrix.suffix }}
-            type=semver,pattern={{major}},suffix=-${{ matrix.suffix }}
-            type=raw,value=latest,suffix=-${{ matrix.suffix }},enable={{is_default_branch}}
-          flavor: |
-            latest=false
+            type=sha,suffix=-${{ matrix.suffix }}
 
-      # Phase 4: Build and Push (Cadence: Main)
+          labels: |
+            org.opencontainers.image.source=${{ github.repositoryUrl }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      ####################################################################
+      # Phase 5 — Build + Push
+      ####################################################################
+
       - name: Build and push Docker image
         id: build
-        uses: docker/build-push-action@v7
+
+        uses: docker/build-push-action@v6
+
         with:
           context: .
-          platforms: ${{ matrix.platforms }}
+
           target: ${{ matrix.target }}
+
+          platforms: ${{ matrix.platforms }}
+
           push: ${{ github.event_name != 'pull_request' }}
+
           tags: ${{ steps.meta.outputs.tags }}
+
           labels: ${{ steps.meta.outputs.labels }}
+
           cache-from: type=gha,scope=${{ matrix.target }}
-          cache-to: type=gha,mode=min,scope=${{ matrix.target }}
+
+          cache-to: type=gha,mode=max,scope=${{ matrix.target }}
+
+          provenance: false
+
           build-args: |
             BUILDKIT_INLINE_CACHE=1
 
-      # Phase 5: Attestation and Security (Cadence: Post-build)
+      ####################################################################
+      # Phase 6 — Attestation
+      ####################################################################
+
       - name: Generate artifact attestation
         if: github.event_name != 'pull_request' && steps.build.outputs.digest != ''
-        uses: actions/attest-build-provenance@v4
+
+        uses: actions/attest-build-provenance@v2
+
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
-        continue-on-error: true
+
+      ####################################################################
+      # Phase 7 — Trivy Security Scan
+      ####################################################################
 
       - name: Run Trivy vulnerability scanner
         if: github.event_name != 'pull_request'
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-${{ matrix.suffix }}
-          format: 'sarif'
-          output: 'trivy-results.sarif'
+
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "${PWD}:/workspace" \
+            aquasec/trivy:0.65.0 image \
+            --format sarif \
+            --output /workspace/trivy-results.sarif \
+            "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}-${{ matrix.suffix }}"
+
         continue-on-error: true
 
-      - name: Upload Trivy results to GitHub Security tab
+      - name: Upload SARIF results
         if: github.event_name != 'pull_request'
-        uses: github/codeql-action/upload-sarif@v4
+
+        uses: github/codeql-action/upload-sarif@v3
+
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: trivy-results.sarif
+
         continue-on-error: true
 
-      # Phase 6: Post-build Cleanup (Cadence: Terminal)
+      ####################################################################
+      # Phase 8 — Grafana Reporting
+      ####################################################################
+
+      - name: Report build to Grafana Cloud
+        if: always()
+
+        uses: ./.github/actions/grafana-build-report
+
+        with:
+          status: ${{ job.status }}
+          logs_url: ${{ secrets.GCLOUD_HOSTED_LOGS_URL }}
+          logs_id: ${{ secrets.GCLOUD_HOSTED_LOGS_ID }}
+          api_key: ${{ secrets.GCLOUD_RW_API_KEY }}
+          grafana_url: ${{ secrets.GCLOUD_GRAFANA_URL }}
+          extra_labels: |
+            {
+              "docker_target":"${{ matrix.target }}",
+              "docker_suffix":"${{ matrix.suffix }}"
+            }
+
+      ####################################################################
+      # Phase 9 — Cleanup
+      ####################################################################
+
       - name: Cleanup build artifacts
         if: always()
+
         run: |
-          echo "=== Phase 6: Post-build cleanup ==="
-          # Prune old build cache to prevent accumulation across matrix jobs
-          docker builder prune -f --filter "until=1h" 2>/dev/null || true
-          # Show remaining disk space
-          echo "Remaining disk space:"
-          df -h | grep -E '(Filesystem|/dev/root)'
+          echo "=== Final cleanup ==="
+
+          docker builder prune -af || true
+
+          docker system prune -af --volumes || true
+
+          df -h
+
           echo "✅ Cleanup complete"
+
+  ##########################################################################
+  # IMAGE TESTING
+  ##########################################################################
 
   test-images:
     needs: build-and-push
+
     runs-on: ubuntu-latest
+
     if: github.event_name != 'pull_request'
+
     strategy:
+      fail-fast: false
+
       matrix:
-        target: [cpu-build, gpu-build]
         include:
           - target: cpu-build
             suffix: cpu
-            test_command: "curl -f http://localhost:3001/health || exit 1"
+            port_map: 3001:3001
+            health_url: http://localhost:3001/health
+
           - target: gpu-build
             suffix: gpu
-            test_command: "curl -f http://localhost:3002/ || exit 1"
-    
+            port_map: 3002:3002
+            health_url: http://localhost:3002/
+
     steps:
-      # Test-images job: Authentication and Testing (2-step flow)
-      - name: Log in to Container Registry
-        uses: docker/login-action@v4
+      ####################################################################
+      # Required for local composite actions
+      ####################################################################
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      ####################################################################
+      # Registry Login
+      ####################################################################
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 2: Pull and test with cadenced timing
+      ####################################################################
+      # Pull + Test
+      ####################################################################
+
       - name: Pull and test image
+
         run: |
-          echo "=== Pulling and testing ${{ matrix.suffix }} image ==="
-          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-${{ matrix.suffix }}
-          
-          # Start container with appropriate timing
-          docker run -d --name test-container -p ${{ matrix.target == 'cpu-build' && '3001:3001' || '3002:3002' }} \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}-${{ matrix.suffix }}
-          
-          # Cadenced wait based on target complexity
-          if [ "${{ matrix.target }}" = "gpu-build" ]; then
-            echo "GPU image: waiting 15s for CUDA initialization..."
-            sleep 15
-          else
-            echo "CPU image: waiting 10s for service startup..."
-            sleep 10
-          fi
-          
-          # Execute test
+          echo "=== Testing image: ${{ matrix.suffix }} ==="
+
+          docker pull \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}-${{ matrix.suffix }}
+
+          docker run -d \
+            --name test-container \
+            -p ${{ matrix.port_map }} \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}-${{ matrix.suffix }}
+
+          echo "Waiting for container startup..."
+
+          sleep 15
+
           echo "Running health check..."
-          ${{ matrix.test_command }}
-          
-          # Cleanup
+
+          curl -f ${{ matrix.health_url }}
+
+          echo "Stopping container..."
+
           docker stop test-container
+
           docker rm test-container
-          echo "✅ Image test passed"
-        continue-on-error: true
-        env:
-          REGISTRY: ghcr.io
-          IMAGE_NAME: ${{ github.repository }}
+
+          echo "✅ Test passed"
+
+      ####################################################################
+      # Grafana Reporting
+      ####################################################################
+
+      - name: Report build to Grafana Cloud
+        if: always()
+
+        uses: ./.github/actions/grafana-build-report
+
+        with:
+          status: ${{ job.status }}
+          logs_url: ${{ secrets.GCLOUD_HOSTED_LOGS_URL }}
+          logs_id: ${{ secrets.GCLOUD_HOSTED_LOGS_ID }}
+          api_key: ${{ secrets.GCLOUD_RW_API_KEY }}
+          grafana_url: ${{ secrets.GCLOUD_GRAFANA_URL }}
+          extra_labels: |
+            {
+              "docker_target":"${{ matrix.target }}",
+              "docker_suffix":"${{ matrix.suffix }}"
+            }

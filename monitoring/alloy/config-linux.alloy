@@ -1,0 +1,285 @@
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Grafana Alloy Configuration for DREDGE-Cli — Linux
+// Scrapes Alloy self-metrics, node_exporter metrics, systemd journal
+// logs, and syslog/varlog files; ships everything to Grafana Cloud.
+//
+// Required environment variables (set before starting alloy):
+//   GCLOUD_HOSTED_METRICS_URL  — Prometheus remote-write endpoint
+//   GCLOUD_HOSTED_METRICS_ID   — Grafana Cloud metrics instance ID
+//   GCLOUD_HOSTED_LOGS_URL     — Loki push endpoint
+//   GCLOUD_HOSTED_LOGS_ID      — Grafana Cloud logs instance ID
+//   GCLOUD_RW_API_KEY          — Grafana Cloud read/write API key
+//   GCLOUD_SCRAPE_INTERVAL     — Scrape interval (e.g. "60s")
+//
+// See scripts/install-alloy-linux.sh for automated setup.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// ──────────────────────────────────────────────────────────────────────
+// Alloy self-monitoring
+// ──────────────────────────────────────────────────────────────────────
+
+prometheus.exporter.self "alloy_check" { }
+
+discovery.relabel "alloy_check" {
+  targets = prometheus.exporter.self.alloy_check.targets
+
+  rule {
+    target_label = "instance"
+    replacement  = constants.hostname
+  }
+
+  rule {
+    target_label = "alloy_hostname"
+    replacement  = constants.hostname
+  }
+
+  rule {
+    target_label = "job"
+    replacement  = "integrations/alloy-check"
+  }
+}
+
+prometheus.scrape "alloy_check" {
+  targets         = discovery.relabel.alloy_check.output
+  forward_to      = [prometheus.relabel.alloy_check.receiver]
+  scrape_interval = env("GCLOUD_SCRAPE_INTERVAL")
+}
+
+prometheus.relabel "alloy_check" {
+  forward_to = [prometheus.remote_write.metrics_service.receiver]
+
+  rule {
+    source_labels = ["__name__"]
+    regex         = "(prometheus_target_sync_length_seconds_sum|prometheus_target_scrapes_.*|prometheus_target_interval.*|prometheus_sd_discovered_targets|alloy_build.*|prometheus_remote_write_wal_samples_appended_total|process_start_time_seconds)"
+    action        = "keep"
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Prometheus remote write → Grafana Cloud
+// ──────────────────────────────────────────────────────────────────────
+
+prometheus.remote_write "metrics_service" {
+  endpoint {
+    url = env("GCLOUD_HOSTED_METRICS_URL")
+
+    basic_auth {
+      username = env("GCLOUD_HOSTED_METRICS_ID")
+      password = env("GCLOUD_RW_API_KEY")
+    }
+  }
+
+  external_labels = {
+    cluster     = "dredge-cli",
+    environment = "linux",
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Loki remote write → Grafana Cloud
+// ──────────────────────────────────────────────────────────────────────
+
+loki.write "grafana_cloud_loki" {
+  endpoint {
+    url = env("GCLOUD_HOSTED_LOGS_URL")
+
+    basic_auth {
+      username = env("GCLOUD_HOSTED_LOGS_ID")
+      password = env("GCLOUD_RW_API_KEY")
+    }
+  }
+
+  external_labels = {
+    cluster     = "dredge-cli",
+    environment = "linux",
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Node exporter — system metrics
+// ──────────────────────────────────────────────────────────────────────
+
+discovery.relabel "integrations_node_exporter" {
+  targets = prometheus.exporter.unix.integrations_node_exporter.targets
+
+  rule {
+    target_label = "instance"
+    replacement  = constants.hostname
+  }
+
+  rule {
+    target_label = "job"
+    replacement  = "integrations/node_exporter"
+  }
+}
+
+prometheus.exporter.unix "integrations_node_exporter" {
+  disable_collectors = ["ipvs", "btrfs", "infiniband", "xfs", "zfs"]
+
+  filesystem {
+    fs_types_exclude     = "^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|tmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs)$"
+    mount_points_exclude = "^/(dev|proc|run/credentials/.+|sys|var/lib/docker/.+)($|/)"
+    mount_timeout        = "5s"
+  }
+
+  netclass {
+    ignored_devices = "^(veth.*|cali.*|[a-f0-9]{15})$"
+  }
+
+  netdev {
+    device_exclude = "^(veth.*|cali.*|[a-f0-9]{15})$"
+  }
+}
+
+prometheus.scrape "integrations_node_exporter" {
+  targets         = discovery.relabel.integrations_node_exporter.output
+  forward_to      = [prometheus.relabel.integrations_node_exporter.receiver]
+  scrape_interval = env("GCLOUD_SCRAPE_INTERVAL")
+}
+
+prometheus.relabel "integrations_node_exporter" {
+  forward_to = [prometheus.remote_write.metrics_service.receiver]
+
+  rule {
+    source_labels = ["__name__"]
+    regex         = "node_scrape_collector_.+"
+    action        = "drop"
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Node exporter — systemd journal logs
+// ──────────────────────────────────────────────────────────────────────
+
+discovery.relabel "logs_integrations_integrations_node_exporter_journal_scrape" {
+  targets = []
+
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+
+  rule {
+    source_labels = ["__journal__boot_id"]
+    target_label  = "boot_id"
+  }
+
+  rule {
+    source_labels = ["__journal__transport"]
+    target_label  = "transport"
+  }
+
+  rule {
+    source_labels = ["__journal_priority_keyword"]
+    target_label  = "level"
+  }
+}
+
+loki.source.journal "logs_integrations_integrations_node_exporter_journal_scrape" {
+  max_age       = "24h0m0s"
+  relabel_rules = discovery.relabel.logs_integrations_integrations_node_exporter_journal_scrape.rules
+  forward_to    = [loki.write.grafana_cloud_loki.receiver]
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Node exporter — /var/log file scraping
+// ──────────────────────────────────────────────────────────────────────
+
+local.file_match "logs_integrations_integrations_node_exporter_direct_scrape" {
+  path_targets = [{
+    __address__ = "localhost",
+    __path__    = "/var/log/{syslog,messages,*.log}",
+    instance    = constants.hostname,
+    job         = "integrations/node_exporter",
+  }]
+}
+
+loki.source.file "logs_integrations_integrations_node_exporter_direct_scrape" {
+  targets    = local.file_match.logs_integrations_integrations_node_exporter_direct_scrape.targets
+  forward_to = [loki.write.grafana_cloud_loki.receiver]
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// DREDGE-Cli application log scraping
+// ──────────────────────────────────────────────────────────────────────
+
+local.file_match "dredge_logs" {
+  path_targets = [
+    { "__path__" = "/var/log/dredge-cli/*.log", "service" = "dredge-cli", "job" = "dredge/app" },
+    { "__path__" = "/var/log/dredge-server/*.log", "service" = "dredge-api", "job" = "dredge/app" },
+    { "__path__" = "/var/log/quasimoto-mcp/*.log", "service" = "mcp-server", "job" = "dredge/app" },
+  ]
+  sync_period = "5s"
+}
+
+loki.source.file "dredge_log_files" {
+  targets    = local.file_match.dredge_logs.targets
+  forward_to = [loki.write.grafana_cloud_loki.receiver]
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Network probes — HTTP/TCP health checks (ESTEEMED NETWORKING)
+// Probes DREDGE services and the Grafana Cloud endpoints themselves
+// so you can alert on network-path failures, not just app failures.
+// ──────────────────────────────────────────────────────────────────────
+
+prometheus.exporter.blackbox "dredge_network_probes" {
+  config = `
+    modules:
+      http_2xx:
+        prober: http
+        timeout: 5s
+        http:
+          valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+          valid_status_codes: []
+          method: GET
+          follow_redirects: true
+          preferred_ip_protocol: ip4
+
+      http_post_2xx:
+        prober: http
+        timeout: 5s
+        http:
+          valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+          method: POST
+          preferred_ip_protocol: ip4
+
+      tcp_connect:
+        prober: tcp
+        timeout: 5s
+  `
+
+  targets = [
+    {
+      name    = "dredge-server-health",
+      address = "http://localhost:3000/health",
+      module  = "http_2xx",
+      service = "dredge-api",
+    },
+    {
+      name    = "quasimoto-mcp-root",
+      address = "http://localhost:3002/",
+      module  = "http_2xx",
+      service = "mcp-server",
+    },
+    {
+      name    = "prometheus-local",
+      address = "http://localhost:9090/-/healthy",
+      module  = "http_2xx",
+      service = "prometheus",
+    },
+    {
+      name    = "alloy-ui",
+      address = "http://localhost:12345/-/ready",
+      module  = "http_2xx",
+      service = "alloy",
+    },
+  ]
+}
+
+prometheus.scrape "dredge_network_probes" {
+  targets         = prometheus.exporter.blackbox.dredge_network_probes.targets
+  forward_to      = [prometheus.remote_write.metrics_service.receiver]
+  scrape_interval = env("GCLOUD_SCRAPE_INTERVAL")
+  job_name        = "dredge/network-probes"
+}

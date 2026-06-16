@@ -78,8 +78,8 @@ def main(argv=None):
     server_parser.add_argument(
         "--port", 
         type=int, 
-        default=3001, 
-        help="Port to listen on (default: 3001)"
+        default=3000, 
+        help="Port to listen on (default: 3000)"
     )
     server_parser.add_argument(
         "--debug", 
@@ -157,6 +157,18 @@ def main(argv=None):
         "path", help="Show configuration file path", formatter_class=formatter
     )
 
+
+    # Print command
+    print_parser = subparsers.add_parser(
+        "print", help="Print project playbooks and ready-to-share content", formatter_class=formatter
+    )
+    print_parser.add_argument(
+        "topic",
+        nargs="?",
+        default="sell",
+        choices=["sell"],
+        help="What to print (default: sell)",
+    )
     # GitHub event command
     github_event_parser = subparsers.add_parser(
         "github-event",
@@ -183,6 +195,14 @@ def main(argv=None):
         "--json",
         action="store_true",
         help="Output processing summary as JSON",
+    )
+    sync_parser = subparsers.add_parser(
+        "sync", help="Compile orchestration manifest into generated surfaces", formatter_class=formatter
+    )
+    sync_parser.add_argument(
+        "--manifest",
+        default="dredge.manifest.yaml",
+        help="Path to orchestration manifest (default: dredge.manifest.yaml)",
     )
 
     args = parser.parse_args(argv)
@@ -250,9 +270,18 @@ def main(argv=None):
             config_parser.print_help()
             return 0
     
+    if args.command == "print":
+        if args.topic == "sell":
+            print("DREDGE: Make It Sell Itself")
+            print("- Positioning: reasoning gateway between intent and execution")
+            print("- GTM loop: paid endpoint, keys/tiers, metering, billing, SDK snippets")
+            print("- KPI: TTFV < 5 minutes")
+            print("- Full guide: docs/SELL_ITSELF_PLAYBOOK.md")
+            return 0
+
     if args.command == "serve":
         # Load config and merge with CLI args
-        host, port, debug, _ = _merge_server_args(args, "server", "0.0.0.0", 3001)
+        host, port, debug, _ = _merge_server_args(args, "server", "0.0.0.0", 3000)
         
         try:
             validate_server_config(host, port, debug)
@@ -331,6 +360,17 @@ def main(argv=None):
             print(f"Errors:    {summary['errors']}")
             print(f"Elapsed:   {summary['elapsed_seconds']:.3f}s")
             print(f"Throughput:{summary['throughput_per_sec']:.1f} events/sec")
+        return 0
+
+    if args.command == "sync":
+        from pathlib import Path
+        from .sync import sync
+        try:
+            sync(manifest_path=Path(args.manifest))
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 1
+        print("DREDGE sync complete.")
         return 0
 
     parser.print_help()

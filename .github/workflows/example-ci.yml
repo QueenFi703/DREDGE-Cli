@@ -1,0 +1,31 @@
+name: Example CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Start Alloy (OTLP collector)
+        uses: ./.github/actions/alloy
+        env:
+          GRAFANA_CLOUD_OTLP_ENDPOINT: ${{ secrets.GRAFANA_CLOUD_OTLP_ENDPOINT }}
+          GRAFANA_CLOUD_AUTH: ${{ secrets.GRAFANA_CLOUD_AUTH }}
+
+      - name: Run tests
+        env:
+          OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4318
+          OTEL_SERVICE_NAME: dredge-ci
+        run: |
+          set -euo pipefail
+          echo "Running tests..."

@@ -16,6 +16,9 @@ DREDGE — small Python package scaffold with String Theory integration.
 - **[docs/CONTAINER_QUICKSTART.md](docs/CONTAINER_QUICKSTART.md)** - Quick start for container deployment
 - **[docs/GITHUB_ACTIONS_CONTAINERS.md](docs/GITHUB_ACTIONS_CONTAINERS.md)** - GitHub Actions workflows for containers
 - **[docs/GH_ACTIONS_CLI.md](docs/GH_ACTIONS_CLI.md)** - GitHub CLI helper: verify run status and logs with `gh`
+- **[docs/github-app.md](docs/github-app.md)** - GitHub App (Actions Inspector): setup, environment variables, and API reference
+- **[docs/dredge-agent-integration.md](docs/dredge-agent-integration.md)** - Dredge as an agent tool: OpenAPI spec, skill wiring, webhook ingestion, and advanced roadmap, including the DREDGE Agent Descriptor (DAD) pattern for mobile/edge orchestration
+- **[docs/ORCHESTRATION_CONTRACT.md](docs/ORCHESTRATION_CONTRACT.md)** - Contract-first architecture and orchestration rules
 
 ## 🚀 Quick Start
 
@@ -81,6 +84,41 @@ See the detailed [VS Code Setup Guide](docs/VSCODE_SETUP.md) for complete instru
 git clone https://github.com/QueenFi703/DREDGE-Cli.git
 code DREDGE-Cli
 ```
+
+
+## 💰 Make It Sell Itself (Self-Serve API Motion)
+
+If you want DREDGE to convert from "cool demo" to paid infrastructure, run this exact GTM loop:
+
+1. **Ship one paid endpoint** (`POST /invoke`) that returns obvious value in <2 seconds.
+2. **Gate by API key + usage tier** (free, pro, team) with hard monthly quotas.
+3. **Meter every request** (request ID, latency, mode, customer) into Postgres.
+4. **Expose billing + usage in-product** so customers can self-upgrade.
+5. **Publish copy-paste SDK snippets** (curl, Python, TypeScript) so adoption is one command away.
+
+### Product Positioning (Homepage copy)
+
+> **DREDGE is the reasoning gateway between user intent and model execution.**
+> Add one API call to route, transform, and deepen AI outputs with policy controls and usage metering built in.
+
+### Commercial Starter Offer
+
+- **Free**: 250 requests/month, standard mode
+- **Pro ($29/mo)**: 10,000 requests/month, deep + transform modes
+- **Team ($99/mo)**: 50,000 requests/month, priority latency + shared keys
+- **Enterprise**: custom limits, private deployment, SLA
+
+### Activation Funnel (Week 1)
+
+- Day 1: launch docs page with a single "Try now" curl command.
+- Day 2: publish 3 concrete use-cases (contract risk, support triage, workflow routing).
+- Day 3: add Stripe checkout + instant key provisioning.
+- Day 4+: email usage milestones ("You saved X minutes" / "You hit 80% quota").
+
+### North-Star KPI
+
+Track **Time-to-First-Value (TTFV)**: time from signup to first successful `/invoke` response.
+If TTFV is under 5 minutes, your API starts selling itself.
 
 ## Repository Structure
 

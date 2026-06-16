@@ -108,6 +108,7 @@ Response:
 - <a>INSTALLATION.md</a> - Detailed installation guide
 - <a>API_REFERENCE.md</a> - Complete API documentation
 - <a>FULL_DOCUMENTATION.md</a> - Architecture details
+- <a>SELL_ITSELF_PLAYBOOK.md</a> - Self-serve monetization and launch playbook
 
 ### Benchmarks
 - <a>BENCHMARK_USAGE.md</a> - Benchmark guide
