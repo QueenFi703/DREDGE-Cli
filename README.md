@@ -4,7 +4,52 @@
 [![Docker Image CI/CD](https://github.com/QueenFi703/DREDGE-Cli/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/QueenFi703/DREDGE-Cli/actions/workflows/docker-publish.yml)
 [![Python CI](https://github.com/QueenFi703/DREDGE-Cli/actions/workflows/ci-python.yml/badge.svg)](https://github.com/QueenFi703/DREDGE-Cli/actions/workflows/ci-python.yml)
 
-DREDGE — small Python package scaffold with String Theory integration.
+DREDGE is **autonomous developer infrastructure**: it turns your repository into a self-operating engineering system with observable workflows, agent-ready APIs, and production deployment paths.
+
+## ⚡ 5-Minute First-Contact Path
+
+**Goal:** feel value in minutes — clarity, activation, power, momentum.
+
+### 1) Understand it in one sentence
+
+> DREDGE helps you stand up autonomous developer infrastructure so your repo can analyze, route, and execute engineering workflows with less manual glue.
+
+### 2) Make something happen immediately
+
+```bash
+pip install dredge-cli
+
+dredge-cli serve
+```
+
+You should get a running local control plane at `http://localhost:3001`.
+
+### 3) Watch the system work
+
+In a second terminal, trigger your first action:
+
+```bash
+curl -X POST http://localhost:3001/lift \
+  -H "Content-Type: application/json" \
+  -d '{"insight_text": "Find and elevate the most actionable engineering signal in this note."}'
+```
+
+### 4) Get a concrete win
+
+Confirm the service is healthy and responsive:
+
+```bash
+curl http://localhost:3001/health
+```
+
+If both commands succeed, you have a working DREDGE loop (input → processing → output) in under five minutes.
+
+### 5) Expand only after first value
+
+Now go deeper:
+- `python -m dredge mcp` for model-context protocol operations on port `3002`
+- `make docker-profile-full` for full container + monitoring stack
+- `docs/github-app.md` for GitHub Actions run inspection and orchestration workflows
 
 ## 📖 Documentation
 

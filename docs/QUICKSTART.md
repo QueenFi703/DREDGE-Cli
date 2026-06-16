@@ -1,172 +1,97 @@
 # DREDGE Quick Start
 
-Get running with DREDGE in 5 minutes.
+This guide is optimized for **first value in 5 minutes**.
 
-## Installation
+## What DREDGE Is (in one line)
+
+DREDGE is autonomous developer infrastructure: a lightweight runtime that accepts engineering intent and executes workflow intelligence through API-driven services.
+
+## 5-Minute Hero Path
+
+### 1) Install
+
 ```bash
 pip install dredge-cli
 ```
 
-## Start the Server
+### 2) Start DREDGE
+
 ```bash
 dredge-cli serve
 ```
 
-Server runs on `http://localhost:3001`
+You now have a live service at `http://localhost:3001`.
 
-## Lift Your First Insight
+### 3) Trigger a real action
 
-### Using curl
 ```bash
 curl -X POST http://localhost:3001/lift \
   -H "Content-Type: application/json" \
-  -d '{"insight_text": "Digital memory must be human-reachable."}'
+  -d '{"insight_text": "Summarize this into one high-leverage next action for engineering."}'
 ```
 
-### Response
-```json
-{
-  "id": "a3f8b2c1...",
-  "text": "Digital memory must be human-reachable.",
-  "lifted": true,
-  "message": "Insight processed"
-}
-```
+### 4) Verify successful outcome
 
-### Using Python
-```python
-import requests
-
-response = requests.post(
-    "http://localhost:3001/lift",
-    json={"insight_text": "Digital memory must be human-reachable."}
-)
-
-print(response.json())
-```
-
-## Start the MCP Server (Quasimoto Models)
-```bash
-dredge-cli mcp
-```
-
-MCP server runs on `http://localhost:3002`
-
-## Run Quasimoto Benchmarks
-
-### 1D Benchmark (Glitchy Chirp)
-```bash
-cd benchmarks
-python quasimoto_benchmark.py
-```
-
-This compares Quasimoto against SIREN and Random Fourier Features.
-
-### Extended Benchmark (4D/6D)
-```bash
-python quasimoto_extended_benchmark.py
-```
-
-### 6D Benchmark
-```bash
-python quasimoto_6d_benchmark.py
-```
-
-### Interference Basis
-```bash
-python quasimoto_interference_benchmark.py
-```
-
-## Run Tests
-
-### Python Tests
-```bash
-pytest tests/ -v
-```
-
-### Swift Tests
-```bash
-swift test
-```
-
-## Check Health
 ```bash
 curl http://localhost:3001/health
 ```
 
-Response:
+Expected shape:
+
 ```json
 {
   "status": "healthy",
-  "version": "0.1.4"
+  "version": "..."
 }
 ```
 
-## Next Steps
+If steps 2–4 worked, you completed the core DREDGE loop: **activate → execute → verify**.
 
-### Documentation
-- <a>INSTALLATION.md</a> - Detailed installation guide
-- <a>API_REFERENCE.md</a> - Complete API documentation
-- <a>FULL_DOCUMENTATION.md</a> - Architecture details
-- <a>SELL_ITSELF_PLAYBOOK.md</a> - Self-serve monetization and launch playbook
+## Expand After First Value
 
-### Benchmarks
-- <a>BENCHMARK_USAGE.md</a> - Benchmark guide
-- <a>EXTENDED_BENCHMARK_README.md</a> - Extended benchmarks
-- <a>QUASIMOTO_6D_README.md</a> - 6D architecture
+Only after the hero path should you branch into deeper systems.
 
-### Research
-- <a>benchmarks/quasimoto_paper.tex</a> - LaTeX paper
-- <a>EXPERIMENTATION_GUIDE.md</a> - Experimentation guide
-- <a>RESUME_CONTENT.md</a> - Portfolio content
+### Start MCP Operations (Port 3002)
+
+```bash
+dredge-cli mcp
+```
+
+### Run Test Suite
+
+```bash
+pytest tests/ -v
+```
+
+### Optional: Container Stack
+
+```bash
+docker-compose up
+```
+
+## Next Docs
+
+- `docs/INSTALLATION.md`
+- `docs/API_REFERENCE.md`
+- `docs/FULL_DOCUMENTATION.md`
+- `docs/github-app.md`
+- `docs/SELL_ITSELF_PLAYBOOK.md`
 
 ## Common Commands
 
 ```bash
-# Show version
+# Version
 dredge-cli --version
 
-# Show help
+# Help
 dredge-cli --help
 
-# Start server with custom port
+# Serve on custom port
 dredge-cli serve --port 3003
 
-# Start server with debug mode
+# Serve in debug
 dredge-cli serve --debug
 
-# Start MCP server
+# MCP server
 dredge-cli mcp --port 3002
-```
-
-## Docker Quick Start
-
-```bash
-# Build
-docker build -t dredge-cli .
-
-# Run server
-docker run -p 3001:3001 dredge-cli serve
-
-# Run with docker-compose
-docker-compose up
-```
-
-## Troubleshooting
-
-**Port already in use?**
-```bash
-dredge-cli serve --port 3003
-```
-
-**Command not found?**
-```bash
-pip install --user dredge-cli
-export PATH="$HOME/.local/bin:$PATH"
-```
-
-**Tests failing?**
-```bash
-pip install -r requirements.txt
-pytest tests/ -v
 ```
