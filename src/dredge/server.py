@@ -11,6 +11,15 @@ from pathlib import Path
 from flask import Flask, jsonify, request, send_file, redirect, url_for
 from flask_login import login_required, current_user
 
+# Load .env file if it exists
+try:
+    from dotenv import load_dotenv
+    env_path = Path(__file__).parent.parent.parent / ".env"
+    if env_path.exists():
+        load_dotenv(env_path)
+except ImportError:
+    pass
+
 from . import __version__
 from .config import load_config
 

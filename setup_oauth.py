@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-DREDGE OAuth Setup - Interactive Configuration
+DREDGE OAuth Setup - Interactive Configuration (Windows Compatible)
 
 This script helps you configure GitHub and Google OAuth credentials.
 """
@@ -58,15 +58,15 @@ Follow these steps to create a GitHub OAuth App:
 
 4. Click "Register application"
 
-5. You'll see your credentials:
+5. You will see your credentials:
    - Client ID (copy this)
    - Client Secret (click "Generate a new client secret")
 
 6. Keep these safe!
 """)
     
-    client_id = input("\n📝 Paste your GitHub Client ID: ").strip()
-    client_secret = input("📝 Paste your GitHub Client Secret: ").strip()
+    client_id = input("\nPaste your GitHub Client ID: ").strip()
+    client_secret = input("Paste your GitHub Client Secret: ").strip()
     
     return {
         "GITHUB_CLIENT_ID": client_id,
@@ -91,13 +91,13 @@ Follow these steps to create Google OAuth credentials:
    - Click "Create"
 
 3. Enable Google+ API:
-   - Go to "APIs & Services" → "Library"
+   - Go to "APIs & Services" > "Library"
    - Search for "Google+ API"
-   - Click it → Click "Enable"
+   - Click it > Click "Enable"
 
 4. Create OAuth 2.0 Credentials:
-   - Go to "APIs & Services" → "Credentials"
-   - Click "Create Credentials" → "OAuth 2.0 Client ID"
+   - Go to "APIs & Services" > "Credentials"
+   - Click "Create Credentials" > "OAuth 2.0 Client ID"
    - Choose "Web Application"
    - Fill in:
      Name: DREDGE Studio Web Client
@@ -116,8 +116,8 @@ Follow these steps to create Google OAuth credentials:
    - Client Secret
 """)
     
-    client_id = input("\n📝 Paste your Google Client ID: ").strip()
-    client_secret = input("📝 Paste your Google Client Secret: ").strip()
+    client_id = input("\nPaste your Google Client ID: ").strip()
+    client_secret = input("Paste your Google Client Secret: ").strip()
     
     return {
         "GOOGLE_CLIENT_ID": client_id,
@@ -134,6 +134,9 @@ def create_env_file(config):
 
 # Flask Configuration
 FLASK_ENV=production
+FLASK_DEBUG=0
+
+# Security - Secure key
 SECRET_KEY={config['SECRET_KEY']}
 
 # GitHub OAuth
@@ -144,7 +147,7 @@ GITHUB_CLIENT_SECRET={config.get('GITHUB_CLIENT_SECRET', '')}
 GOOGLE_CLIENT_ID={config.get('GOOGLE_CLIENT_ID', '')}
 GOOGLE_CLIENT_SECRET={config.get('GOOGLE_CLIENT_SECRET', '')}
 
-# OAuth Redirect
+# OAuth Configuration
 OAUTH_REDIRECT_BASE=http://localhost:3000
 
 # Server Configuration
@@ -155,7 +158,7 @@ FLASK_PORT=3000
     env_path = Path(".env")
     
     if env_path.exists():
-        print("⚠️  .env file already exists")
+        print("[!] .env file already exists")
         overwrite = input("Overwrite? (y/N): ").strip().lower()
         if overwrite != "y":
             print("Skipping .env creation")
@@ -164,7 +167,7 @@ FLASK_PORT=3000
     with open(env_path, "w") as f:
         f.write(env_content)
     
-    print(f"✅ Created .env file")
+    print("[+] Created .env file")
     return True
 
 
@@ -191,17 +194,26 @@ def verify_setup():
     google_id = os.environ.get("GOOGLE_CLIENT_ID", "")
     google_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "")
     
-    print(f"  SECRET_KEY:           {'✅' if secret_key else '❌'} {'SET' if secret_key else 'NOT SET'}")
-    print(f"  GitHub Client ID:     {'✅' if github_id else '❌'} {'SET' if github_id else 'NOT SET'}")
-    print(f"  GitHub Client Secret: {'✅' if github_secret else '❌'} {'SET' if github_secret else 'NOT SET'}")
-    print(f"  Google Client ID:     {'✅' if google_id else '❌'} {'SET' if google_id else 'NOT SET'}")
-    print(f"  Google Client Secret: {'✅' if google_secret else '❌'} {'SET' if google_secret else 'NOT SET'}")
+    status = "[+]" if secret_key else "[-]"
+    print(f"  {status} SECRET_KEY:           {'SET' if secret_key else 'NOT SET'}")
+    
+    status = "[+]" if github_id else "[-]"
+    print(f"  {status} GitHub Client ID:     {'SET' if github_id else 'NOT SET'}")
+    
+    status = "[+]" if github_secret else "[-]"
+    print(f"  {status} GitHub Client Secret: {'SET' if github_secret else 'NOT SET'}")
+    
+    status = "[+]" if google_id else "[-]"
+    print(f"  {status} Google Client ID:     {'SET' if google_id else 'NOT SET'}")
+    
+    status = "[+]" if google_secret else "[-]"
+    print(f"  {status} Google Client Secret: {'SET' if google_secret else 'NOT SET'}")
     
     if all([secret_key, github_id, github_secret, google_id, google_secret]):
-        print("\n✅ All credentials configured!")
+        print("\n[+] All credentials configured!")
         return True
     else:
-        print("\n⚠️  Some credentials are missing")
+        print("\n[!] Some credentials are missing")
         return False
 
 
@@ -216,7 +228,7 @@ def main():
     print_step(0, "GENERATE SECRET KEY")
     secret_key = generate_secret_key()
     print(f"Generated SECRET_KEY:\n  {secret_key}\n")
-    print("✅ This will be saved to .env\n")
+    print("[+] This will be saved to .env\n")
     
     config = {"SECRET_KEY": secret_key}
     
@@ -224,17 +236,17 @@ def main():
     try:
         github_config = github_setup()
         config.update(github_config)
-        print("\n✅ GitHub credentials saved")
+        print("\n[+] GitHub credentials saved")
     except Exception as e:
-        print(f"\n❌ GitHub setup failed: {e}")
+        print(f"\n[-] GitHub setup failed: {e}")
     
     # Google Setup
     try:
         google_config = google_setup()
         config.update(google_config)
-        print("\n✅ Google credentials saved")
+        print("\n[+] Google credentials saved")
     except Exception as e:
-        print(f"\n❌ Google setup failed: {e}")
+        print(f"\n[-] Google setup failed: {e}")
     
     # Create .env file
     create_env_file(config)
@@ -246,26 +258,22 @@ def main():
         print("=" * 80 + "\n")
         
         print("""
-1. Load environment variables:
-   
-   cd dredge-cli-repo
-   export $(cat .env | xargs)
+1. Restart DREDGE server to load new credentials:
+   - Stop current service
+   - Run: python -m dredge.server
 
-2. Start DREDGE server:
-   
-   python -m dredge.server
-
-3. Open in browser:
-   
+2. Open in browser:
    http://localhost:3000/auth/login
 
-4. You should see "Sign in with GitHub" and "Sign in with Google" buttons
+3. You should see OAuth buttons for GitHub and Google
 
-5. Click either button to test the OAuth flow
+4. Click either button to test the OAuth flow
+
+5. After login, you'll see the DREDGE dashboard
 """)
     
     print("=" * 80)
-    print("✅ Setup Complete!")
+    print("[+] Setup Complete!")
     print("=" * 80 + "\n")
 
 
@@ -273,10 +281,10 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n\n⚠️  Setup cancelled by user")
+        print("\n\n[!] Setup cancelled by user")
         sys.exit(1)
     except Exception as e:
-        print(f"\n❌ Setup failed: {e}")
+        print(f"\n[-] Setup failed: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

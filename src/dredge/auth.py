@@ -1,17 +1,5 @@
 """
 OAuth2 authentication for DREDGE — Google and GitHub login.
-
-Required environment variables:
-    SECRET_KEY             — Flask session signing key (required, no default)
-    GOOGLE_CLIENT_ID       — Google OAuth2 client ID
-    GOOGLE_CLIENT_SECRET   — Google OAuth2 client secret
-    GITHUB_CLIENT_ID       — GitHub OAuth app client ID
-    GITHUB_CLIENT_SECRET   — GitHub OAuth app client secret
-    OAUTH_REDIRECT_BASE    — Base URL for OAuth callbacks (default: http://localhost:3000)
-
-Callback URLs to register with each provider:
-    Google:  {OAUTH_REDIRECT_BASE}/auth/google/callback
-    GitHub:  {OAUTH_REDIRECT_BASE}/auth/github/callback
 """
 from __future__ import annotations
 import os
@@ -38,11 +26,10 @@ from flask_login import (
 
 logger = logging.getLogger(__name__)
 
-# ── Blueprint ─────────────────────────────────────────────────────────────────
+# Blueprint
 auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 
-# ── Minimal in-memory user store ──────────────────────────────────────────────
-# In production, replace with a database-backed user store.
+# Minimal in-memory user store
 _users: dict[str, "User"] = {}
 
 
@@ -60,26 +47,30 @@ class User(UserMixin):
         return self.id
 
 
-# ── Module-level singleton (populated by init_auth) ──────────────────────────
+# Module-level singleton
 oauth: OAuth | None = None
 
 
 def init_auth(app) -> None:
     """
     Register OAuth providers and the auth blueprint with the Flask application.
-
-    Call this from create_app() after setting app.secret_key and initializing LoginManager.
     """
     global oauth
 
-    # ── Authlib OAuth registry ────────────────────────────────────────────────
+    # Authlib OAuth registry
     oauth = OAuth(app)
 
     _redirect_base = os.environ.get("OAUTH_REDIRECT_BASE", "http://localhost:3000").rstrip("/")
+    
+    print(f"\n[Auth Module] Initializing OAuth providers")
+    print(f"  Redirect base: {_redirect_base}")
 
-    # ── Google OAuth ──────────────────────────────────────────────────────────
+    # Google OAuth
     google_id = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
     google_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
+    
+    print(f"  Google ID set: {bool(google_id)}")
+    print(f"  Google Secret set: {bool(google_secret)}")
     
     if google_id and google_secret:
         try:
@@ -90,18 +81,21 @@ def init_auth(app) -> None:
                 server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
                 client_kwargs={"scope": "openid email profile"},
             )
-            logger.info("✅ Google OAuth provider registered.")
-            print("✅ Google OAuth provider registered.")
+            logger.info("[+] Google OAuth provider registered.")
+            print("[+] Google OAuth provider registered.")
         except Exception as e:
             logger.error(f"Failed to register Google OAuth: {e}")
-            print(f"❌ Failed to register Google OAuth: {e}")
+            print(f"[-] Failed to register Google OAuth: {e}")
     else:
-        logger.warning("⚠️  Google OAuth not configured (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET missing).")
-        print("⚠️  Google OAuth not configured (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET missing).")
+        logger.warning("[!] Google OAuth not configured.")
+        print("[!] Google OAuth not configured.")
 
-    # ── GitHub OAuth ──────────────────────────────────────────────────────────
+    # GitHub OAuth
     github_id = os.environ.get("GITHUB_CLIENT_ID", "").strip()
     github_secret = os.environ.get("GITHUB_CLIENT_SECRET", "").strip()
+    
+    print(f"  GitHub ID set: {bool(github_id)}")
+    print(f"  GitHub Secret set: {bool(github_secret)}")
     
     if github_id and github_secret:
         try:
@@ -114,21 +108,30 @@ def init_auth(app) -> None:
                 api_base_url="https://api.github.com/",
                 client_kwargs={"scope": "user:email"},
             )
-            logger.info("✅ GitHub OAuth provider registered.")
-            print("✅ GitHub OAuth provider registered.")
+            logger.info("[+] GitHub OAuth provider registered.")
+            print("[+] GitHub OAuth provider registered.")
+            
+            # Verify registration
+            print(f"  Oauth object: {oauth}")
+            print(f"  Has github attr: {hasattr(oauth, 'github')}")
+            if hasattr(oauth, 'github'):
+                print(f"  GitHub provider: {oauth.github}")
+            
         except Exception as e:
             logger.error(f"Failed to register GitHub OAuth: {e}")
-            print(f"❌ Failed to register GitHub OAuth: {e}")
+            print(f"[-] Failed to register GitHub OAuth: {e}")
+            import traceback
+            traceback.print_exc()
     else:
-        logger.warning("⚠️  GitHub OAuth not configured (GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET missing).")
-        print("⚠️  GitHub OAuth not configured (GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET missing).")
+        logger.warning("[!] GitHub OAuth not configured.")
+        print("[!] GitHub OAuth not configured.")
 
     app.register_blueprint(auth_bp)
     logger.info(f"OAuth redirect base: {_redirect_base}")
+    print(f"[Auth Module] Initialization complete\n")
 
 
-# ── Login page ────────────────────────────────────────────────────────────────
-
+# Login page HTML template
 LOGIN_HTML = """
 <!DOCTYPE html>
 <html lang="en">
@@ -205,9 +208,6 @@ LOGIN_HTML = """
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
         }
-        .icon {
-            font-size: 20px;
-        }
         .error {
             background: #fee;
             color: #c00;
@@ -227,43 +227,32 @@ LOGIN_HTML = """
         .status-item {
             padding: 8px 0;
         }
-        .status-icon {
-            font-size: 12px;
-        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🔐 DREDGE Studio</h1>
+        <h1>DREDGE Studio</h1>
         <p class="subtitle">Sign in to continue</p>
         
         {% if error %}
         <div class="error">
-            ❌ Authentication failed. Please try again.
+            Error: {{error}}
         </div>
         {% endif %}
         
         <div class="login-buttons">
             <a href="/auth/github" class="btn btn-github">
-                <span class="icon">🐙</span>
                 Sign in with GitHub
             </a>
             <a href="/auth/google" class="btn btn-google">
-                <span class="icon">🔵</span>
                 Sign in with Google
             </a>
         </div>
         
         <div class="status">
-            <div class="status-item">
-                <span class="status-icon">✅</span> OAuth is configured
-            </div>
-            <div class="status-item">
-                <span class="status-icon">🔒</span> Secure authentication
-            </div>
-            <div class="status-item" style="font-size: 12px; margin-top: 10px; color: #999;">
-                Version: 2.0.0
-            </div>
+            <div class="status-item">[OK] OAuth is configured</div>
+            <div class="status-item">[OK] Secure authentication</div>
+            <div class="status-item" style="font-size: 12px; margin-top: 10px; color: #999;">Version: 2.0.0</div>
         </div>
     </div>
 </body>
@@ -274,88 +263,54 @@ LOGIN_HTML = """
 @auth_bp.route("/login")
 def login():
     """Render the login page with OAuth options."""
-    error = request.args.get('error')
+    error = request.args.get('error', '')
     return render_template_string(LOGIN_HTML, error=error)
 
 
-# ── Google OAuth routes ───────────────────────────────────────────────────────
-
-@auth_bp.route("/google")
-def google_login():
-    """Redirect the user to Google's OAuth consent screen."""
-    if not oauth or not hasattr(oauth, "google"):
-        return jsonify({"error": "Google OAuth is not configured."}), 503
-    
-    redirect_uri = url_for("auth.google_callback", _external=True)
-    logger.info(f"Google OAuth redirect: {redirect_uri}")
-    
-    return oauth.google.authorize_redirect(redirect_uri)
-
-
-@auth_bp.route("/google/callback")
-def google_callback():
-    """Handle the Google OAuth callback and create a session."""
-    if not oauth or not hasattr(oauth, "google"):
-        logger.error("Google OAuth not configured for callback")
-        return redirect(url_for("auth.login") + "?error=google_not_configured")
-    
-    try:
-        token = oauth.google.authorize_access_token()
-        user_info = token.get("userinfo")
-        
-        if not user_info:
-            user_info = oauth.google.userinfo()
-        
-        logger.info(f"Google OAuth success for: {user_info.get('email')}")
-    except Exception as exc:
-        logger.error(f"Google OAuth callback error: {exc}")
-        return redirect(url_for("auth.login") + "?error=google_auth_failed")
-
-    user_id = f"google:{user_info['sub']}"
-    user = User(
-        user_id=user_id,
-        name=user_info.get("name", "Google User"),
-        email=user_info.get("email", ""),
-        provider="google",
-        avatar=user_info.get("picture", ""),
-    )
-    _users[user_id] = user
-    login_user(user, remember=True)
-    
-    logger.info(f"User logged in via Google: {user.email}")
-    print(f"✅ User logged in via Google: {user.email}")
-    
-    return redirect(url_for("index"))
-
-
-# ── GitHub OAuth routes ───────────────────────────────────────────────────────
-
 @auth_bp.route("/github")
 def github_login():
-    """Redirect the user to GitHub's OAuth consent screen."""
-    if not oauth or not hasattr(oauth, "github"):
-        return jsonify({"error": "GitHub OAuth is not configured."}), 503
-    
-    redirect_uri = url_for("auth.github_callback", _external=True)
-    logger.info(f"GitHub OAuth redirect: {redirect_uri}")
-    
-    return oauth.github.authorize_redirect(redirect_uri)
+    """Redirect to GitHub OAuth."""
+    try:
+        print("[GitHub Login] Redirecting to GitHub...")
+        print(f"[GitHub Login] OAuth object: {oauth}")
+        print(f"[GitHub Login] Has github: {hasattr(oauth, 'github') if oauth else 'oauth is None'}")
+        
+        if not oauth:
+            print("[GitHub Login] ERROR: oauth is None")
+            return jsonify({"error": "OAuth not initialized"}), 500
+        
+        if not hasattr(oauth, "github"):
+            print("[GitHub Login] ERROR: oauth has no github attribute")
+            print(f"[GitHub Login] oauth attributes: {dir(oauth)}")
+            return jsonify({"error": "GitHub OAuth not configured"}), 503
+        
+        redirect_uri = url_for("auth.github_callback", _external=True)
+        print(f"[GitHub Login] Redirect URI: {redirect_uri}")
+        
+        return oauth.github.authorize_redirect(redirect_uri)
+        
+    except Exception as e:
+        print(f"[GitHub Login] Exception: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 
 @auth_bp.route("/github/callback")
 def github_callback():
-    """Handle the GitHub OAuth callback and create a session."""
-    if not oauth or not hasattr(oauth, "github"):
-        logger.error("GitHub OAuth not configured for callback")
-        return redirect(url_for("auth.login") + "?error=github_not_configured")
-    
+    """Handle GitHub OAuth callback."""
     try:
+        print("[GitHub Callback] Processing...")
+        
+        if not oauth or not hasattr(oauth, "github"):
+            print("[GitHub Callback] ERROR: GitHub not configured")
+            return redirect(url_for("auth.login") + "?error=github_not_configured")
+        
         oauth.github.authorize_access_token()
         resp = oauth.github.get("user", token=oauth.github.token)
         resp.raise_for_status()
         user_info = resp.json()
 
-        # Fetch primary verified email if not in the user profile
         email = user_info.get("email") or ""
         if not email:
             try:
@@ -368,29 +323,68 @@ def github_callback():
             except Exception as e:
                 logger.warning(f"Could not fetch GitHub emails: {e}")
         
-        logger.info(f"GitHub OAuth success for: {user_info.get('login')}")
-    except Exception as exc:
-        logger.error(f"GitHub OAuth callback error: {exc}")
-        return redirect(url_for("auth.login") + "?error=github_auth_failed")
+        user_id = f"github:{user_info['id']}"
+        user = User(
+            user_id=user_id,
+            name=user_info.get("name") or user_info.get("login", "GitHub User"),
+            email=email,
+            provider="github",
+            avatar=user_info.get("avatar_url", ""),
+        )
+        _users[user_id] = user
+        login_user(user, remember=True)
+        
+        print(f"[GitHub Callback] User logged in: {user.name}")
+        return redirect(url_for("index"))
+        
+    except Exception as e:
+        print(f"[GitHub Callback] Exception: {e}")
+        import traceback
+        traceback.print_exc()
+        logger.error(f"GitHub OAuth callback error: {e}")
+        return redirect(url_for("auth.login") + f"?error=github_auth_failed:{str(e)}")
 
-    user_id = f"github:{user_info['id']}"
-    user = User(
-        user_id=user_id,
-        name=user_info.get("name") or user_info.get("login", "GitHub User"),
-        email=email,
-        provider="github",
-        avatar=user_info.get("avatar_url", ""),
-    )
-    _users[user_id] = user
-    login_user(user, remember=True)
+
+@auth_bp.route("/google")
+def google_login():
+    """Redirect to Google OAuth."""
+    if not oauth or not hasattr(oauth, "google"):
+        return jsonify({"error": "Google OAuth is not configured."}), 503
     
-    logger.info(f"User logged in via GitHub: {user.email or user.name}")
-    print(f"✅ User logged in via GitHub: {user.email or user.name}")
+    redirect_uri = url_for("auth.google_callback", _external=True)
+    return oauth.google.authorize_redirect(redirect_uri)
+
+
+@auth_bp.route("/google/callback")
+def google_callback():
+    """Handle Google OAuth callback."""
+    if not oauth or not hasattr(oauth, "google"):
+        return redirect(url_for("auth.login") + "?error=google_not_configured")
     
-    return redirect(url_for("index"))
+    try:
+        token = oauth.google.authorize_access_token()
+        user_info = token.get("userinfo")
+        
+        if not user_info:
+            user_info = oauth.google.userinfo()
+        
+        user_id = f"google:{user_info['sub']}"
+        user = User(
+            user_id=user_id,
+            name=user_info.get("name", "Google User"),
+            email=user_info.get("email", ""),
+            provider="google",
+            avatar=user_info.get("picture", ""),
+        )
+        _users[user_id] = user
+        login_user(user, remember=True)
+        
+        return redirect(url_for("index"))
+        
+    except Exception as e:
+        logger.error(f"Google OAuth callback error: {e}")
+        return redirect(url_for("auth.login") + "?error=google_auth_failed")
 
-
-# ── Logout ────────────────────────────────────────────────────────────────────
 
 @auth_bp.route("/logout")
 @login_required
@@ -399,36 +393,31 @@ def logout():
     user_id = current_user.id
     logout_user()
     _users.pop(user_id, None)
-    logger.info(f"User logged out: {user_id}")
     return redirect(url_for("auth.login"))
 
-
-# ── Current-user API endpoint ─────────────────────────────────────────────────
 
 @auth_bp.route("/me")
 @login_required
 def me():
-    """Return the current authenticated user's profile as JSON."""
+    """Return current user profile."""
     return jsonify({
-        "id":       current_user.id,
-        "name":     current_user.name,
-        "email":    current_user.email,
+        "id": current_user.id,
+        "name": current_user.name,
+        "email": current_user.email,
         "provider": current_user.provider,
-        "avatar":   current_user.avatar,
+        "avatar": current_user.avatar,
     })
 
 
-# ── Auth status (public — useful for the SPA to check login state) ────────────
-
 @auth_bp.route("/status")
 def status():
-    """Check authentication status (public endpoint)."""
+    """Check authentication status."""
     if current_user.is_authenticated:
         return jsonify({
             "authenticated": True,
-            "name":     current_user.name,
-            "email":    current_user.email,
+            "name": current_user.name,
+            "email": current_user.email,
             "provider": current_user.provider,
-            "avatar":   current_user.avatar,
+            "avatar": current_user.avatar,
         })
     return jsonify({"authenticated": False})
