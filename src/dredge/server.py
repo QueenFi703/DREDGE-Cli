@@ -97,6 +97,13 @@ def create_app():
     except Exception as e:
         logging.getLogger(__name__).warning(f"Could not load architecture routes: {e}")
 
+
+    # -- Gordon Integration Routes
+    try:
+        from .gordon_routes import register_gordon_routes
+        register_gordon_routes(app)
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"Could not load Gordon routes: {e}")
     # -- Application routes
 
     @app.route('/')
