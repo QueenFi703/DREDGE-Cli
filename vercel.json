@@ -1,58 +1,22 @@
 {
-  "version": 2,
-  "name": "dredge-studio",
+  "buildCommand": "pip install -r requirements.txt && python -m flask --app src.dredge.server:create_app export",
+  "functions": {
+    "src/dredge/server.py": {
+      "runtime": "python3.10"
+    }
+  },
   "env": {
     "FLASK_ENV": "production",
-    "PYTHONUNBUFFERED": "1",
-    "PYTHONDONTWRITEBYTECODE": "1"
+    "SECRET_KEY": "@VERCEL_SECRET_KEY",
+    "GITHUB_CLIENT_ID": "@GITHUB_CLIENT_ID",
+    "GITHUB_CLIENT_SECRET": "@GITHUB_CLIENT_SECRET",
+    "OAUTH_REDIRECT_BASE": "https://api.dredge.ai"
   },
-  "builds": [
+  "regions": ["iad1", "cdg1", "syd1"],
+  "crons": [
     {
-      "src": "api/index.py",
-      "use": "@vercel/python@3.1.0",
-      "config": {
-        "maxLambdaSize": "500mb",
-        "runtime": "python3.11"
-      }
-    },
-    {
-      "src": "src/dredge/server.py",
-      "use": "@vercel/python@3.1.0",
-      "config": {
-        "maxLambdaSize": "500mb",
-        "runtime": "python3.11"
-      }
+      "path": "/health",
+      "schedule": "*/5 * * * *"
     }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "api/index.py"
-    },
-    {
-      "src": "/advanced",
-      "dest": "src/dredge/server.py"
-    },
-    {
-      "src": "/health",
-      "dest": "src/dredge/server.py"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "api/index.py"
-    }
-  ],
-  "functions": {
-    "api/index.py": {
-      "memory": 1024,
-      "maxDuration": 300,
-      "runtime": "python3.11"
-    },
-    "src/dredge/server.py": {
-      "memory": 1024,
-      "maxDuration": 300,
-      "runtime": "python3.11"
-    }
-  },
-  "regions": ["us-east-1"]
+  ]
 }
