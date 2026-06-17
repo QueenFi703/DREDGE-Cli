@@ -90,6 +90,13 @@ def create_app():
     except Exception as e:
         logging.getLogger(__name__).warning(f"Could not load advanced features: {e}")
 
+    # -- Architecture Routes (Pipeline, Providers, Telemetry)
+    try:
+        from .architecture_routes import register_architecture_routes
+        register_architecture_routes(app)
+    except Exception as e:
+        logging.getLogger(__name__).warning(f"Could not load architecture routes: {e}")
+
     # -- Application routes
 
     @app.route('/')
