@@ -165,8 +165,10 @@ def create_app():
     def advanced_dashboard():
         """Serve the advanced features dashboard."""
         static_dir = Path(__file__).parent / 'static'
-        # Try simple dashboard first, fallback to advanced
-        html_file = static_dir / 'dashboard_simple.html'
+        # Try complete Swift frontend first, then simple, then advanced
+        html_file = static_dir / 'frontend_complete_swift.html'
+        if not html_file.exists():
+            html_file = static_dir / 'dashboard_simple.html'
         if not html_file.exists():
             html_file = static_dir / 'advanced_dashboard.html'
         
