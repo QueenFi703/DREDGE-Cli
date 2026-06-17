@@ -4,13 +4,11 @@ OAuth2 authentication for DREDGE — Google and GitHub login.
 from __future__ import annotations
 import os
 import logging
-from functools import wraps
 
 from flask import (
     Blueprint,
     redirect,
     url_for,
-    session,
     request,
     jsonify,
     render_template_string,
@@ -32,6 +30,9 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
 # Minimal in-memory user store
 _users: dict[str, "User"] = {}
 
+# Global OAuth object (will be set by init_auth)
+_oauth_instance: OAuth | None = None
+
 
 class User(UserMixin):
     """Lightweight user object stored in memory for the session lifetime."""
@@ -47,18 +48,20 @@ class User(UserMixin):
         return self.id
 
 
-# Module-level singleton
-oauth: OAuth | None = None
+def get_oauth():
+    """Get the OAuth instance. Must call init_auth first."""
+    global _oauth_instance
+    return _oauth_instance
 
 
 def init_auth(app) -> None:
     """
     Register OAuth providers and the auth blueprint with the Flask application.
     """
-    global oauth
+    global _oauth_instance
 
     # Authlib OAuth registry
-    oauth = OAuth(app)
+    _oauth_instance = OAuth(app)
 
     _redirect_base = os.environ.get("OAUTH_REDIRECT_BASE", "http://localhost:3000").rstrip("/")
     
@@ -74,7 +77,7 @@ def init_auth(app) -> None:
     
     if google_id and google_secret:
         try:
-            oauth.register(
+            _oauth_instance.register(
                 name="google",
                 client_id=google_id,
                 client_secret=google_secret,
@@ -99,7 +102,7 @@ def init_auth(app) -> None:
     
     if github_id and github_secret:
         try:
-            oauth.register(
+            _oauth_instance.register(
                 name="github",
                 client_id=github_id,
                 client_secret=github_secret,
@@ -112,10 +115,10 @@ def init_auth(app) -> None:
             print("[+] GitHub OAuth provider registered.")
             
             # Verify registration
-            print(f"  Oauth object: {oauth}")
-            print(f"  Has github attr: {hasattr(oauth, 'github')}")
-            if hasattr(oauth, 'github'):
-                print(f"  GitHub provider: {oauth.github}")
+            print(f"  OAuth object: {_oauth_instance}")
+            print(f"  Has github attr: {hasattr(_oauth_instance, 'github')}")
+            if hasattr(_oauth_instance, 'github'):
+                print(f"  GitHub provider: {_oauth_instance.github}")
             
         except Exception as e:
             logger.error(f"Failed to register GitHub OAuth: {e}")
@@ -271,8 +274,8 @@ def login():
 def github_login():
     """Redirect to GitHub OAuth."""
     try:
-        print("[GitHub Login] Redirecting to GitHub...")
-        print(f"[GitHub Login] OAuth object: {oauth}")
+        oauth = get_oauth()
+        print(f"\n[GitHub Login] OAuth object: {oauth}")
         print(f"[GitHub Login] Has github: {hasattr(oauth, 'github') if oauth else 'oauth is None'}")
         
         if not oauth:
@@ -281,16 +284,15 @@ def github_login():
         
         if not hasattr(oauth, "github"):
             print("[GitHub Login] ERROR: oauth has no github attribute")
-            print(f"[GitHub Login] oauth attributes: {dir(oauth)}")
             return jsonify({"error": "GitHub OAuth not configured"}), 503
         
         redirect_uri = url_for("auth.github_callback", _external=True)
-        print(f"[GitHub Login] Redirect URI: {redirect_uri}")
+        print(f"[GitHub Login] Redirect URI: {redirect_uri}\n")
         
         return oauth.github.authorize_redirect(redirect_uri)
         
     except Exception as e:
-        print(f"[GitHub Login] Exception: {e}")
+        print(f"[GitHub Login] Exception: {e}\n")
         import traceback
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
@@ -302,6 +304,7 @@ def github_callback():
     try:
         print("[GitHub Callback] Processing...")
         
+        oauth = get_oauth()
         if not oauth or not hasattr(oauth, "github"):
             print("[GitHub Callback] ERROR: GitHub not configured")
             return redirect(url_for("auth.login") + "?error=github_not_configured")
@@ -335,19 +338,23 @@ def github_callback():
         login_user(user, remember=True)
         
         print(f"[GitHub Callback] User logged in: {user.name}")
-        return redirect(url_for("index"))
+        print(f"[GitHub Callback] Redirecting to /advanced\n")
+        
+        # Redirect to advanced dashboard (this route doesn't require the blueprint prefix)
+        return redirect("/advanced")
         
     except Exception as e:
-        print(f"[GitHub Callback] Exception: {e}")
+        print(f"[GitHub Callback] Exception: {e}\n")
         import traceback
         traceback.print_exc()
         logger.error(f"GitHub OAuth callback error: {e}")
-        return redirect(url_for("auth.login") + f"?error=github_auth_failed:{str(e)}")
+        return redirect(url_for("auth.login") + "?error=github_auth_failed")
 
 
 @auth_bp.route("/google")
 def google_login():
     """Redirect to Google OAuth."""
+    oauth = get_oauth()
     if not oauth or not hasattr(oauth, "google"):
         return jsonify({"error": "Google OAuth is not configured."}), 503
     
@@ -358,6 +365,7 @@ def google_login():
 @auth_bp.route("/google/callback")
 def google_callback():
     """Handle Google OAuth callback."""
+    oauth = get_oauth()
     if not oauth or not hasattr(oauth, "google"):
         return redirect(url_for("auth.login") + "?error=google_not_configured")
     
@@ -379,7 +387,8 @@ def google_callback():
         _users[user_id] = user
         login_user(user, remember=True)
         
-        return redirect(url_for("index"))
+        # Redirect to advanced dashboard
+        return redirect("/advanced")
         
     except Exception as e:
         logger.error(f"Google OAuth callback error: {e}")
