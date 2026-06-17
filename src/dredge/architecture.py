@@ -5,7 +5,7 @@ Implements the modular architecture shown in the screenshots:
 1. CLI Entry / dredge_run_pipeline
 2. DAG Execution Engine (async orchestration)
 3. Node Graph (ingest, translate, normalize, fallback)
-4. Redis Cache Layer
+4. Redis Cache Layer (optional)
 5. Telemetry / Observation
 """
 
@@ -17,8 +17,15 @@ from dataclasses import dataclass, asdict
 from enum import Enum
 from datetime import datetime
 import hashlib
-import redis
 import logging
+
+# Optional redis import
+try:
+    import redis
+    REDIS_AVAILABLE = True
+except ImportError:
+    redis = None
+    REDIS_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -93,14 +100,14 @@ class Node:
         """Add upstream dependency"""
         self.dependencies.append(node_id)
 
-    async def execute(self, context: PipelineContext, redis_client: Optional[redis.Redis] = None) -> Dict[str, Any]:
+    async def execute(self, context: PipelineContext, redis_client: Optional[Any] = None) -> Dict[str, Any]:
         """Execute node with caching support"""
         self.metadata.status = NodeStatus.RUNNING
         self.metadata.start_time = time.time()
 
         try:
             # Check cache
-            if context.cache_enabled and redis_client:
+            if context.cache_enabled and redis_client and REDIS_AVAILABLE:
                 cache_key = self._generate_cache_key(context)
                 cached_result = self._get_cache(redis_client, cache_key)
                 if cached_result:
@@ -120,7 +127,7 @@ class Node:
                 result = context.node_results.get(self.node_id, {})
 
             # Cache result
-            if context.cache_enabled and redis_client and result:
+            if context.cache_enabled and redis_client and REDIS_AVAILABLE and result:
                 cache_key = self._generate_cache_key(context)
                 self._set_cache(redis_client, cache_key, result)
 
@@ -146,8 +153,10 @@ class Node:
         }, sort_keys=True)
         return f"dredge:cache:{hashlib.md5(content.encode()).hexdigest()}"
 
-    def _get_cache(self, redis_client: redis.Redis, key: str) -> Optional[Dict]:
+    def _get_cache(self, redis_client: Any, key: str) -> Optional[Dict]:
         """Retrieve from cache"""
+        if not REDIS_AVAILABLE:
+            return None
         try:
             cached = redis_client.get(key)
             if cached:
@@ -157,8 +166,10 @@ class Node:
             logger.warning(f"Cache retrieval failed: {e}")
         return None
 
-    def _set_cache(self, redis_client: redis.Redis, key: str, value: Dict):
+    def _set_cache(self, redis_client: Any, key: str, value: Dict):
         """Store in cache"""
+        if not REDIS_AVAILABLE:
+            return
         try:
             redis_client.setex(key, self.cache_ttl, json.dumps(value))
             self.metadata.cache_key = key
@@ -172,7 +183,7 @@ class IngestNode(Node):
     def __init__(self, node_id: str = "ingest", handler: Optional[Callable] = None):
         super().__init__(node_id, NodeType.INGEST, handler)
 
-    async def execute(self, context: PipelineContext, redis_client: Optional[redis.Redis] = None) -> Dict:
+    async def execute(self, context: PipelineContext, redis_client: Optional[Any] = None) -> Dict:
         result = await super().execute(context, redis_client)
         context.execution_log.append(f"[INGEST] Processed input: {len(str(context.input_data))} bytes")
         return result or context.input_data
@@ -184,7 +195,7 @@ class TranslateNode(Node):
     def __init__(self, node_id: str = "translate", handler: Optional[Callable] = None):
         super().__init__(node_id, NodeType.TRANSLATE, handler)
 
-    async def execute(self, context: PipelineContext, redis_client: Optional[redis.Redis] = None) -> Dict:
+    async def execute(self, context: PipelineContext, redis_client: Optional[Any] = None) -> Dict:
         result = await super().execute(context, redis_client)
         context.execution_log.append(f"[TRANSLATE] Converted format")
         return result or {"translated": True}
@@ -201,7 +212,7 @@ class NormalizeNode(Node):
         """Add fallback translation provider"""
         self.fallback_providers.append(provider_name)
 
-    async def execute(self, context: PipelineContext, redis_client: Optional[redis.Redis] = None) -> Dict:
+    async def execute(self, context: PipelineContext, redis_client: Optional[Any] = None) -> Dict:
         result = await super().execute(context, redis_client)
         context.execution_log.append(f"[NORMALIZE] Applied {len(self.fallback_providers)} fallback providers")
         return result or {"normalized": True, "providers_applied": self.fallback_providers}
@@ -213,7 +224,7 @@ class ExecuteNode(Node):
     def __init__(self, node_id: str = "execute", handler: Optional[Callable] = None):
         super().__init__(node_id, NodeType.EXECUTE, handler)
 
-    async def execute(self, context: PipelineContext, redis_client: Optional[redis.Redis] = None) -> Dict:
+    async def execute(self, context: PipelineContext, redis_client: Optional[Any] = None) -> Dict:
         result = await super().execute(context, redis_client)
         context.execution_log.append(f"[EXECUTE] Computation complete")
         return result or {"executed": True, "result": 0.94}
@@ -222,14 +233,14 @@ class ExecuteNode(Node):
 class CacheLayer:
     """Redis-backed cache layer for memoization"""
 
-    def __init__(self, redis_client: Optional[redis.Redis] = None, ttl: int = 3600):
+    def __init__(self, redis_client: Optional[Any] = None, ttl: int = 3600):
         self.redis = redis_client
         self.ttl = ttl
         self.local_cache: Dict[str, Dict] = {}
 
     def get(self, key: str) -> Optional[Dict]:
         """Get from cache (Redis first, then local)"""
-        if self.redis:
+        if self.redis and REDIS_AVAILABLE:
             try:
                 cached = self.redis.get(key)
                 if cached:
@@ -242,7 +253,7 @@ class CacheLayer:
     def set(self, key: str, value: Dict, ttl: Optional[int] = None):
         """Set in cache (both Redis and local)"""
         ttl = ttl or self.ttl
-        if self.redis:
+        if self.redis and REDIS_AVAILABLE:
             try:
                 self.redis.setex(key, ttl, json.dumps(value))
             except:
@@ -253,7 +264,7 @@ class CacheLayer:
     def clear(self):
         """Clear all caches"""
         self.local_cache.clear()
-        if self.redis:
+        if self.redis and REDIS_AVAILABLE:
             try:
                 self.redis.flushdb()
             except:
@@ -295,7 +306,7 @@ class Telemetry:
 class DAGExecutionEngine:
     """Asynchronous DAG execution engine - orchestrates node execution"""
 
-    def __init__(self, redis_client: Optional[redis.Redis] = None):
+    def __init__(self, redis_client: Optional[Any] = None):
         self.nodes: Dict[str, Node] = {}
         self.redis = redis_client
         self.cache = CacheLayer(redis_client)
@@ -381,7 +392,7 @@ class ModeBranchNode(Node):
     def __init__(self, node_id: str = "mode_graph", handler: Optional[Callable] = None):
         super().__init__(node_id, NodeType.NORMALIZE, handler)
 
-    async def execute(self, context: PipelineContext, redis_client: Optional[redis.Redis] = None) -> Dict:
+    async def execute(self, context: PipelineContext, redis_client: Optional[Any] = None) -> Dict:
         mode = context.input_data.get("mode", "base")
         context.execution_log.append(f"[MODE_GRAPH] Mode: {mode}")
         return {"mode": mode, "branch": "selected"}
@@ -393,7 +404,7 @@ class DREDGEStandardNode(Node):
     def __init__(self, node_id: str = "dredge_standard", handler: Optional[Callable] = None):
         super().__init__(node_id, NodeType.EXECUTE, handler)
 
-    async def execute(self, context: PipelineContext, redis_client: Optional[redis.Redis] = None) -> Dict:
+    async def execute(self, context: PipelineContext, redis_client: Optional[Any] = None) -> Dict:
         context.execution_log.append("[DREDGE_STANDARD] Full pipeline")
         return {"class": "base", "name": "base", "features": ["full", "cache", "telemetry"]}
 
@@ -404,7 +415,7 @@ class AsyncTranslationNode(Node):
     def __init__(self, node_id: str = "async_translation", handler: Optional[Callable] = None):
         super().__init__(node_id, NodeType.TRANSLATE, handler)
 
-    async def execute(self, context: PipelineContext, redis_client: Optional[redis.Redis] = None) -> Dict:
+    async def execute(self, context: PipelineContext, redis_client: Optional[Any] = None) -> Dict:
         context.execution_log.append("[ASYNC_TRANSLATION] Running async translation")
         await asyncio.sleep(0.1)  # Simulate async work
         return {"translated": True, "async": True}
@@ -416,8 +427,8 @@ class RedisCacheRealNode(Node):
     def __init__(self, node_id: str = "redis_cache", handler: Optional[Callable] = None):
         super().__init__(node_id, NodeType.CACHE, handler)
 
-    async def execute(self, context: PipelineContext, redis_client: Optional[redis.Redis] = None) -> Dict:
-        if redis_client:
+    async def execute(self, context: PipelineContext, redis_client: Optional[Any] = None) -> Dict:
+        if redis_client and REDIS_AVAILABLE:
             context.execution_log.append("[REDIS_CACHE] Using Redis for persistence")
             return {"cache_backend": "redis", "persistent": True}
         else:
@@ -433,7 +444,7 @@ class PipelineBuilder:
     """Build pre-configured pipelines"""
 
     @staticmethod
-    def build_standard_pipeline(redis_client: Optional[redis.Redis] = None) -> DAGExecutionEngine:
+    def build_standard_pipeline(redis_client: Optional[Any] = None) -> DAGExecutionEngine:
         """Build the standard DREDGE pipeline from screenshots"""
         engine = DAGExecutionEngine(redis_client)
 
@@ -479,7 +490,7 @@ class PipelineBuilder:
         return engine
 
     @staticmethod
-    def build_ios_swift_pipeline(redis_client: Optional[redis.Redis] = None) -> DAGExecutionEngine:
+    def build_ios_swift_pipeline(redis_client: Optional[Any] = None) -> DAGExecutionEngine:
         """Build pipeline for iOS/Swift integration"""
         engine = DAGExecutionEngine(redis_client)
 
@@ -505,7 +516,7 @@ class PipelineBuilder:
 async def dredge_run_pipeline(
     input_data: Dict[str, Any],
     pipeline_type: str = "standard",
-    redis_client: Optional[redis.Redis] = None,
+    redis_client: Optional[Any] = None,
     pipeline_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """

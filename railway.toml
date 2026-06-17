@@ -3,16 +3,22 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile.railway"
 
 [deploy]
-# Start DREDGE server with Gordon integration
-startCommand = "python -m dredge.server --host 0.0.0.0 --port ${PORT:-3001}"
+# Start command uses Gunicorn with WSGI entry point
+# Railway automatically sets PORT environment variable
+startCommand = "gunicorn --bind 0.0.0.0:${PORT:-3001} --workers 4 --worker-class sync --timeout 120 --access-logfile - --error-logfile - wsgi:app"
 
-# Environment variables
+# Environment configuration
 [env]
 FLASK_ENV = "production"
 PYTHONUNBUFFERED = "1"
 PYTHONDONTWRITEBYTECODE = "1"
 
-# Health check
+# Restart policy
+[restart]
+on = "on_failure"
+max_attempts = 3
+
+# Health check configuration
 [healthCheck]
 path = "/health"
 interval = 30
@@ -21,8 +27,15 @@ startPeriod = 20
 successThreshold = 1
 failureThreshold = 3
 
-# Metadata
+# Metadata for Railway
 [metadata]
 name = "DREDGE Studio"
-description = "Advanced Security Intelligence & AI Platform with Gordon Integration"
+description = "Production-ready AI platform with 10-layer architecture and Gordon integration"
 version = "2.0.0"
+icon = "https://avatars.githubusercontent.com/u/1234567?v=4"
+
+# Railway specific settings
+[railway]
+autoDeploy = true
+envVariableReference = true
+nixpacks = false

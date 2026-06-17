@@ -1,0 +1,52 @@
+# DREDGE Production Dependencies for Railway
+# Pinned versions for reproducible builds
+
+# Core Framework
+Flask==3.0.0
+Werkzeug==3.0.1
+Jinja2==3.1.2
+
+# WSGI Server
+gunicorn==21.2.0
+gevent==23.9.1
+
+# Web & HTTP
+requests==2.31.0
+aiohttp==3.9.1
+urllib3==2.1.0
+
+# Authentication & Security
+authlib==1.3.0
+Flask-Login==0.6.3
+PyJWT==2.8.1
+cryptography==41.0.7
+
+# Data Processing
+numpy==1.24.3
+pandas==2.1.3
+scipy==1.11.4
+
+# ML/AI Libraries
+torch==2.1.2
+whisper-openai==20231106
+scikit-learn==1.3.2
+
+# Audio Processing
+librosa==0.10.0
+pydub==0.25.1
+soundfile==0.12.1
+
+# Data Formats
+PyYAML==6.0.1
+python-dotenv==1.0.0
+pydantic==2.5.0
+
+# Async Support
+greenlet==3.0.1
+six==1.16.0
+
+# Optional Redis support
+redis==5.0.1
+
+# Development tools (removed for production)
+# pytest, coverage, black, flake8 should be in dev requirements

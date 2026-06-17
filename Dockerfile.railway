@@ -1,66 +1,78 @@
-# Railway-optimized build — DREDGE Studio with Gordon Integration
-FROM python:3.10-slim
+# Railway.app optimized DREDGE Production Build
+# Multi-stage build for smaller image size and faster deployment
+
+FROM python:3.10-slim as builder
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PORT=3001
+    PIP_NO_CACHE_DIR=1
 
-WORKDIR /app
+WORKDIR /build
 
-# Install system dependencies
+# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     git \
-    ffmpeg \
-    libsndfile1 \
-    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency files
 COPY requirements.txt pyproject.toml setup.py ./
 
-# Install Python dependencies
-RUN pip install --no-cache-dir \
-    flask>=3.0.0 \
-    requests>=2.32.5 \
-    numpy>=1.24.0 \
-    torch>=2.0.0 \
-    openai-whisper>=20240115 \
-    aiohttp>=3.13.5 \
-    authlib>=1.6.12 \
-    flask-login>=0.6.3 \
-    gunicorn>=21.0.0
+# Create virtual environment and install dependencies
+RUN python -m venv /opt/venv && \
+    . /opt/venv/bin/activate && \
+    pip install --upgrade pip setuptools wheel && \
+    pip install -r requirements.txt
 
-# Copy source code
+# Runtime stage
+FROM python:3.10-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=3001 \
+    FLASK_ENV=production
+
+WORKDIR /app
+
+# Install only runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    libsndfile1 \
+    curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy virtual environment from builder
+COPY --from=builder /opt/venv /opt/venv
+
+# Copy application code
 COPY src/ ./src/
-COPY static/ ./static/ 2>/dev/null || true
+COPY wsgi.py .
+COPY setup.py pyproject.toml ./
 COPY README.md LICENSE ./
-
-# Install DREDGE package
-RUN pip install -e . \
-    && rm -rf /tmp/* ~/.cache/pip
-
-# Copy Gordon integration
-COPY gordon_dredge_integration.py ./
 
 # Create non-root user
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
+# Activate virtual environment
+ENV PATH="/opt/venv/bin:$PATH" \
+    VIRTUAL_ENV="/opt/venv"
+
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:${PORT:-3001}/health', timeout=3)" || exit 1
+    CMD curl -f http://localhost:${PORT}/health || exit 1
 
 EXPOSE ${PORT}
 
-# Start DREDGE server with Gordon integration
-CMD ["python", "-m", "gunicorn", \
-     "--bind", "0.0.0.0:${PORT:-3001}", \
+# Start with Gunicorn + WSGI app
+CMD ["gunicorn", \
+     "--bind", "0.0.0.0:${PORT}", \
      "--workers", "4", \
-     "--timeout", "60", \
+     "--worker-class", "sync", \
+     "--timeout", "120", \
      "--access-logfile", "-", \
      "--error-logfile", "-", \
-     "dredge.server:app"]
+     "--log-level", "info", \
+     "wsgi:app"]
