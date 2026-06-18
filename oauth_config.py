@@ -47,7 +47,7 @@ def validate_config() -> Tuple[bool, Dict[str, any]]:
     secret_key = os.environ.get("SECRET_KEY", "").strip()
     if not secret_key:
         secret_key = generate_secret_key()
-        print(f"🔑 Generated SECRET_KEY: {secret_key}")
+        print("🔑 Generated SECRET_KEY (hidden)")
         print("   ⚠️  Add to .env to persist between restarts")
     elif len(secret_key) < 32:
         warnings.append("SECRET_KEY is short (recommended: 32+ characters)")
@@ -114,7 +114,7 @@ def print_config_report(is_valid: bool, config: Dict) -> None:
     # ── Flask Settings ───────────────────────────────────────────────────────
     print("🔧 Flask Configuration:")
     print(f"   Environment:     {config.get('flask_env', 'unknown')}")
-    print(f"   SECRET_KEY:      {config.get('SECRET_KEY', 'N/A')[:20]}...")
+    print(f"   SECRET_KEY:      {'[SET]' if config.get('SECRET_KEY') else '[NOT SET]'}")
     print(f"   Redirect Base:   {config.get('redirect_base', 'N/A')}")
     print()
 
@@ -189,9 +189,9 @@ def main():
         if command == "generate":
             print("🔐 Generating SECRET_KEY:")
             key = generate_secret_key()
-            print(f"   {key}")
+            print("   [HIDDEN]")
             print("\n   Add to .env:")
-            print(f"   SECRET_KEY={key}")
+            print("   SECRET_KEY=<generated-secret>")
             return
         
         elif command == "validate":
