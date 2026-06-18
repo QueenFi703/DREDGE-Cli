@@ -39,7 +39,7 @@ soundfile==0.12.1
 # Data Formats
 PyYAML==6.0.1
 python-dotenv==1.0.0
-pydantic==2.5.0
+pydantic==2.13.4
 
 # Async Support
 greenlet==3.0.1
