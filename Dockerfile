@@ -12,7 +12,7 @@ RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/wh
 CMD ["dredge-cli", "serve", "--host", "0.0.0.0", "--port", "3001"]
 
 # GPU image
-FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04 AS gpu-build
+FROM nvidia/cuda:12.9.2-runtime-ubuntu22.04 AS gpu-build
 RUN apt-get update && apt-get install -y python3.10 python3-pip curl git && rm -rf /var/lib/apt/lists/*
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.10 1
 WORKDIR /app
