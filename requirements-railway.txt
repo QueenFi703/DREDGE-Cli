@@ -43,7 +43,7 @@ pydantic==2.13.4
 
 # Async Support
 greenlet==3.2.5
-six==1.16.0
+six==1.17.0
 
 # Optional Redis support
 redis==5.0.1
