@@ -42,7 +42,7 @@ python-dotenv==1.0.0
 pydantic==2.13.4
 
 # Async Support
-greenlet==3.0.1
+greenlet==3.2.5
 six==1.16.0
 
 # Optional Redis support
