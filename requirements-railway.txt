@@ -24,10 +24,10 @@ cryptography==48.0.1
 # Data Processing
 numpy==1.26.4
 pandas==2.3.3
-scipy==1.13.1
+scipy==1.15.3
 
 # ML/AI Libraries
-torch==2.8.0
+torch==2.12.1
 whisper-openai==20231106
 scikit-learn==1.6.1
 
