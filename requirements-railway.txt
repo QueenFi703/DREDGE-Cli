@@ -46,7 +46,7 @@ greenlet==3.2.5
 six==1.17.0
 
 # Optional Redis support
-redis==5.0.1
+redis==5.3.1
 
 # Development tools (removed for production)
 # pytest, coverage, black, flake8 should be in dev requirements
