@@ -53,27 +53,40 @@ jobs:
       # -----------------------------
       - name: 🔍 Run Bandit (SARIF)
         run: |
-          bandit -r . \
-            -f sarif \
-            -o bandit.sarif || true
+          set -euo pipefail
+          rm -f bandit.sarif results_sarif.sarif
+          bandit -r . -f sarif -o bandit.sarif || true
+
+          # Some Bandit versions only emit results_sarif.sarif.
+          if [ ! -s bandit.sarif ] && [ -s results_sarif.sarif ]; then
+            mv results_sarif.sarif bandit.sarif
+          fi
 
       # -----------------------------
       # Checkov (IaC scanning)
       # -----------------------------
       - name: 🔍 Run Checkov (SARIF)
         run: |
-          checkov -d . \
-            -o sarif \
-            --output-file-path checkov.sarif || true
+          set -euo pipefail
+          rm -f checkov.sarif results_sarif.sarif
+          checkov -d . -o sarif > checkov.sarif || true
+
+          # Some Checkov versions emit results_sarif.sarif instead of stdout.
+          if [ ! -s checkov.sarif ] && [ -s results_sarif.sarif ]; then
+            mv results_sarif.sarif checkov.sarif
+          fi
 
       # -----------------------------
-      # Ensure SARIF exists
+      # Ensure SARIF files exist and are valid JSON
       # -----------------------------
       - name: 🧪 Verify SARIF files
         run: |
+          set -euo pipefail
           ls -lah *.sarif
           test -s bandit.sarif
           test -s checkov.sarif
+          python -m json.tool bandit.sarif >/dev/null
+          python -m json.tool checkov.sarif >/dev/null
 
       # -----------------------------
       # Upload results to GitHub Security tab
