@@ -16,7 +16,7 @@ aiohttp==3.9.1
 urllib3==2.7.0
 
 # Authentication & Security
-authlib==1.6.12
+authlib==1.7.2
 Flask-Login==0.6.3
 PyJWT==2.13.0
 cryptography==48.0.1
