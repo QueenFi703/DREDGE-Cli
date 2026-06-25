@@ -6,7 +6,7 @@ requests>=2.32.5
 aiohttp>=3.13.5
 
 # OAuth2 / authentication
-authlib>=1.6.12
+authlib>=1.7.2
 flask-login>=0.6.3
 
 # PyTorch - Platform-specific installations:
