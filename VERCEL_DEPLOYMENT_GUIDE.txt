@@ -1,0 +1,520 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                    VERCEL DEPLOYMENT GUIDE                                 ║
+║           FastAPI with Unified Middleware on Serverless                    ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+
+DEPLOYMENT OPTIONS ON VERCEL
+=============================
+
+Option 1: Unified Auth Gateway (Recommended)
+─────────────────────────────────────────────
+Entry Point: unified_auth_gateway:app
+URL: https://dredge-auth-gateway.vercel.app
+Purpose: Central proxy routing to all backend services (8000, 8001, 8080, 3001)
+Scaling: Automatic serverless scaling
+Best For: Production gateway with multi-service routing
+
+Option 2: Standalone Orion with Middleware
+───────────────────────────────────────────
+Entry Point: orion_gateway_authenticated:app
+URL: https://orion-gateway.vercel.app
+Purpose: Standalone Orion inference endpoint with authentication
+Scaling: Automatic serverless scaling
+Best For: Individual service deployment
+
+
+🚀 QUICK START: DEPLOY TO VERCEL (5 MINUTES)
+==============================================
+
+Step 1: Install Vercel CLI (2 minutes)
+───────────────────────────────────────
+npm install -g vercel
+
+
+Step 2: Deploy (2 minutes)
+──────────────────────────
+cd DREDGE-Cli
+vercel --prod
+
+Follow prompts:
+  ? Set up and deploy "DREDGE-Cli"? (y/N) → y
+  ? Which scope do you want to deploy to? → Your account
+  ? Link to existing project? → N (first time) or Y (existing)
+  ? What's your project's name? → dredge-auth-gateway
+  ? In which directory is your code located? → .
+  ? Want to modify these settings? → N
+
+Wait for deployment...
+
+
+Step 3: Verify Deployment (1 minute)
+────────────────────────────────────
+Your URL will be displayed:
+  https://dredge-auth-gateway.vercel.app
+
+Test:
+  curl https://dredge-auth-gateway.vercel.app/health
+
+
+CONFIGURATION: pyproject.toml
+==============================
+
+The pyproject.toml file includes Vercel configuration:
+
+```toml
+[tool.vercel]
+# Primary deployment
+[[tool.vercel.functions]]
+entrypoint = "unified_auth_gateway:app"
+memory = 512
+maxDuration = 60
+runtime = "python3.11"
+
+# Alternative deployment
+[[tool.vercel.functions]]
+entrypoint = "orion_gateway_authenticated:app"
+memory = 512
+maxDuration = 60
+runtime = "python3.11"
+
+[tool.vercel.env]
+PYTHONUNBUFFERED = "true"
+FLASK_ENV = "production"
+AUTH_STORAGE_PATH = "/tmp/api_keys.json"
+```
+
+This configuration:
+  ✅ Specifies Python 3.11 runtime
+  ✅ Sets 512MB memory per function
+  ✅ 60-second timeout
+  ✅ Environment variables configured
+  ✅ Two entry points for flexibility
+
+
+ENVIRONMENT VARIABLES ON VERCEL
+================================
+
+Set in Vercel Dashboard:
+
+1. Go to: https://vercel.com/dashboard
+2. Select: Your Project → Settings → Environment Variables
+3. Add:
+
+  PYTHONUNBUFFERED = true
+  PYTHONDONTWRITEBYTECODE = true
+  FLASK_ENV = production
+  AUTH_STORAGE_PATH = /tmp/api_keys.json
+  LOG_LEVEL = INFO
+  ENABLE_RATE_LIMITING = true
+
+Production Environment:
+  ENVIRONMENT = production
+  DEBUG = false
+  SECRET_KEY = your-secure-random-key
+
+
+DEPLOYING UNIFIED AUTH GATEWAY
+===============================
+
+Command:
+  vercel --prod
+
+This deploys: unified_auth_gateway:app
+
+What it does:
+  ✅ Central authentication proxy on single endpoint
+  ✅ Routes to backend services (Orion, DREDGE, etc.)
+  ✅ Automatic API key validation
+  ✅ Rate limiting enforcement
+  ✅ Usage tracking
+
+Routing (through unified gateway):
+  GET  https://your-url/health                    → Public health
+  POST https://your-url/orion/invoke              → Routes to Orion (8080)
+  GET  https://your-url/dredge/api/arch/health   → Routes to DREDGE (3001)
+  POST https://your-url/admin/keys/create         → Create API key
+
+
+DEPLOYING STANDALONE ORION
+===========================
+
+To deploy just Orion with middleware (not the gateway):
+
+1. Edit vercel.json to set primary entrypoint:
+   ```json
+   {
+     "buildCommand": "pip install -r requirements.txt",
+     "functions": {
+       "orion_gateway_authenticated.py": {
+         "runtime": "python3.11"
+       }
+     }
+   }
+   ```
+
+2. Deploy:
+   vercel --prod
+
+This deploys: orion_gateway_authenticated:app
+
+What it does:
+  ✅ Standalone Orion with unified middleware
+  ✅ No gateway routing
+  ✅ Authentication on /invoke, /health, etc.
+  ✅ Admin panel for key management
+
+
+VERCEL.JSON CONFIGURATION
+==========================
+
+Create vercel.json for explicit Vercel configuration:
+
+```json
+{
+  "buildCommand": "pip install -r requirements.txt",
+  "outputDirectory": ".",
+  "installCommand": "pip install -r requirements.txt",
+  "framework": "fastapi",
+  "python": {
+    "version": "3.11"
+  },
+  "functions": {
+    "unified_auth_gateway.py": {
+      "memory": 512,
+      "maxDuration": 60,
+      "runtime": "python3.11"
+    },
+    "orion_gateway_authenticated.py": {
+      "memory": 512,
+      "maxDuration": 60,
+      "runtime": "python3.11"
+    }
+  },
+  "env": {
+    "PYTHONUNBUFFERED": "true",
+    "FLASK_ENV": "production"
+  },
+  "envs": {
+    "preview": {
+      "FLASK_ENV": "staging"
+    },
+    "production": {
+      "FLASK_ENV": "production"
+    }
+  },
+  "regions": ["iad1"]
+}
+```
+
+
+SWITCHING BETWEEN DEPLOYMENTS
+==============================
+
+Option 1: Deploy Unified Gateway (Default)
+───────────────────────────────────────────
+vercel --prod
+
+Entry Point: unified_auth_gateway:app
+Best For: Production with multi-service routing
+
+
+Option 2: Deploy Standalone Orion
+──────────────────────────────────
+Edit vercel.json to set default to orion_gateway_authenticated:app
+Then: vercel --prod
+
+Entry Point: orion_gateway_authenticated:app
+Best For: Single service deployment
+
+
+Option 3: Multiple Deployments (Different Projects)
+────────────────────────────────────────────────────
+Create separate Vercel projects:
+
+Project 1: dredge-auth-gateway
+  → unified_auth_gateway:app
+  → https://dredge-auth-gateway.vercel.app
+
+Project 2: dredge-orion
+  → orion_gateway_authenticated:app
+  → https://dredge-orion.vercel.app
+
+Deploy each:
+  vercel --prod --name dredge-auth-gateway
+  vercel --prod --name dredge-orion
+
+
+VERCEL DASHBOARD TIPS
+=====================
+
+After deployment:
+
+1. View Deployment
+   Dashboard → Project → Deployments
+   See all versions and rollback if needed
+
+2. Monitor Performance
+   Dashboard → Analytics
+   View response times and requests
+
+3. View Logs
+   Dashboard → Logs
+   Real-time function logs
+
+4. Set Custom Domain
+   Dashboard → Settings → Domains
+   Add your domain (e.g., api.dredge.ai)
+
+5. Environment Variables
+   Dashboard → Settings → Environment Variables
+   Manage secrets and configuration
+
+6. Automatic Deployments
+   Dashboard → Settings → Git
+   Auto-deploy on git push
+
+
+CUSTOM DOMAIN ON VERCEL
+=======================
+
+Add your own domain (e.g., api.dredge.ai):
+
+1. In Vercel Dashboard:
+   Settings → Domains → Add Domain
+
+2. Enter domain: api.dredge.ai
+
+3. Vercel shows CNAME record to add:
+   CNAME: cname.vercel.com
+
+4. In your registrar (GoDaddy, Namecheap, etc.):
+   Add CNAME record:
+   Name: api
+   Value: cname.vercel.com
+   TTL: 3600
+
+5. Wait for DNS propagation (5-24 hours)
+
+6. Test:
+   curl https://api.dredge.ai/health
+
+
+API KEY STORAGE ON VERCEL
+=========================
+
+Important: Vercel uses ephemeral filesystem
+
+On first deploy:
+  ✅ API keys stored in /tmp/api_keys.json
+  ✅ Works fine for initial setup
+
+Issue: /tmp cleared on restart
+
+Solutions:
+
+Option 1: Use Environment Variables
+────────────────────────────────────
+Store API key hashes in environment:
+  Add secrets to Vercel dashboard
+  Load from environment in code
+
+Option 2: Use External Database
+────────────────────────────────
+Connect to PostgreSQL/MongoDB:
+  - Vercel PostgreSQL add-on
+  - AWS RDS
+  - MongoDB Atlas
+
+Option 3: Use Vercel KV (Redis)
+───────────────────────────────
+Vercel KV for persistent storage:
+  Dashboard → Storage → KV
+  Fast key-value store
+
+Recommended: Use Vercel KV or Database for production
+
+
+MONITORING ON VERCEL
+====================
+
+Vercel Logs:
+  Dashboard → Logs
+  Real-time function output
+
+View Logs:
+  vercel logs              # All logs
+  vercel logs --follow     # Real-time follow
+  vercel logs --since 1h   # Last hour
+
+Sample Log Entry:
+  [unified_auth_gateway] Request tracked: key_abc POST /orion/health → 200 (45ms)
+
+
+PERFORMANCE ON VERCEL
+====================
+
+Typical Performance:
+  Response time: 50-200ms (Cold start: 500-1000ms)
+  Throughput: 1000+ requests/sec
+  Scaling: Automatic (0-100+ functions)
+  Cost: Based on compute time
+
+Optimization Tips:
+  ✅ Use caching headers
+  ✅ Minimize dependencies
+  ✅ Optimize database queries
+  ✅ Use CDN for static files
+  ✅ Enable compression
+
+
+ERROR TROUBLESHOOTING
+====================
+
+Build Error: Module not found
+  Solution: Check requirements.txt has all imports
+  Fix: pip freeze > requirements.txt
+
+Runtime Error: ModuleNotFoundError
+  Solution: Ensure module is imported correctly
+  Fix: Check import statements and paths
+
+Timeout Error: Function timed out
+  Solution: Increase maxDuration in config
+  Fix: Set maxDuration to 60 (max for Vercel)
+
+Import Error: Cannot import FastAPI
+  Solution: Install dependencies
+  Fix: requirements.txt must include fastapi
+
+API Key Storage Missing
+  Solution: Use external database/KV store
+  Fix: Add database connection to code
+
+
+DEPLOYMENT CHECKLIST
+====================
+
+Before Deploying:
+  [ ] Code committed to GitHub
+  [ ] requirements.txt updated
+  [ ] pyproject.toml configured
+  [ ] Environment variables documented
+  [ ] Tests passing locally
+  [ ] No secrets in code
+
+Deploy:
+  [ ] Install Vercel CLI
+  [ ] Run: vercel --prod
+  [ ] Verify deployment succeeded
+  [ ] Test health endpoint
+  [ ] Check logs for errors
+
+Post-Deploy:
+  [ ] Monitor for 24 hours
+  [ ] Set up alerting
+  [ ] Configure custom domain
+  [ ] Enable analytics
+  [ ] Document deployment
+
+
+UPDATING PRODUCTION
+===================
+
+Automatic Update (Recommended):
+
+1. Make code changes locally
+2. Commit to GitHub:
+   git add -A
+   git commit -m "feat: Your change"
+   git push origin master
+
+3. Vercel auto-deploys on push
+4. Watch at: https://vercel.com/dashboard
+
+Manual Update:
+   vercel --prod
+
+
+ROLLBACK ON VERCEL
+==================
+
+If deployment fails:
+
+1. Go to: https://vercel.com/dashboard
+2. Select Project → Deployments
+3. Find previous working version
+4. Click the deployment
+5. Click "Promote to Production"
+
+Or via CLI:
+  vercel rollback
+
+
+QUICK REFERENCE
+===============
+
+Deploy Unified Gateway:
+  vercel --prod
+
+Test:
+  curl https://your-vercel-url/health
+
+View Logs:
+  vercel logs --follow
+
+View Environment Vars:
+  vercel env list
+
+Redeploy:
+  vercel --prod --force
+
+Rollback:
+  vercel rollback
+
+Add Custom Domain:
+  Vercel Dashboard → Settings → Domains
+
+
+COMPARISON: GATEWAY VS STANDALONE
+==================================
+
+Unified Gateway (unified_auth_gateway:app):
+  ✅ Central proxy routing
+  ✅ Multi-service support
+  ✅ Single authentication point
+  ✅ Unified rate limiting
+  ✅ Recommended for production
+
+Standalone Orion (orion_gateway_authenticated:app):
+  ✅ Independent deployment
+  ✅ Dedicated resources
+  ✅ Direct API access
+  ✅ Easier debugging
+  ✅ Suitable for single-service
+
+
+SUMMARY
+=======
+
+pyproject.toml includes:
+  ✅ Project metadata
+  ✅ Dependencies (requirements)
+  ✅ Vercel configuration
+  ✅ Build settings
+  ✅ Environment variables
+  ✅ Two entry points:
+     - unified_auth_gateway:app (gateway)
+     - orion_gateway_authenticated:app (standalone)
+
+Deploy:
+  vercel --prod
+
+Result:
+  ✅ Production gateway deployed
+  ✅ Auto-scaling enabled
+  ✅ HTTPS enabled
+  ✅ CDN enabled
+  ✅ Monitoring available
+
+Status: Ready for production on Vercel! 🚀
