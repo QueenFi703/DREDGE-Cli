@@ -3,9 +3,6 @@
   "outputDirectory": ".",
   "installCommand": "pip install -r requirements.txt",
   "framework": null,
-  "python": {
-    "version": "3.11"
-  },
   "functions": {
     "api/gateway.py": {
       "runtime": "python3.11",
