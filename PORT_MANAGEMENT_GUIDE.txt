@@ -1,0 +1,482 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║              PORT MANAGEMENT - YOUR EXISTING INFRASTRUCTURE                ║
+║                    Integrated API Key Authentication                        ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+
+YOUR CURRENT SETUP
+==================
+
+Port 8000:  DREDGE Studio Advanced (Flask)
+            - Advanced features dashboard
+            - /advanced endpoint
+            - Optional auth
+
+Port 8001:  Available (was testing)
+            - Can use for MCP Gateway or other service
+            - Optional auth
+
+Port 8080:  Orion Gateway (FastAPI)
+            - Main inference endpoint
+            - /invoke endpoint
+            - Requires auth (adding now)
+
+Port 3001:  DREDGE (Flask)
+            - Pipeline orchestration
+            - /api/architecture/* endpoints
+            - Requires auth (adding now)
+
+Port 9000:  NEW - Unified Auth Gateway (FastAPI)
+            - Central authentication proxy
+            - Routes to 8000, 8001, 8080, 3001
+            - API key management
+            - Usage tracking
+
+
+UNIFIED ARCHITECTURE
+====================
+
+Client Application
+       │
+       │ HTTP Request
+       │ Header: x-api-key: orion_key_xxx
+       │
+       v
+┌──────────────────────────────────────┐
+│  Unified Auth Gateway (Port 9000)    │
+│  ┌──────────────────────────────────┐│
+│  │ APIKeyMiddleware                 ││
+│  │ - Validate x-api-key header      ││
+│  │ - Check rate limits              ││
+│  │ - Track usage                    ││
+│  └────────────┬─────────────────────┘│
+│               │                       │
+│  ┌────────────v─────────────────────┐│
+│  │ Route Selection                  ││
+│  │ /orion/*      → 8080             ││
+│  │ /dredge/*     → 3001             ││
+│  │ /advanced/*   → 8000             ││
+│  │ /mcp/*        → 8001             ││
+│  └────────────┬─────────────────────┘│
+│               │                       │
+└───────────────┼───────────────────────┘
+                │
+    ┌───────────┼───────────┬────────────┐
+    │           │           │            │
+    v           v           v            v
+┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐
+│ Orion  │ │ DREDGE │ │Advanced│ │  MCP   │
+│ 8080   │ │ 3001   │ │ 8000   │ │ 8001   │
+│ Invoke │ │Pipeline│ │ Dash   │ │Gateway │
+└────────┘ └────────┘ └────────┘ └────────┘
+
+
+ROUTING RULES
+=============
+
+Gateway Port 9000 Routes:
+
+/orion/*           → 8080 (Orion Gateway)
+  Examples:
+  GET  /orion/health
+  POST /orion/invoke
+  GET  /orion/usage
+  POST /orion/admin/stats
+
+/dredge/*          → 3001 (DREDGE Pipeline)
+  Examples:
+  GET  /dredge/health
+  POST /dredge/api/architecture/pipeline/execute
+  GET  /dredge/api/architecture/providers/status
+  POST /dredge/api/architecture/analyze
+
+/advanced/*        → 8000 (Advanced Dashboard)
+  Examples:
+  GET  /advanced/health
+  GET  /advanced/dashboard
+  GET  /advanced/features
+
+/mcp/*             → 8001 (MCP Gateway - optional)
+  Examples:
+  GET  /mcp/health
+  POST /mcp/invoke
+
+
+USAGE EXAMPLES
+==============
+
+Before (Direct to services):
+──────────────────────────
+
+# Orion
+curl http://127.0.0.1:8080/invoke
+
+# DREDGE
+curl http://127.0.0.1:3001/api/architecture/health
+
+# Dashboard
+curl http://127.0.0.1:8000/advanced
+
+
+After (Through Gateway with Auth):
+──────────────────────────────────
+
+# Orion (with auth)
+curl -H "x-api-key: orion_key_xxx" http://127.0.0.1:9000/orion/invoke
+
+# DREDGE (with auth)
+curl -H "x-api-key: orion_key_xxx" http://127.0.0.1:9000/dredge/api/architecture/health
+
+# Dashboard (with auth)
+curl -H "x-api-key: orion_key_xxx" http://127.0.0.1:9000/advanced/dashboard
+
+
+SETUP INSTRUCTIONS
+===================
+
+Step 1: Start all backend services (if not running)
+───────────────────────────────────────────────────
+
+Terminal 1:
+  cd dredge-cli-repo
+  python start_server.py
+  # Runs DREDGE on 3001
+
+Terminal 2:
+  python run_advanced_server.py
+  # Runs dashboard on 8000
+
+Terminal 3:
+  # Orion on 8080 (already running or start it)
+  python your_orion_app.py
+  # Or ensure it's running on 8080
+
+
+Step 2: Start Unified Auth Gateway
+──────────────────────────────────
+
+Terminal 4:
+  python unified_auth_gateway.py
+  
+  Output:
+    Unified Auth Gateway started
+    Gateway Port: 9000
+    Test key: orion_key_XEkFnoDSCfoQ...
+    Admin key: orion_key_7kQzPmN9vL2xJwRsT5fGhYuI8jKpOqAb...
+
+
+Step 3: Test Gateway
+───────────────────
+
+# Get health of all services
+curl http://127.0.0.1:9000/health
+
+# Test with API key
+curl -H "x-api-key: orion_key_XEkFnoDSCfoQ..." \
+  http://127.0.0.1:9000/orion/health
+
+# Swagger UI
+http://127.0.0.1:9000/docs
+
+
+PORT ASSIGNMENT SUMMARY
+=======================
+
+Service             | Port  | Type    | Default
+────────────────────┼───────┼─────────┼──────────────────────
+Backend Services:
+Orion Gateway       | 8080  | FastAPI | Production
+DREDGE              | 3001  | Flask   | Production
+Advanced Dashboard  | 8000  | Flask   | Production
+MCP Gateway         | 8001  | (Free)  | Optional
+
+API Key System:
+Unified Auth        | 9000  | FastAPI | NEW - Central Auth
+
+Direct Access (localhost only):
+Local API Key Test  | 8002  | FastAPI | Optional (standalone)
+FastAPI Auth Demo   | 8001  | FastAPI | Optional (demo)
+
+Admin Use Only:
+Admin Panel         | 9001  | Web UI  | Optional (future)
+
+
+ENVIRONMENT VARIABLES
+=====================
+
+Set these for production:
+
+ORION_PORT=8080
+DREDGE_PORT=3001
+ADVANCED_PORT=8000
+MCP_PORT=8001
+AUTH_GATEWAY_PORT=9000
+
+ORION_HOST=127.0.0.1
+DREDGE_HOST=127.0.0.1
+ADVANCED_HOST=127.0.0.1
+MCP_HOST=127.0.0.1
+
+AUTH_STORAGE_PATH=./data/unified_api_keys.json
+
+
+RUNNING MULTIPLE SERVICES
+==========================
+
+Option A: Multiple Terminals (Development)
+──────────────────────────────────────────
+
+Terminal 1: DREDGE
+  python -m dredge.server  # Or however you start it
+
+Terminal 2: Dashboard
+  python run_advanced_server.py
+
+Terminal 3: Orion
+  python your_orion.py  # Or already running
+
+Terminal 4: Auth Gateway
+  python unified_auth_gateway.py
+
+
+Option B: Docker Compose (Production)
+──────────────────────────────────────
+
+version: '3.8'
+services:
+  orion:
+    build: ./orion
+    ports:
+      - "8080:8080"
+  
+  dredge:
+    build: ./dredge-cli-repo
+    ports:
+      - "3001:3001"
+  
+  advanced:
+    build: ./advanced
+    ports:
+      - "8000:8000"
+  
+  auth-gateway:
+    build: .
+    ports:
+      - "9000:9000"
+    depends_on:
+      - orion
+      - dredge
+      - advanced
+    environment:
+      - ORION_URL=http://orion:8080
+      - DREDGE_URL=http://dredge:3001
+      - ADVANCED_URL=http://advanced:8000
+
+
+Option C: Systemd Services (Linux)
+──────────────────────────────────
+
+/etc/systemd/system/orion.service
+[Unit]
+Description=Orion Gateway
+After=network.target
+
+[Service]
+Type=simple
+User=app
+WorkingDirectory=/app
+ExecStart=/usr/bin/python3 orion_gateway_authenticated.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+
+# Enable and start
+sudo systemctl enable orion.service
+sudo systemctl start orion.service
+
+
+FIREWALL CONFIGURATION
+======================
+
+Production Setup - Expose Only 9000:
+
+iptables -A INPUT -p tcp --dport 9000 -j ACCEPT
+iptables -A INPUT -p tcp --dport 8080 -j REJECT  # Internal only
+iptables -A INPUT -p tcp --dport 3001 -j REJECT  # Internal only
+iptables -A INPUT -p tcp --dport 8000 -j REJECT  # Internal only
+
+Or in nginx:
+upstream orion_gateway {
+    server 127.0.0.1:9000;
+}
+
+server {
+    listen 80;
+    server_name api.example.com;
+    
+    location / {
+        proxy_pass http://orion_gateway;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+
+
+RATE LIMITING STRATEGY
+======================
+
+Per Tier (Monthly):
+  FREE:       100 requests
+  STARTER:    1,000 requests
+  PRO:        10,000 requests
+  ENTERPRISE: Unlimited
+
+Per Service:
+  All requests counted together
+  Reset on 1st of each month
+
+Per IP (Future):
+  Optional: Rate limit by IP address
+  Prevents abuse from single client
+
+
+MONITORING & LOGGING
+====================
+
+Check Service Health:
+  curl http://127.0.0.1:9000/health
+
+View Usage:
+  curl -H "x-api-key: YOUR_KEY" http://127.0.0.1:9000/usage
+
+Admin Stats:
+  curl -H "x-api-key: ADMIN_KEY" http://127.0.0.1:9000/admin/stats
+
+Check Gateway Logs:
+  # Terminal running gateway shows logs in real-time
+  # Or: tail -f gateway.log
+
+
+TROUBLESHOOTING
+===============
+
+Issue: "Service not found"
+Solution: Check service is running on correct port
+Example: curl http://127.0.0.1:8080/health
+
+Issue: "Connection refused on port 9000"
+Solution: Start gateway: python unified_auth_gateway.py
+
+Issue: "401 Unauthorized"
+Solution: Add x-api-key header
+Example: -H "x-api-key: orion_key_xxx"
+
+Issue: "429 Too Many Requests"
+Solution: Check usage: curl -H "x-api-key: KEY" http://127.0.0.1:9000/usage
+
+Issue: Backend service returns 502
+Solution: Check backend is running on expected port
+
+
+DIRECT ACCESS ALTERNATIVES
+==========================
+
+If you want direct access (no gateway):
+
+Orion Direct:
+  http://127.0.0.1:8080/invoke
+
+DREDGE Direct:
+  http://127.0.0.1:3001/api/architecture/pipeline/execute
+
+Dashboard Direct:
+  http://127.0.0.1:8000/advanced
+
+Gateway (Recommended):
+  http://127.0.0.1:9000/orion/invoke
+  (with x-api-key authentication)
+
+
+MIGRATION PATH
+==============
+
+Phase 1 - Development:
+  Keep direct access (8000, 8001, 8080)
+  Gateway optional on 9000
+  Test both ways
+
+Phase 2 - Staging:
+  Enable gateway for testing
+  Update clients to use 9000
+  Monitor for issues
+
+Phase 3 - Production:
+  All traffic through gateway (9000)
+  Firewall blocks direct access (8000, 8001, 8080)
+  Metrics and monitoring active
+
+
+PORT USAGE CHECKLIST
+====================
+
+Local Development:
+  [X] Port 3001  - DREDGE Pipeline
+  [X] Port 8000  - Advanced Dashboard
+  [X] Port 8001  - Available for future
+  [X] Port 8080  - Orion Gateway
+  [X] Port 9000  - NEW - Unified Auth Gateway
+
+Ports to Keep Free:
+  [ ] Port 9001  - Admin web UI (future)
+  [ ] Port 9002  - Analytics (future)
+  [ ] Port 9003  - WebSocket (future)
+
+
+FUTURE ENHANCEMENTS
+===================
+
+1. Load Balancing (Port 9000)
+   - Multiple gateway instances
+   - Nginx/HAProxy in front
+
+2. Cache Layer (Redis)
+   - Cache authentication results
+   - Distributed rate limiting
+
+3. Metrics & Monitoring
+   - Prometheus on port 9002
+   - Grafana dashboard
+
+4. Admin UI
+   - Web dashboard on port 9001
+   - Key management interface
+   - Usage analytics
+
+5. Webhooks
+   - Notify on rate limit hits
+   - Alert on unusual activity
+
+
+QUICK START
+===========
+
+1. Start all services:
+   Terminal 1: python run_advanced_server.py
+   Terminal 2: python dredge_server.py  (or however you start DREDGE)
+   Terminal 3: Orion on 8080 (already running)
+   Terminal 4: python unified_auth_gateway.py
+
+2. Get test key from Terminal 4 output
+
+3. Test gateway:
+   curl -H "x-api-key: orion_key_xxx" http://127.0.0.1:9000/orion/health
+
+4. Access Swagger:
+   http://127.0.0.1:9000/docs
+
+5. View test keys in Swagger, try endpoints!
+
+
+════════════════════════════════════════════════════════════════════════════════
+Now all your services are behind unified authentication on port 9000!

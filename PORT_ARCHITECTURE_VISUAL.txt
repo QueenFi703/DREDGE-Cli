@@ -1,0 +1,371 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                      PORT ARCHITECTURE DIAGRAM                              ║
+║                    YOUR SYSTEM WITH UNIFIED AUTH                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+
+BEFORE (Direct Access - No Auth)
+=================================
+
+Client
+  │
+  ├─→ http://127.0.0.1:8080/invoke          (Orion)
+  ├─→ http://127.0.0.1:3001/api/arch/*      (DREDGE)
+  ├─→ http://127.0.0.1:8000/advanced        (Dashboard)
+  └─→ http://127.0.0.1:8001/mcp/*           (MCP)
+
+Problem: No authentication, no rate limiting, no usage tracking
+
+
+AFTER (Unified Auth Gateway - Recommended)
+============================================
+
+Client Application
+       │
+       │ HTTP Request + x-api-key header
+       │
+       v
+┌──────────────────────────────────────────┐
+│   UNIFIED AUTH GATEWAY (Port 9000)      │
+│  ┌──────────────────────────────────────┐│
+│  │ 1. Extract x-api-key from header    ││
+│  │ 2. Validate against stored hashes   ││
+│  │ 3. Check rate limits                ││
+│  │ 4. Route to backend service         ││
+│  │ 5. Track usage                      ││
+│  └──────────────────────────────────────┘│
+│                                          │
+│  Routes:                                 │
+│    /orion/*       → 8080                 │
+│    /dredge/*      → 3001                 │
+│    /advanced/*    → 8000                 │
+│    /mcp/*         → 8001                 │
+└──────────────────┬───────────────────────┘
+                   │
+       ┌───────────┼───────────┬────────────┐
+       │           │           │            │
+       v           v           v            v
+   ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐
+   │ Orion  │ │ DREDGE │ │Advanced│ │  MCP   │
+   │ 8080   │ │ 3001   │ │ 8000   │ │ 8001   │
+   │ Invoke │ │Pipeline│ │Dashboard │Gateway │
+   └────────┘ └────────┘ └────────┘ └────────┘
+
+
+USAGE EXAMPLES
+==============
+
+Before (No Auth):
+  curl http://127.0.0.1:8080/invoke
+  # Anyone can call
+
+After (With Auth - Through Gateway):
+  curl -H "x-api-key: orion_key_xxx" \
+    http://127.0.0.1:9000/orion/invoke
+  # Only valid keys can call
+  # Usage tracked automatically
+  # Rate limits enforced
+
+
+GATEWAY ROUTES
+==============
+
+Entry Point: http://127.0.0.1:9000
+
+Format: http://127.0.0.1:9000/<SERVICE>/<PATH>
+
+Examples:
+  GET  http://127.0.0.1:9000/orion/health
+  POST http://127.0.0.1:9000/orion/invoke
+  GET  http://127.0.0.1:9000/dredge/api/architecture/health
+  POST http://127.0.0.1:9000/dredge/pipeline/execute
+  GET  http://127.0.0.1:9000/advanced/dashboard
+  POST http://127.0.0.1:9000/mcp/invoke
+
+
+REQUEST FLOW DIAGRAM
+====================
+
+┌─────────────────────────────────────────┐
+│ Client: curl -H "x-api-key: ..." ...    │
+└─────────────┬───────────────────────────┘
+              │
+              v
+┌──────────────────────────────────────────┐
+│ Gateway Middleware                       │
+│ ┌────────────────────────────────────────┐│
+│ │ 1. Extract x-api-key from headers    ││
+│ │    Input: x-api-key: orion_key_xxx   ││
+│ │    Output: Key exists?               ││
+│ └────────────────────────────────────────┘│
+└─────────────┬──────────────────────────────┘
+              │
+              v
+┌──────────────────────────────────────────┐
+│ Validation Layer                         │
+│ ┌────────────────────────────────────────┐│
+│ │ 1. Hash key with extracted salt      ││
+│ │ 2. Compare hashes (constant-time)    ││
+│ │ 3. Check if key is active            ││
+│ │ 4. Check if key is expired           ││
+│ └────────────────────────────────────────┘│
+└─────────────┬──────────────────────────────┘
+              │
+              v
+┌──────────────────────────────────────────┐
+│ Rate Limit Check                         │
+│ ┌────────────────────────────────────────┐│
+│ │ 1. Get key's tier                    ││
+│ │ 2. Get requests this month           ││
+│ │ 3. Check: requests < limit?          ││
+│ │ 4. If exceeded: Return 429           ││
+│ └────────────────────────────────────────┘│
+└─────────────┬──────────────────────────────┘
+              │
+              v
+┌──────────────────────────────────────────┐
+│ Route Selection                          │
+│ ┌────────────────────────────────────────┐│
+│ │ /orion/*      → http://8080/<path>   ││
+│ │ /dredge/*     → http://3001/<path>   ││
+│ │ /advanced/*   → http://8000/<path>   ││
+│ │ /mcp/*        → http://8001/<path>   ││
+│ └────────────────────────────────────────┘│
+└─────────────┬──────────────────────────────┘
+              │
+              v
+┌──────────────────────────────────────────┐
+│ Backend Service Execution                │
+│ (Orion 8080, DREDGE 3001, etc.)         │
+└─────────────┬──────────────────────────────┘
+              │
+              v
+┌──────────────────────────────────────────┐
+│ Response Processing                      │
+│ ┌────────────────────────────────────────┐│
+│ │ 1. Get response from backend         ││
+│ │ 2. Record usage (endpoint, code)     ││
+│ │ 3. Update request counter            ││
+│ │ 4. Add rate limit headers            ││
+│ │    X-RateLimit-Limit: 10000          ││
+│ │    X-RateLimit-Remaining: 9995       ││
+│ │    X-RateLimit-Tier: pro             ││
+│ └────────────────────────────────────────┘│
+└─────────────┬──────────────────────────────┘
+              │
+              v
+┌──────────────────────────────────────────┐
+│ Client: Response with rate limit headers │
+│ {result: "..."                           │
+│  usage: {tier, requests, limit}}         │
+└──────────────────────────────────────────┘
+
+
+SERVICE PORTS REFERENCE
+=======================
+
+Port  │ Service              │ URL
+──────┼──────────────────────┼────────────────────────────
+8000  │ Advanced Dashboard   │ http://127.0.0.1:8000
+8001  │ MCP Gateway          │ http://127.0.0.1:8001
+8080  │ Orion Gateway        │ http://127.0.0.1:8080
+3001  │ DREDGE Pipeline      │ http://127.0.0.1:3001
+9000  │ AUTH GATEWAY (NEW)   │ http://127.0.0.1:9000
+
+
+FIREWALL CONFIGURATION (Production)
+====================================
+
+Internet
+    │
+    v ALLOW :443 HTTPS
+┌────────────────────────┐
+│ Reverse Proxy / Load   │
+│ Balancer (nginx)       │
+│ Port 443               │
+└────────┬───────────────┘
+         │ ALLOW :9000
+         v
+┌────────────────────────────────┐
+│ Unified Auth Gateway           │
+│ Port 9000 (Internal)           │
+└────┬──┬──┬──┬──────────────────┘
+     │  │  │  │
+     │  │  │  └─ ALLOW :8000 (Internal)
+     │  │  └──── ALLOW :8001 (Internal)
+     │  └─────── ALLOW :8080 (Internal)
+     └────────── ALLOW :3001 (Internal)
+     
+     v          v         v         v
+  Port 8000  Port 8001  Port 8080  Port 3001
+  (Advanced) (MCP)      (Orion)    (DREDGE)
+
+
+SECURITY LAYERS
+================
+
+Layer 1: Firewall
+  Only port 9000 exposed to internet
+  Internal services on 8000, 8001, 8080, 3001
+
+Layer 2: HTTPS/TLS
+  Encrypt data in transit
+  Certificate validation
+
+Layer 3: API Key Authentication
+  x-api-key header required
+  SHA-256 hashing with salt
+
+Layer 4: Rate Limiting
+  Max requests per month by tier
+  Returns 429 if exceeded
+
+Layer 5: Audit Logging
+  Track all requests
+  Admin access logged
+
+
+PORT STATUS CHECK
+=================
+
+Verify your setup:
+
+Check Gateway:
+  curl http://127.0.0.1:9000/health
+  Should show all services status
+
+Check Orion (behind gateway):
+  curl -H "x-api-key: KEY" http://127.0.0.1:9000/orion/health
+
+Check Direct Access (should fail in production):
+  curl http://127.0.0.1:8080/health
+  (Blocked by firewall in production)
+
+
+MONITORING DASHBOARD
+====================
+
+http://127.0.0.1:9000/docs
+
+Shows:
+  - All available endpoints
+  - Request/response schemas
+  - Try endpoints in browser
+  - Rate limit headers
+  - Auth token field
+
+
+MIGRATION PATH
+==============
+
+Phase 1 - Development:
+  ✓ Current state
+  ✓ Direct access still works
+  ✓ Gateway optional
+
+Phase 2 - Testing:
+  □ Start using gateway on 9000
+  □ Update clients to use 9000
+  □ Monitor for issues
+
+Phase 3 - Production:
+  □ Firewall blocks 8000, 8001, 8080, 3001
+  □ Only 9000 exposed
+  □ HTTPS enabled
+  □ Monitoring/alerting active
+
+
+STARTING SERVICES
+=================
+
+Terminal 1: Orion (if not already running)
+  python your_orion_app.py
+  # Listens on 8080
+
+Terminal 2: DREDGE (optional)
+  cd dredge-cli-repo && python start_server.py
+  # Listens on 3001
+
+Terminal 3: Advanced Dashboard (optional)
+  python run_advanced_server.py
+  # Listens on 8000
+
+Terminal 4: Unified Auth Gateway (NEW)
+  python unified_auth_gateway.py
+  # Listens on 9000
+
+
+QUICK TEST
+==========
+
+1. Start gateway:
+   python unified_auth_gateway.py
+
+2. Wait for output with test keys
+
+3. Test in browser:
+   http://127.0.0.1:9000/docs
+   Click Authorize
+   Paste test key
+   Try GET /health
+
+4. Test with curl:
+   curl http://127.0.0.1:9000/health
+
+5. Test protected endpoint:
+   curl -H "x-api-key: orion_key_xxx" \
+     http://127.0.0.1:9000/orion/health
+
+
+TROUBLESHOOTING QUICK REFERENCE
+================================
+
+Port 9000 not responding?
+  → Make sure unified_auth_gateway.py is running
+
+Connection refused on 8080?
+  → Orion not running on 8080
+
+401 Unauthorized?
+  → Missing x-api-key header
+  → Invalid key format
+
+429 Too Many Requests?
+  → Rate limit exceeded
+  → Check usage with GET /usage
+
+502 Bad Gateway?
+  → Backend service (8000, 8001, 8080, 3001) not responding
+  → Check that service is running
+
+
+UPGRADE PATHS
+=============
+
+Development → Staging:
+  1. Deploy gateway to staging machine
+  2. Update service URLs in gateway config
+  3. Enable HTTPS certificates
+  4. Test with real clients
+
+Staging → Production:
+  1. Deploy all services
+  2. Deploy gateway behind load balancer
+  3. Configure firewall
+  4. Set up monitoring/alerting
+  5. Enable audit logging
+
+
+READY TO DEPLOY
+===============
+
+✓ Unified Auth Gateway (Port 9000)
+✓ API Key System Complete
+✓ Rate Limiting Configured
+✓ Usage Tracking Implemented
+✓ Admin Panel Ready
+✓ Documentation Complete
+
+Next: python unified_auth_gateway.py
+
+Your API is now secured! 🔒

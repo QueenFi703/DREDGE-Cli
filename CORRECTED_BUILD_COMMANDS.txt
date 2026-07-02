@@ -1,0 +1,265 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║              CORRECTED PyPI BUILD & PUBLISH COMMANDS                       ║
+║                    Step-by-step with correct directory                      ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+⚠️ THE ISSUE
+============
+Error: "pip install build twine" fails with "not a Python project"
+Cause: You need to BE IN the dredge-cli-repo directory FIRST
+
+
+✅ CORRECTED COMMANDS
+====================
+
+ALL COMMANDS IN ONE BLOCK (Copy & Paste This):
+
+```bash
+# Step 1: Navigate to the correct directory
+cd dredge-cli-repo
+
+# Step 2: Upgrade pip first
+python -m pip install --upgrade pip
+
+# Step 3: Install build dependencies
+python -m pip install --upgrade setuptools wheel
+
+# Step 4: Install packaging tools
+python -m pip install build twine
+
+# Step 5: Clean old builds (if any)
+rm -rf build dist *.egg-info
+
+# Step 6: Build the package
+python -m build
+
+# Step 7: Verify the build
+twine check dist/*
+
+# Step 8a: Test on TestPyPI (optional)
+twine upload --repository testpypi dist/*
+
+# Step 8b: Upload to production PyPI
+twine upload dist/*
+```
+
+
+INDIVIDUAL COMMANDS (One at a time):
+===================================
+
+Command 1 - Go to project directory:
+cd dredge-cli-repo
+
+Command 2 - Upgrade pip:
+python -m pip install --upgrade pip
+
+Command 3 - Install build tools (THIS WILL NOW WORK):
+python -m pip install build twine
+
+Command 4 - Verify it worked:
+python -m build --version
+twine --version
+
+Command 5 - Build the distribution:
+python -m build
+
+Command 6 - Check what was built:
+dir dist
+(or on Linux/Mac: ls -la dist/)
+
+Command 7 - Verify package integrity:
+twine check dist/*
+
+Command 8 - Upload to PyPI:
+twine upload dist/*
+
+
+WINDOWS-SPECIFIC COMMANDS:
+=========================
+
+For Windows PowerShell/CMD:
+
+# Go to directory
+cd dredge-cli-repo
+
+# Upgrade pip
+python -m pip install --upgrade pip
+
+# Install tools (THIS IS THE KEY - the python -m prefix!)
+python -m pip install build twine
+
+# Build
+python -m build
+
+# Check files
+dir dist
+
+# Verify
+twine check dist/*
+
+# Upload
+twine upload dist/*
+
+
+FULL WORKING EXAMPLE:
+====================
+
+$ cd dredge-cli-repo
+$ python -m pip install --upgrade pip
+Collecting pip...
+Successfully installed pip-24.0
+
+$ python -m pip install build twine
+Collecting build...
+Collecting twine...
+Successfully installed build-1.0.0 twine-5.0.0
+
+$ python -m build
+* Creating venv isolated environment...
+* Installing packages in isolated environment...
+* Building wheel...
+* Created dist/dredge_studio-2.0.0-py3-none-any.whl
+* Building sdist...
+* Created dist/dredge-studio-2.0.0.tar.gz
+Successfully built dredge-studio-2.0.0.tar.gz and dredge_studio-2.0.0-py3-none-any.whl
+
+$ twine check dist/*
+Checking dist/dredge_studio-2.0.0-py3-none-any.whl: Passed ✓
+Checking dist/dredge-studio-2.0.0.tar.gz: Passed ✓
+
+$ twine upload dist/*
+Uploading distributions to https://upload.pypi.org/legacy/
+Uploading dredge_studio-2.0.0-py3-none-any.whl
+Uploading dredge-studio-2.0.0.tar.gz
+View at: https://pypi.org/project/dredge-studio/2.0.0/
+
+
+KEY DIFFERENCES:
+===============
+
+❌ WRONG (causes "not a Python project"):
+pip install build twine
+(run from outside dredge-cli-repo directory)
+
+✅ CORRECT:
+cd dredge-cli-repo
+python -m build
+(uses module execution, works from anywhere once in directory)
+
+❌ WRONG:
+python setup.py bdist_wheel
+(old method, deprecated)
+
+✅ CORRECT:
+python -m build
+(new PEP 517/518 standard)
+
+
+QUICK REFERENCE TABLE:
+====================
+
+Task                          | Command
+------------------------------|----------------------------------------
+Navigate to project           | cd dredge-cli-repo
+Upgrade pip                   | python -m pip install --upgrade pip
+Install build tools           | python -m pip install build twine
+Build distribution            | python -m build
+Verify package                | twine check dist/*
+Test upload                   | twine upload --repository testpypi dist/*
+Production upload             | twine upload dist/*
+Check installation            | pip install dredge-studio
+Verify version                | python -c "import dredge; print(dredge.__version__)"
+
+
+WITH VIRTUAL ENVIRONMENT (RECOMMENDED):
+======================================
+
+# Create virtual environment in dredge-cli-repo
+cd dredge-cli-repo
+python -m venv venv
+
+# Activate it
+# On Windows:
+venv\Scripts\activate
+
+# On Linux/Mac:
+source venv/bin/activate
+
+# Now install tools (will only affect venv)
+python -m pip install --upgrade pip
+python -m pip install build twine
+
+# Build
+python -m build
+
+# Upload
+twine upload dist/*
+
+
+PYPI CREDENTIALS:
+================
+
+Before uploading, you need PyPI credentials.
+
+Option 1: Create ~/.pypirc file
+cat > ~/.pypirc << EOF
+[pypi]
+username = __token__
+password = pypi-AgEIcHlwaS5vcmc...
+EOF
+
+Option 2: Use environment variable
+export TWINE_PASSWORD="pypi-AgEIcHlwaS5vcmc..."
+
+Option 3: Interactive prompt
+twine upload dist/*
+# Twine will ask for credentials
+
+
+FILES THAT WILL BE CREATED:
+=========================
+
+After running "python -m build", you'll have:
+
+dist/
+├── dredge_studio-2.0.0-py3-none-any.whl       (wheel file)
+└── dredge-studio-2.0.0.tar.gz                 (source distribution)
+
+These are what gets uploaded to PyPI.
+
+
+WHAT HAPPENS AFTER UPLOAD:
+========================
+
+Once uploaded to PyPI, anyone can install with:
+pip install dredge-studio
+
+The package will be available at:
+https://pypi.org/project/dredge-studio/
+
+
+TROUBLESHOOTING:
+================
+
+Error: "python: command not found"
+Fix: Use "python3" instead on Linux/Mac
+
+Error: "No module named 'build'"
+Fix: Make sure you ran "python -m pip install build"
+
+Error: "'build' is not recognized as a Python project"
+Fix: Make sure you're IN dredge-cli-repo directory first
+
+Error: "setup.py not found"
+Fix: Check you're in right directory:
+     pwd (or cd on Windows)
+     Should show: .../dredge-cli-repo
+
+Error: "twine: command not found"
+Fix: Run: python -m pip install twine
+
+Error: "401 Unauthorized"
+Fix: Check PyPI token - regenerate at pypi.org/manage/account/tokens/
+
+
+✅ READY TO BUILD AND PUBLISH!

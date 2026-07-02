@@ -1,0 +1,126 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║            DREDGE STUDIO - FIXED PyPI Build Instructions                  ║
+║                  Solutions for "Invalid Distribution" Error                ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+🔧 WHAT WAS FIXED
+=================
+
+Problems in original setup.py:
+  ❌ Entry points referenced missing functions
+  ❌ torch>=2.0.0 requirement too strict
+  ❌ GPU package specification invalid
+
+✅ Fixed setup.py:
+  ✓ Removed problematic entry_points
+  ✓ Made torch optional
+  ✓ Removed GPU package specs
+  ✓ Added fallback description
+
+
+✅ EASIEST METHOD - Run This Script
+===================================
+
+From the root directory (NOT in dredge-cli-repo):
+
+```
+python simple_build.py
+```
+
+This script:
+  ✅ Changes to dredge-cli-repo automatically
+  ✅ Installs all tools
+  ✅ Cleans old files
+  ✅ Builds the package
+  ✅ Verifies it worked
+  ✅ Shows what to do next
+
+Run it once and you're done building!
+
+
+✅ MANUAL METHOD - Step by Step
+===============================
+
+Step 1: Navigate to project
+  cd dredge-cli-repo
+
+Step 2: Install tools
+  python -m pip install --upgrade pip setuptools wheel build twine
+
+Step 3: Clean old builds
+  rm -rf build dist *.egg-info
+
+Step 4: Build
+  python -m build
+
+Step 5: Check dist folder
+  dir dist
+  (or: ls -la dist/ on Linux/Mac)
+
+Expected output:
+  dist/dredge_studio-2.0.0-py3-none-any.whl
+  dist/dredge-studio-2.0.0.tar.gz
+
+Step 6: Upload to PyPI
+  twine upload dist/*
+
+
+✅ ONE-LINER METHOD
+===================
+
+From root directory:
+
+```
+cd dredge-cli-repo && python -m pip install build twine && python -m build && twine upload dist/*
+```
+
+
+📁 FILES CHANGED
+===============
+
+Fixed:
+  ✓ setup.py - Removed problematic entry_points and strict requirements
+
+Created:
+  ✓ simple_build.py - Automated build script
+  ✓ This guide
+
+
+🚀 QUICK START (3 STEPS)
+======================
+
+Step 1: Run the build script
+  python simple_build.py
+
+Step 2: Get PyPI token
+  https://pypi.org/manage/account/tokens/
+
+Step 3: Upload
+  twine upload dist/*
+
+
+❌ TROUBLESHOOTING
+==================
+
+Error: "Invalid distribution"
+Fix: Run: python simple_build.py (handles all issues)
+
+Error: "twine: command not found"  
+Fix: python -m pip install twine
+
+Error: "setup.py not found"
+Fix: cd dredge-cli-repo (then run commands)
+
+Error: "No files in dist/"
+Fix: python -m build (must be in dredge-cli-repo)
+
+Error: "401 Unauthorized"
+Fix: Check PyPI token, regenerate at pypi.org
+
+
+✅ READY TO PUBLISH!
+
+Choose one:
+  • Easy: python simple_build.py
+  • Manual: cd dredge-cli-repo && python -m build && twine upload dist/*
+  • One-liner: See above

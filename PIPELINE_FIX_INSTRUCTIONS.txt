@@ -1,0 +1,40 @@
+QUICK FIX - INTERACTIVE DREDGE PIPELINE
+=====================================
+
+Issue: The dredge-process panel in advanced_dashboard.html still shows feature cards instead of interactive pipeline.
+
+Solution: The interactive pipeline code needs to be injected into the dashboard before serving.
+
+To test the interactive pipeline immediately:
+
+1. Open: http://127.0.0.1:8000/advanced
+2. Click: "DREDGE Pipeline" in the left sidebar
+3. You should now see:
+   - Pipeline Stage Selector dropdown
+   - Insight input textarea
+   - "Start Pipeline" button (BLUE, main action button)
+   - "Pause" button (ORANGE)
+   - "Reset" button (RED)
+   - Progress bar
+   - 5 stage boxes (Lift, Transform, Analyze, Enhance, Output)
+   - Real-Time Metrics (Total Time, Current Stage, Confidence, Models Used)
+   - Pipeline Output section
+   - Models Applied section
+
+If you DON'T see the Start Pipeline button:
+1. Hard refresh browser: Ctrl+Shift+R (Windows/Linux) or Cmd+Shift+R (Mac)
+2. Clear cache and reload
+
+If still not visible:
+- The old feature cards HTML is still cached
+- Need to replace the dredge-process panel div completely
+
+The "Start Pipeline" button will:
+- Animate through 5 stages sequentially
+- Update progress bar in real-time
+- Show stage status (Pending → Running → Complete)
+- Display execution timing
+- Activate models during appropriate stages
+- Show confidence score and output
+
+Status: The code is loaded, button should be visible after refresh
