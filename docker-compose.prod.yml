@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  # Unified Auth Gateway
+  auth-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    ports:
+      - "9000:9000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - FLASK_ENV=production
+      - AUTH_STORAGE_PATH=/data/api_keys.json
+      - ORION_URL=http://orion:8080
+      - DREDGE_URL=http://dredge:3001
+      - ADVANCED_URL=http://advanced:8000
+      - MCP_URL=http://mcp:8001
+    volumes:
+      - ./data:/data
+      - ./logs:/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - orion
+      - dredge
+      - advanced
+    restart: unless-stopped
+    networks:
+      - dredge-network
+
+  # Orion Gateway (Backend Service)
+  orion:
+    image: your-orion-image:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - dredge-network
+
+  # DREDGE Pipeline (Backend Service)
+  dredge:
+    image: your-dredge-image:latest
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - dredge-network
+
+  # Advanced Dashboard (Backend Service)
+  advanced:
+    image: your-advanced-image:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - dredge-network
+
+  # MCP Gateway (Backend Service)
+  mcp:
+    image: your-mcp-image:latest
+    ports:
+      - "8001:8001"
+    environment:
+      - PORT=8001
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - dredge-network
+
+networks:
+  dredge-network:
+    driver: bridge
+
+volumes:
+  data:
+  logs:

@@ -1,0 +1,460 @@
+#!/bin/bash
+# Production deployment guide for DREDGE Auth Gateway
+
+cat << 'EOF'
+╔════════════════════════════════════════════════════════════════════════════╗
+║              PRODUCTION DEPLOYMENT - RAILWAY & VERCEL                      ║
+║                    Step-by-Step Deployment Guide                           ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+
+OPTION 1: RAILWAY DEPLOYMENT (Recommended)
+============================================
+
+Railway is ideal for containerized applications with built-in database support.
+
+Step 1: Install Railway CLI
+───────────────────────────
+curl -i https://railway.app/install.sh | bash
+
+# Or with npm:
+npm install -g @railway/cli
+
+
+Step 2: Login to Railway
+────────────────────────
+railway login
+
+# Follow the browser authentication
+
+
+Step 3: Initialize Railway Project
+───────────────────────────────────
+cd DREDGE-Cli
+railway init --name dredge-auth-gateway
+
+# Select Node.js/Python environment when prompted
+
+
+Step 4: Configure Environment Variables
+────────────────────────────────────────
+railway variables set PYTHONUNBUFFERED true
+railway variables set FLASK_ENV production
+railway variables set AUTH_STORAGE_PATH /data/api_keys.json
+railway variables set LOG_LEVEL INFO
+railway variables set ENABLE_RATE_LIMITING true
+
+
+Step 5: Deploy
+──────────────
+railway up --build
+
+# Wait for deployment to complete (2-5 minutes)
+
+
+Step 6: Get Your Public URL
+────────────────────────────
+railway domains
+
+# Output: https://dredge-auth-gateway-prod.railway.app
+# Copy this URL!
+
+
+Step 7: Verify Deployment
+──────────────────────────
+# Test health endpoint
+curl https://dredge-auth-gateway-prod.railway.app/health
+
+# Should return:
+# {"gateway":"operational","timestamp":...,"services":{...}}
+
+# Access Swagger UI
+https://dredge-auth-gateway-prod.railway.app/docs
+
+
+OPTION 2: VERCEL DEPLOYMENT
+============================
+
+Vercel is ideal for serverless deployments with automatic scaling.
+
+Step 1: Install Vercel CLI
+───────────────────────────
+npm i -g vercel
+
+
+Step 2: Deploy
+──────────────
+vercel --prod
+
+# Follow prompts:
+# - Connect GitHub account
+# - Select DREDGE-Cli repository
+# - Set Python environment
+# - Configure build settings
+
+
+Step 3: Set Environment Variables
+──────────────────────────────────
+In Vercel dashboard:
+  Project Settings → Environment Variables
+  
+Add:
+  PYTHONUNBUFFERED = true
+  FLASK_ENV = production
+  AUTH_STORAGE_PATH = /tmp/api_keys.json (Vercel uses /tmp)
+  LOG_LEVEL = INFO
+
+
+Step 4: Redeploy with Variables
+────────────────────────────────
+vercel --prod
+
+
+OPTION 3: DOCKER COMPOSE (Local Production)
+==============================================
+
+For self-hosted production environments.
+
+Step 1: Build Images
+─────────────────────
+docker-compose -f docker-compose.prod.yml build
+
+
+Step 2: Run Production Stack
+────────────────────────────
+docker-compose -f docker-compose.prod.yml up -d
+
+# Verify all services running:
+docker-compose ps
+
+
+Step 3: Check Health
+────────────────────
+curl http://localhost:9000/health
+
+
+Step 4: Scale Up
+────────────────
+docker-compose -f docker-compose.prod.yml up -d --scale auth-gateway=3
+
+
+OPTION 4: KUBERNETES DEPLOYMENT
+================================
+
+For enterprise environments with advanced orchestration.
+
+Step 1: Create Namespace
+────────────────────────
+kubectl create namespace dredge-production
+
+
+Step 2: Create ConfigMap for Configuration
+──────────────────────────────────────────
+kubectl create configmap dredge-config \
+  --from-literal=PYTHONUNBUFFERED=true \
+  --from-literal=FLASK_ENV=production \
+  -n dredge-production
+
+
+Step 3: Create Secrets for Sensitive Data
+──────────────────────────────────────────
+kubectl create secret generic dredge-secrets \
+  --from-literal=auth-storage-path=/data/api_keys.json \
+  -n dredge-production
+
+
+Step 4: Deploy Using Manifest
+──────────────────────────────
+kubectl apply -f kubernetes/deployment.yaml -n dredge-production
+
+
+Step 5: Verify Deployment
+──────────────────────────
+kubectl get pods -n dredge-production
+kubectl get services -n dredge-production
+kubectl logs -f deployment/auth-gateway -n dredge-production
+
+
+OPTION 5: AWS ELASTIC CONTAINER SERVICE (ECS)
+===============================================
+
+For AWS-native deployments.
+
+Step 1: Create ECR Repository
+──────────────────────────────
+aws ecr create-repository --repository-name dredge-auth-gateway
+
+
+Step 2: Build and Push Docker Image
+────────────────────────────────────
+docker build -f Dockerfile.prod -t dredge-auth-gateway:latest .
+docker tag dredge-auth-gateway:latest <AWS_ACCOUNT>.dkr.ecr.<REGION>.amazonaws.com/dredge-auth-gateway:latest
+docker push <AWS_ACCOUNT>.dkr.ecr.<REGION>.amazonaws.com/dredge-auth-gateway:latest
+
+
+Step 3: Create ECS Task Definition
+───────────────────────────────────
+aws ecs register-task-definition --cli-input-json file://task-definition.json
+
+
+Step 4: Create ECS Service
+───────────────────────────
+aws ecs create-service \
+  --cluster dredge-production \
+  --service-name auth-gateway \
+  --task-definition dredge-auth-gateway:1 \
+  --desired-count 3
+
+
+MONITORING & LOGGING
+====================
+
+For Railway:
+  View Logs:
+    railway logs
+  
+  View Metrics:
+    railway status
+  
+  View Deployments:
+    railway deployments
+
+For Vercel:
+  View Logs:
+    vercel logs
+  
+  View Analytics:
+    https://vercel.com/dashboard
+  
+  Set Up Monitoring:
+    Vercel Analytics (Premium)
+
+For Docker Compose:
+  View Logs:
+    docker-compose logs -f auth-gateway
+  
+  View Stats:
+    docker stats
+
+For Kubernetes:
+  View Logs:
+    kubectl logs -f pod/auth-gateway-xxx -n dredge-production
+  
+  View Metrics:
+    kubectl top pods -n dredge-production
+
+
+SECURITY CHECKLIST (Production)
+================================
+
+Network Security:
+  [ ] Enable HTTPS/TLS (automatic on Railway/Vercel)
+  [ ] Configure firewall rules
+  [ ] Use VPN for internal services
+  [ ] Enable rate limiting
+
+API Key Security:
+  [ ] Generate new production admin key
+  [ ] Store securely (never in code)
+  [ ] Rotate keys monthly
+  [ ] Monitor for unusual patterns
+  [ ] Enable audit logging
+
+Application Security:
+  [ ] Set SECRET_KEY to secure random value
+  [ ] Disable debug mode (FLASK_ENV=production)
+  [ ] Configure CORS properly
+  [ ] Use environment variables for secrets
+  [ ] Enable logging and monitoring
+
+Database/Storage:
+  [ ] Backup api_keys.json regularly
+  [ ] Encrypt at rest if possible
+  [ ] Monitor for unauthorized access
+  [ ] Set up automated backups
+  [ ] Test restore process
+
+
+PERFORMANCE TUNING
+===================
+
+Railway:
+  - Auto-scaling enabled (add more instances as needed)
+  - Region selection in settings
+  - Resource limits configuration
+
+Vercel:
+  - Serverless functions (auto-scaled)
+  - Edge caching enabled
+  - Automatic CDN distribution
+
+Docker Compose:
+  - Add Redis for caching
+  - Configure database connection pooling
+  - Use health checks for restarts
+  - Monitor resource usage
+
+Kubernetes:
+  - Set resource requests/limits
+  - Use horizontal pod autoscaling
+  - Configure ingress with caching
+  - Use persistent volumes for data
+
+
+UPDATING PRODUCTION
+===================
+
+To Update Deployed Application:
+
+1. Make code changes locally
+2. Commit to GitHub:
+   git add -A
+   git commit -m "feat: Your change description"
+   git push origin master
+
+3. Railway (automatic):
+   - Railway auto-deploys on git push
+   - Watch deployment at: railway status
+
+4. Vercel (automatic):
+   - Vercel auto-deploys on git push
+   - Watch deployment at: https://vercel.com/dashboard
+
+5. Docker Compose (manual):
+   docker-compose -f docker-compose.prod.yml up -d --build
+
+6. Kubernetes (manual):
+   kubectl set image deployment/auth-gateway \
+     auth-gateway=<NEW_IMAGE>:<VERSION> \
+     -n dredge-production
+
+
+ROLLBACK PROCEDURE
+==================
+
+If deployment fails:
+
+Railway:
+  railway status
+  railway deployments    # See previous versions
+  railway restart        # Restart last good version
+
+Vercel:
+  https://vercel.com/dashboard → Project → Deployments → Rollback
+
+Docker Compose:
+  docker-compose -f docker-compose.prod.yml down
+  git checkout <previous-commit>
+  docker-compose -f docker-compose.prod.yml up -d --build
+
+Kubernetes:
+  kubectl rollout history deployment/auth-gateway
+  kubectl rollout undo deployment/auth-gateway
+
+
+CUSTOM DOMAIN SETUP
+===================
+
+To use your own domain (e.g., api.dredge.ai):
+
+1. Register Domain:
+   - GoDaddy, Namecheap, or your registrar
+   - Cost: ~$10/year
+
+2. Configure DNS:
+
+   For Railway:
+   - Add custom domain in Railway settings
+   - Railway provides CNAME target
+   - Add CNAME record in your registrar
+   
+   For Vercel:
+   - Add domain in Vercel settings
+   - Vercel provides CNAME
+   - Add CNAME record in your registrar
+
+3. Update OAuth Callback:
+   GitHub Settings → Developer Settings → OAuth Apps
+   Update Redirect URL to: https://api.dredge.ai/auth/github/callback
+
+4. Wait for DNS Propagation:
+   check with: https://whatsmydns.net/?d=api.dredge.ai
+
+5. Test:
+   curl https://api.dredge.ai/health
+
+
+AUTOMATED DEPLOYMENT SCRIPT
+============================
+
+Use the provided deploy.sh:
+
+  chmod +x deploy.sh
+  ./deploy.sh
+
+This script will:
+  ✓ Check prerequisites
+  ✓ Verify working directory clean
+  ✓ Push to GitHub
+  ✓ Authenticate with Railway
+  ✓ Set environment variables
+  ✓ Deploy application
+  ✓ Display deployed URL
+
+
+QUICK START - PRODUCTION DEPLOYMENT
+====================================
+
+Fastest way to production (5 minutes):
+
+1. Install Railway CLI:
+   npm install -g @railway/cli
+
+2. Login:
+   railway login
+
+3. Initialize project:
+   railway init --name dredge-auth-gateway
+
+4. Deploy:
+   railway up --build
+
+5. Get URL:
+   railway domains
+
+6. Test:
+   curl https://<your-railway-url>/health
+
+Done! Your production auth gateway is live! 🚀
+
+
+SUPPORT & TROUBLESHOOTING
+=========================
+
+Common Issues:
+
+Build Fails:
+  - Check Python version (3.10+)
+  - Verify requirements.txt
+  - Check Dockerfile for errors
+
+Runtime Errors:
+  - View logs: railway logs / vercel logs / docker logs
+  - Check environment variables set correctly
+  - Verify backend services accessible
+
+Connection Issues:
+  - Test gateway health endpoint
+  - Verify backend services running
+  - Check firewall/network rules
+  - Test from different network
+
+For help:
+  - Check README.md
+  - Review logs
+  - Create GitHub issue
+  - Contact support
+
+
+════════════════════════════════════════════════════════════════════════════════
+EOF
