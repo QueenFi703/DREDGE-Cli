@@ -4,5 +4,11 @@
     "PYTHONUNBUFFERED": "true",
     "PYTHONDONTWRITEBYTECODE": "true",
     "FLASK_ENV": "production"
+  },
+  "functions": {
+    "api/gateway.py": {
+      "memory": 512,
+      "maxDuration": 60
+    }
   }
 }

@@ -1,0 +1,37 @@
+{
+  "keys": {
+    "$2$628ce72684e342139ad34ade9785648f$4acc65f14698271e9203ff271327ef81be024b684e93cab08f242b49c0f985f0": {
+      "key_id": "key_qruKGZ9u6DZj",
+      "name": "Test Key",
+      "key_hash": "$2$628ce72684e342139ad34ade9785648f$4acc65f14698271e9203ff271327ef81be024b684e93cab08f242b49c0f985f0",
+      "created_at": "2026-07-02T01:26:58.282456",
+      "expires_at": "2026-09-30T01:26:58.282456",
+      "last_used_at": null,
+      "status": "active",
+      "tier": "pro",
+      "mode": "invoke_only",
+      "requests_this_month": 0,
+      "requests_limit": 10000,
+      "usage_percent": 0.0,
+      "created_by": "system",
+      "environment": "development"
+    },
+    "$2$5ced86b81d12b61105ae37fffb822ae2$8a9fe8d57db43cf06a7ad4081a0df8d72821b48e759f89971bbb9cda6e84497c": {
+      "key_id": "key_T07n8Stj8p6d",
+      "name": "Admin Key",
+      "key_hash": "$2$5ced86b81d12b61105ae37fffb822ae2$8a9fe8d57db43cf06a7ad4081a0df8d72821b48e759f89971bbb9cda6e84497c",
+      "created_at": "2026-07-02T01:26:58.285196",
+      "expires_at": "2026-09-30T01:26:58.285196",
+      "last_used_at": null,
+      "status": "active",
+      "tier": "enterprise",
+      "mode": "full_access",
+      "requests_this_month": 0,
+      "requests_limit": 1000000,
+      "usage_percent": 0.0,
+      "created_by": "system",
+      "environment": "development"
+    }
+  },
+  "timestamp": "2026-07-02T01:26:58.285766"
+}

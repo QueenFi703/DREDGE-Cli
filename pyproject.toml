@@ -94,13 +94,23 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "-v --tb=short"
 
-# Vercel deployment configuration
-# Entry point: api/gateway.py which exports 'app' (FastAPI instance)
+# ============================================================================
+# VERCEL DEPLOYMENT CONFIGURATION
+# ============================================================================
+# Entry point: api/gateway.py (exports 'app' - FastAPI ASGI instance)
+# Build command: pip install -r requirements.txt
+# Runtime: Python 3.11 (auto-detected)
+# ============================================================================
+
 [tool.vercel]
-entrypoint = "api.gateway:app"
+# CRITICAL: Vercel entry point configuration
+# Tells Vercel to look for FastAPI 'app' instance in api/gateway.py
+entrypoint = "api/gateway:app"
+
+# Build command for Python/FastAPI deployments
 buildCommand = "pip install -r requirements.txt"
 
-# Environment variables for Vercel
+# Environment variables for production
 [tool.vercel.env]
 PYTHONUNBUFFERED = "true"
 PYTHONDONTWRITEBYTECODE = "true"
@@ -108,6 +118,13 @@ FLASK_ENV = "production"
 AUTH_STORAGE_PATH = "/tmp/api_keys.json"
 LOG_LEVEL = "INFO"
 ENABLE_RATE_LIMITING = "true"
+
+# ============================================================================
+# LOCAL DEVELOPMENT
+# ============================================================================
+# To run locally:
+#   python -m uvicorn api.gateway:app --host 127.0.0.1 --port 9000 --reload
+# ============================================================================
 
 # Railway deployment configuration (for reference)
 [tool.railway]
