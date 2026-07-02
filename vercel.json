@@ -1,18 +1,5 @@
 {
   "buildCommand": "pip install -r requirements.txt",
   "outputDirectory": ".",
-  "installCommand": "pip install -r requirements.txt",
-  "framework": null,
-  "functions": {
-    "app.py": {
-      "runtime": "python3.11",
-      "memory": 512,
-      "maxDuration": 60
-    }
-  },
-  "env": {
-    "PYTHONUNBUFFERED": "true",
-    "PYTHONDONTWRITEBYTECODE": "true",
-    "FLASK_ENV": "production"
-  }
+  "installCommand": "pip install -r requirements.txt"
 }
