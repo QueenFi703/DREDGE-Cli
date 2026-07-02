@@ -3,9 +3,30 @@
   "installCommand": "pip install -r requirements.txt",
   "outputDirectory": ".",
   "framework": "python",
+  "functions": {
+    "api/gateway.py": {
+      "memory": 512,
+      "maxDuration": 60
+    }
+  },
   "env": {
     "PYTHONUNBUFFERED": "true",
     "PYTHONDONTWRITEBYTECODE": "true",
     "FLASK_ENV": "production"
-  }
+  },
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        }
+      ]
+    }
+  ]
 }

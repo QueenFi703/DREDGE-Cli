@@ -97,21 +97,20 @@ addopts = "-v --tb=short"
 # ============================================================================
 # VERCEL DEPLOYMENT CONFIGURATION
 # ============================================================================
-# Entry point: api/gateway.py (exports 'app' - FastAPI ASGI instance)
-# Build command: pip install -r requirements.txt (NOT uv)
-# Runtime: Python 3.11 (auto-detected)
+# Entry point: api.gateway:app (FastAPI ASGI instance in api/gateway.py)
+# Build command: pip install -r requirements.txt
+# Package manager: pip (NOT uv - disabled for reliability)
 # ============================================================================
 
 [tool.vercel]
-# CRITICAL: Vercel entry point configuration
-# Tells Vercel to look for FastAPI 'app' instance in api/gateway.py
-entrypoint = "api/gateway:app"
+# CRITICAL: Vercel production entry point
+# Points to: api/gateway.py module, app variable (FastAPI instance)
+entrypoint = "api.gateway:app"
 
-# Build command for Python/FastAPI deployments - USE PIP, NOT UV
+# Build command - explicitly uses pip (not uv)
 buildCommand = "pip install -r requirements.txt"
 
-# Disable UV package manager - use pip instead
-# This prevents "uv sync" errors
+# Disable uv package manager - use pip for consistency
 disablePackageManager = true
 
 # Environment variables for production
@@ -128,6 +127,8 @@ ENABLE_RATE_LIMITING = "true"
 # ============================================================================
 # To run locally:
 #   python -m uvicorn api.gateway:app --host 127.0.0.1 --port 9000 --reload
+# Or use the development script:
+#   python build.sh (if available)
 # ============================================================================
 
 # Railway deployment configuration (for reference)
