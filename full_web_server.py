@@ -2,78 +2,156 @@
 # -*- coding: utf-8 -*-
 """
 DREDGE Studio - Full Web UI Server
-Combined Standard + Advanced Features
-Production-ready Flask WSGI application
+FastAPI ASGI Application (migrated from Flask)
+Production-ready, Vercel-compatible
+
+Features:
+  - FastAPI modern async/await support
+  - ASGI application (works with Uvicorn, Vercel)
+  - Automatic OpenAPI/Swagger documentation
+  - Type hints and validation
+  - Static file serving
+  - JSON responses
 """
+
 import os
 import sys
 from pathlib import Path
+from typing import Dict, Any
 
 # Add dredge to path
 sys.path.insert(0, str(Path(__file__).parent / 'dredge-cli-repo' / 'src'))
 
-from flask import Flask, jsonify, request, send_file
-import json
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
-app = Flask(__name__, static_folder=str(Path(__file__).parent / 'dredge-cli-repo' / 'src' / 'dredge' / 'static'))
+# ============================================================================
+# FASTAPI APPLICATION SETUP
+# ============================================================================
 
-# Register advanced features
-from dredge.advanced_features import register_advanced_features
-register_advanced_features(app)
+app = FastAPI(
+    title="DREDGE Studio",
+    description="Full Web UI Server - Combined Standard + Advanced Features",
+    version="2.0.0",
+    docs_url="/swagger",  # Swagger UI
+    redoc_url="/redoc",   # ReDoc documentation
+    openapi_url="/openapi.json"
+)
+
+# Add CORS middleware for cross-origin requests
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Configure static files path
+static_dir = Path(__file__).parent / 'dredge-cli-repo' / 'src' / 'dredge' / 'static'
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+# ============================================================================
+# PYDANTIC MODELS
+# ============================================================================
+
+class InsightRequest(BaseModel):
+    """Request model for insight lifting"""
+    insight: str
+
+
+class InsightResponse(BaseModel):
+    """Response model for lifted insight"""
+    status: str
+    original: str
+    enhanced: str
+    confidence: float
+    models_used: list
+
+
+class DREDGEStatus(BaseModel):
+    """DREDGE status response"""
+    status: str
+    version: str
+    features: list
+
 
 # ============================================================================
 # ROUTES
 # ============================================================================
 
-@app.route('/')
-def index():
-    """Home page"""
-    return jsonify({
-        "message": "DREDGE Studio - Combined UI",
+@app.get("/", tags=["Root"])
+async def index() -> Dict[str, Any]:
+    """Home page - API entry point"""
+    return {
+        "message": "DREDGE Studio - Combined UI (FastAPI)",
         "version": "2.0.0",
         "dashboard": "http://127.0.0.1:8000/dashboard",
         "advanced": "http://127.0.0.1:8000/advanced",
-        "docs": "http://127.0.0.1:8000/docs",
-        "api": "http://127.0.0.1:8000/api/"
-    })
+        "docs": "http://127.0.0.1:8000/swagger",
+        "redoc": "http://127.0.0.1:8000/redoc",
+        "api": "http://127.0.0.1:8000/api/",
+        "openapi": "http://127.0.0.1:8000/openapi.json"
+    }
 
-@app.route('/health')
-def health():
-    return jsonify({"status": "healthy", "version": "2.0.0"})
 
-@app.route('/dashboard')
-def dashboard():
+@app.get("/health", tags=["Health"])
+async def health() -> Dict[str, Any]:
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "service": "dredge-studio",
+        "version": "2.0.0"
+    }
+
+
+@app.get("/dashboard", tags=["UI"])
+async def dashboard() -> FileResponse | JSONResponse:
     """Main DREDGE Studio Dashboard"""
     static_dir = Path(__file__).parent / 'dredge-cli-repo' / 'src' / 'dredge' / 'static'
     html_file = static_dir / 'dashboard_combined.html'
+    
     if html_file.exists():
-        return send_file(str(html_file), mimetype='text/html')
-    return jsonify({"error": "Dashboard not found"}), 404
+        return FileResponse(str(html_file), media_type='text/html')
+    
+    raise HTTPException(status_code=404, detail="Dashboard not found")
 
-@app.route('/advanced')
-def advanced_dashboard():
+
+@app.get("/advanced", tags=["UI"])
+async def advanced_dashboard() -> FileResponse | JSONResponse:
     """Advanced features dashboard"""
     static_dir = Path(__file__).parent / 'dredge-cli-repo' / 'src' / 'dredge' / 'static'
     html_file = static_dir / 'advanced_dashboard_new.html'
+    
     if html_file.exists():
-        return send_file(str(html_file), mimetype='text/html')
-    return jsonify({"error": "Advanced dashboard not found"}), 404
+        return FileResponse(str(html_file), media_type='text/html')
+    
+    raise HTTPException(status_code=404, detail="Advanced dashboard not found")
 
-@app.route('/docs')
-def api_docs():
+
+@app.get("/docs", tags=["UI"])
+async def api_docs() -> FileResponse | JSONResponse:
     """API documentation"""
     static_dir = Path(__file__).parent / 'dredge-cli-repo' / 'src' / 'dredge' / 'static'
     html_file = static_dir / 'docs.html'
+    
     if html_file.exists():
-        return send_file(str(html_file), mimetype='text/html')
-    return jsonify({"error": "Documentation not found"}), 404
+        return FileResponse(str(html_file), media_type='text/html')
+    
+    raise HTTPException(status_code=404, detail="Documentation not found")
 
-@app.route('/api/dredge/status')
-def dredge_status():
-    return jsonify({
-        "status": "operational",
-        "version": "2.0.0",
-        "features": [
+
+@app.get("/api/dredge/status", tags=["API", "DREDGE"])
+async def dredge_status() -> DREDGEStatus:
+    """Get DREDGE system status"""
+    return DREDGEStatus(
+        status="operational",
+        version="2.0.0",
+        features=[
             "Model Management",
             "MCP Operations",
             "Insight Lifting",
@@ -85,42 +163,92 @@ def dredge_status():
             "API Testing",
             "Visualization"
         ]
-    })
+    )
 
-@app.route('/api/dredge/lift', methods=['POST'])
-def lift_insight():
-    """Lift insight endpoint"""
-    data = request.get_json()
-    if not data or 'insight' not in data:
-        return jsonify({"error": "Missing insight parameter"}), 400
+
+@app.post("/api/dredge/lift", tags=["API", "DREDGE"], response_model=InsightResponse)
+async def lift_insight(request: InsightRequest) -> InsightResponse:
+    """Lift insight endpoint - enhance and analyze insights"""
+    if not request.insight:
+        raise HTTPException(status_code=400, detail="Missing insight parameter")
     
-    insight = data['insight']
-    return jsonify({
-        "status": "lifted",
-        "original": insight,
-        "enhanced": "[Enhanced via DREDGE] " + insight,
-        "confidence": 0.89,
-        "models_used": ["Quasimoto 4D", "String Theory 10D", "DREDGE Reasoner"]
-    })
+    return InsightResponse(
+        status="lifted",
+        original=request.insight,
+        enhanced="[Enhanced via DREDGE] " + request.insight,
+        confidence=0.89,
+        models_used=["Quasimoto 4D", "String Theory 10D", "DREDGE Reasoner"]
+    )
 
-@app.errorhandler(404)
-def not_found(error):
-    return jsonify({"error": "Not found", "status": 404}), 404
 
-@app.errorhandler(500)
-def server_error(error):
-    return jsonify({"error": "Server error", "status": 500}), 500
+# ============================================================================
+# ERROR HANDLERS
+# ============================================================================
 
-if __name__ == '__main__':
-    print("DREDGE STUDIO - FULL WEB UI v2.0.0")
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc: HTTPException):
+    """Handle 404 errors"""
+    return JSONResponse(
+        status_code=404,
+        content={"error": "Not found", "status": 404}
+    )
+
+
+@app.exception_handler(500)
+async def server_error_handler(request: Request, exc: Exception):
+    """Handle 500 errors"""
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Server error", "status": 500}
+    )
+
+
+# ============================================================================
+# STARTUP/SHUTDOWN EVENTS
+# ============================================================================
+
+@app.on_event("startup")
+async def startup_event():
+    """Execute on application startup"""
+    print("✅ DREDGE Studio - FastAPI Server Started")
+    print("   Version: 2.0.0")
+    print("   Framework: FastAPI + Uvicorn")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Execute on application shutdown"""
+    print("\n🛑 DREDGE Studio Server Shutting Down")
+
+
+# ============================================================================
+# APPLICATION ENTRY POINT
+# ============================================================================
+
+if __name__ == "__main__":
+    import uvicorn
+    
+    print("=" * 80)
+    print("  DREDGE STUDIO - FULL WEB UI v2.0.0 (FastAPI)")
+    print("=" * 80)
+    print()
     print("Starting server on http://127.0.0.1:8000")
-    print("")
+    print()
     print("Access Points:")
-    print("- Main Dashboard:  http://127.0.0.1:8000/dashboard")
-    print("- Advanced UI:     http://127.0.0.1:8000/advanced")
-    print("- API Docs:        http://127.0.0.1:8000/docs")
-    print("- Health Check:    http://127.0.0.1:8000/health")
-    print("")
+    print("  - Main Dashboard:  http://127.0.0.1:8000/dashboard")
+    print("  - Advanced UI:     http://127.0.0.1:8000/advanced")
+    print("  - API Docs:        http://127.0.0.1:8000/swagger")
+    print("  - ReDoc:           http://127.0.0.1:8000/redoc")
+    print("  - Health Check:    http://127.0.0.1:8000/health")
+    print("  - Status:          http://127.0.0.1:8000/api/dredge/status")
+    print()
     print("Press Ctrl+C to stop")
+    print()
     
-    app.run(host='127.0.0.1', port=8000, debug=True, use_reloader=False)
+    uvicorn.run(
+        app,
+        host="127.0.0.1",
+        port=8000,
+        reload=True,
+        log_level="info"
+    )
