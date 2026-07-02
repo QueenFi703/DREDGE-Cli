@@ -1,5 +1,8 @@
 {
   "buildCommand": "pip install -r requirements.txt",
-  "outputDirectory": ".",
-  "installCommand": "pip install -r requirements.txt"
+  "env": {
+    "PYTHONUNBUFFERED": "true",
+    "PYTHONDONTWRITEBYTECODE": "true",
+    "FLASK_ENV": "production"
+  }
 }

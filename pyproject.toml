@@ -95,22 +95,10 @@ asyncio_mode = "auto"
 addopts = "-v --tb=short"
 
 # Vercel deployment configuration
+# Entry point: api/gateway.py which exports 'app' (FastAPI instance)
 [tool.vercel]
-# Primary deployment: Unified Auth Gateway (recommended)
-# This is the main gateway that routes all traffic
-[[tool.vercel.functions]]
-entrypoint = "unified_auth_gateway:app"
-memory = 512
-maxDuration = 60
-runtime = "python3.11"
-
-# Alternative deployment: Standalone Orion with Middleware
-# Use this if running Orion separately
-[[tool.vercel.functions]]
-entrypoint = "orion_gateway_authenticated:app"
-memory = 512
-maxDuration = 60
-runtime = "python3.11"
+entrypoint = "api.gateway:app"
+buildCommand = "pip install -r requirements.txt"
 
 # Environment variables for Vercel
 [tool.vercel.env]
@@ -120,12 +108,6 @@ FLASK_ENV = "production"
 AUTH_STORAGE_PATH = "/tmp/api_keys.json"
 LOG_LEVEL = "INFO"
 ENABLE_RATE_LIMITING = "true"
-
-# Build configuration
-[tool.vercel.build]
-# Uses default Vercel Python build
-# Installs from requirements.txt automatically
-# No custom build commands needed
 
 # Railway deployment configuration (for reference)
 [tool.railway]
