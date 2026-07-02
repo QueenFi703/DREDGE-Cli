@@ -1,0 +1,40 @@
+{
+  "buildCommand": "pip install -r requirements.txt",
+  "outputDirectory": ".",
+  "installCommand": "pip install -r requirements.txt",
+  "framework": null,
+  "python": {
+    "version": "3.11"
+  },
+  "functions": {
+    "api/gateway.py": {
+      "runtime": "python3.11",
+      "memory": 512,
+      "maxDuration": 60
+    },
+    "api/orion.py": {
+      "runtime": "python3.11",
+      "memory": 512,
+      "maxDuration": 60
+    }
+  },
+  "env": {
+    "PYTHONUNBUFFERED": "true",
+    "PYTHONDONTWRITEBYTECODE": "true"
+  },
+  "envs": {
+    "preview": {
+      "FLASK_ENV": "staging"
+    },
+    "production": {
+      "FLASK_ENV": "production"
+    }
+  },
+  "regions": ["iad1"],
+  "git": {
+    "deploymentEnabled": {
+      "main": true,
+      "master": true
+    }
+  }
+}
