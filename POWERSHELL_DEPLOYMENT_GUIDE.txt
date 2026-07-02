@@ -1,0 +1,430 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                    POWERSHELL DEPLOYMENT GUIDE                             ║
+║              Quick Start for Windows Users (5-10 minutes)                  ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+
+🚀 QUICK START (WINDOWS POWERSHELL)
+====================================
+
+Copy and paste these commands one at a time in PowerShell:
+
+
+STEP 1: Navigate to Project
+───────────────────────────
+cd DREDGE-Cli
+
+
+STEP 2: Test Locally with Script
+─────────────────────────────────
+# Run the complete test and deployment verification script
+.\test-and-deploy.ps1
+
+This will:
+  ✅ Verify Python is installed
+  ✅ Verify all required files exist
+  ✅ Install dependencies
+  ✅ Start the app in background
+  ✅ Test health endpoint
+  ✅ Test Swagger UI
+  ✅ Show deployment options
+
+
+STEP 3: Commit Changes
+──────────────────────
+git add -A
+git commit -m "fix: Add app.py entry point for Vercel"
+git push origin master
+
+
+STEP 4: Deploy to Vercel
+────────────────────────
+# Install Vercel CLI if not already installed
+npm install -g vercel
+
+# Login to Vercel (opens browser)
+vercel login
+
+# Deploy to production
+vercel --prod
+
+# Vercel will:
+# 1. Detect app.py (supported Vercel entry point)
+# 2. Read vercel.json for configuration
+# 3. Install dependencies from requirements.txt
+# 4. Build and deploy
+# 5. Show your public URL
+
+
+STEP 5: Test Deployment
+───────────────────────
+# Vercel will show your URL, then test:
+curl https://your-vercel-url/health
+
+# Should return:
+# {"status":"healthy","service":"dredge-auth-gateway",...}
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+📁 ENTRY POINT: app.py
+======================
+
+What is app.py?
+  - Main ASGI application entry point
+  - Located in project root (./app.py)
+  - Imports unified_auth_gateway as the FastAPI app
+  - Vercel recognizes this filename automatically
+
+Why app.py?
+  Vercel looks for these filenames (in order):
+    1. app.py          ← We created this! ✅
+    2. index.py
+    3. server.py
+    4. main.py
+    5. wsgi.py
+    6. asgi.py
+
+
+Contents of app.py:
+```python
+from unified_auth_gateway import app as gateway_app
+
+# This is what Vercel deploys
+app = gateway_app
+
+# Health check endpoint
+@app.get("/health")
+async def root_health():
+    return {"status": "healthy", ...}
+
+# If running locally
+if __name__ == "__main__":
+    uvicorn.run("app:app", host="127.0.0.1", port=9000)
+```
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+🔧 POWERSHELL REFERENCE
+=======================
+
+If you want to run commands manually instead of using the script:
+
+
+Check Python Installation:
+──────────────────────────
+python --version
+pip --version
+
+
+Install Dependencies:
+─────────────────────
+pip install -r requirements.txt
+
+
+Start App Locally:
+──────────────────
+python app.py
+
+# Should show:
+# Starting on http://127.0.0.1:9000
+# Swagger UI: http://127.0.0.1:9000/docs
+
+
+Test Health Endpoint:
+─────────────────────
+# In another PowerShell window:
+Invoke-WebRequest http://127.0.0.1:9000/health
+
+# Should return: {"status":"healthy",...}
+
+
+Install Vercel CLI:
+──────────────────
+npm install -g vercel
+
+
+Check Vercel Installation:
+──────────────────────────
+vercel --version
+
+
+Login to Vercel:
+────────────────
+vercel login
+
+# Opens browser for authentication
+
+
+Deploy to Vercel:
+─────────────────
+vercel --prod
+
+# Or with options:
+vercel --prod --name dredge-auth-gateway
+
+
+View Vercel Logs:
+─────────────────
+vercel logs
+
+
+Rollback Deployment:
+────────────────────
+vercel rollback
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+🎯 COMMON POWERSHELL ISSUES & FIXES
+====================================
+
+Issue: "PowerShell is disabled on this system"
+Solution:
+  Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+  Then try again: .\test-and-deploy.ps1
+
+
+Issue: "python: The term 'python' is not recognized"
+Solution:
+  1. Add Python to PATH or
+  2. Use: py --version (Windows alias)
+  3. Or: python3 --version
+
+
+Issue: "pip: command not found"
+Solution:
+  1. Ensure Python installed: python --version
+  2. Try: python -m pip --version
+  3. If not working, reinstall Python
+
+
+Issue: "Cannot find module unified_auth_gateway"
+Solution:
+  Check file exists: Test-Path unified_auth_gateway.py
+  Should show: True
+  If False, you're in wrong directory
+
+
+Issue: "Connection refused on port 9000"
+Solution:
+  Port 9000 might be in use:
+  Get-NetTcpConnection -LocalPort 9000
+  Kill process if needed:
+  Stop-Process -Id <PID> -Force
+
+
+Issue: "Vercel command not found"
+Solution:
+  1. Install: npm install -g vercel
+  2. Verify: vercel --version
+  3. Close and reopen PowerShell
+
+
+Issue: "Error during deploy: No frameworks detected"
+Solution:
+  Vercel can't find app.py
+  Check: Test-Path app.py
+  If False, file is missing
+  If True, restart PowerShell and try again
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+📋 FILE CHECKLIST
+=================
+
+Before running test-and-deploy.ps1, verify these files exist:
+
+Required Root Files:
+  [ ] app.py                      ← Entry point (we created)
+  [ ] requirements.txt            ← Dependencies
+  [ ] vercel.json                 ← Vercel config
+  [ ] .env.production             ← Environment template
+
+Core Application Files:
+  [ ] unified_auth_gateway.py     ← Gateway source
+  [ ] api_key_manager.py          ← Key management
+  [ ] unified_auth_middleware.py  ← Middleware
+
+Verify with PowerShell:
+  Test-Path app.py
+  Test-Path requirements.txt
+  Test-Path unified_auth_gateway.py
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+🔐 ENVIRONMENT SETUP (OPTIONAL)
+================================
+
+Create .env file for local testing:
+──────────────────────────────────
+# .env (local only, don't commit)
+PYTHONUNBUFFERED=true
+FLASK_ENV=development
+LOG_LEVEL=INFO
+
+Load environment in PowerShell:
+  Get-Content .env | ForEach-Object {
+    if ($_ -match '^\s*([^=]+)=(.*)$') {
+      $name = $matches[1].Trim()
+      $value = $matches[2].Trim()
+      [Environment]::SetEnvironmentVariable($name, $value, "Process")
+    }
+  }
+
+Verify environment:
+  $env:PYTHONUNBUFFERED
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+✅ DEPLOYMENT VERIFICATION CHECKLIST
+====================================
+
+Before Running test-and-deploy.ps1:
+  [ ] You're in the DREDGE-Cli directory
+  [ ] app.py exists in current directory
+  [ ] requirements.txt exists
+  [ ] Python 3.10+ installed
+  [ ] Git configured
+
+After Running Script:
+  [ ] All tests passed (green checkmarks)
+  [ ] Health endpoint responds
+  [ ] Swagger UI available
+  [ ] No Python errors
+
+Before Vercel Deployment:
+  [ ] Changes committed to git
+  [ ] Pushed to GitHub
+  [ ] GitHub repo is up to date
+  [ ] Vercel CLI installed (npm)
+
+After Vercel Deployment:
+  [ ] Deployment completed successfully
+  [ ] Public URL displayed
+  [ ] Health endpoint responds on public URL
+  [ ] Swagger UI accessible
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+🎬 COMPLETE WORKFLOW IN POWERSHELL
+===================================
+
+Open PowerShell and run:
+
+# 1. Navigate to project
+cd DREDGE-Cli
+
+# 2. Run full test script
+.\test-and-deploy.ps1
+
+# 3. If tests pass, commit
+git add app.py test-and-deploy.ps1
+git commit -m "fix: Add app.py entry point and PowerShell test script"
+git push origin master
+
+# 4. Install Vercel (if needed)
+npm install -g vercel
+
+# 5. Login to Vercel
+vercel login
+
+# 6. Deploy
+vercel --prod
+
+# 7. Done! Your URL will be displayed
+# Example: https://dredge-auth-gateway-xxxx.vercel.app
+
+# 8. Test deployment
+curl https://dredge-auth-gateway-xxxx.vercel.app/health
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+📖 WHAT EACH COMMAND DOES
+==========================
+
+.\test-and-deploy.ps1
+  ✅ Runs complete verification
+  ✅ Tests all dependencies
+  ✅ Starts app locally
+  ✅ Tests endpoints
+  ✅ Shows deployment options
+
+python app.py
+  ✅ Starts the app locally
+  ✅ Runs on http://127.0.0.1:9000
+  ✅ Shows logs
+  ✅ Stop with Ctrl+C
+
+vercel --prod
+  ✅ Deploys to production
+  ✅ Builds from app.py
+  ✅ Auto-detects entry point
+  ✅ Shows public URL
+
+curl https://your-url/health
+  ✅ Tests if deployment works
+  ✅ Should return JSON response
+  ✅ Status code 200 = success
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+💡 TIPS & TRICKS
+================
+
+Running Commands in Sequence:
+  Use semicolons to chain commands:
+  python app.py; Write-Host "Server running"
+
+Getting Help on PowerShell Commands:
+  Get-Help Invoke-WebRequest
+  Get-Help Start-Process
+  Get-Help npm
+
+Keeping Terminal Open After Script:
+  Add to end of script:
+  Read-Host "Press Enter to exit"
+
+Clearing Screen:
+  Clear-Host
+
+Checking Current Directory:
+  Get-Location
+
+Listing Files:
+  Get-ChildItem  # or: ls, dir
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+SUMMARY
+
+Entry Point Created: app.py ✅
+Test Script Created: test-and-deploy.ps1 ✅
+Vercel Configuration: vercel.json ✅
+
+To Deploy:
+  1. .\test-and-deploy.ps1          # Verify everything works
+  2. git add -A && git commit...    # Commit changes
+  3. git push origin master         # Push to GitHub
+  4. vercel --prod                  # Deploy to Vercel
+
+Result: Production gateway live on Vercel in ~5 minutes! 🚀
+
+════════════════════════════════════════════════════════════════════════════════
