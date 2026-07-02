@@ -1,0 +1,311 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                    POWERSHELL APP.PY TROUBLESHOOTING                       ║
+║                       Fix errno 2 - File Not Found                         ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+
+⚠️  ERRNO 2 ERROR
+=================
+
+Error Message:
+  errno 2: No such file or directory
+
+Cause:
+  - Python can't find required files
+  - Wrong working directory
+  - Missing dependencies
+  - Import path issues
+
+
+🔧 FIX IN POWERSHELL (5 STEPS)
+===============================
+
+Step 1: Run Diagnostic Script
+──────────────────────────────
+Open PowerShell in DREDGE-Cli directory:
+
+  cd DREDGE-Cli
+  .\diagnose.ps1
+
+This will check:
+  ✅ Current directory
+  ✅ app.py exists
+  ✅ Python installed
+  ✅ FastAPI installed
+  ✅ Imports working
+  ✅ App can start
+
+
+Step 2: Install Dependencies
+─────────────────────────────
+If diagnostic shows missing packages:
+
+  pip install -r requirements.txt
+
+Or upgrade:
+
+  pip install --upgrade -r requirements.txt
+
+
+Step 3: Verify Python Path
+──────────────────────────
+Check Python can find modules:
+
+  python -c "import sys; print('\n'.join(sys.path))"
+
+Should include current directory (.)
+
+
+Step 4: Test Individual Imports
+────────────────────────────────
+Test each import separately:
+
+  python -c "import fastapi; print('FastAPI: OK')"
+  python -c "import uvicorn; print('Uvicorn: OK')"
+  python -c "from unified_auth_gateway import app; print('Gateway: OK')"
+  python -c "from app import app; print('App.py: OK')"
+
+
+Step 5: Start App with Verbose Output
+──────────────────────────────────────
+Start with detailed error messages:
+
+  python -u app.py
+
+The -u flag ensures unbuffered output so you see errors immediately.
+
+Look for:
+  ✅ "Successfully imported unified_auth_gateway"
+  ✅ "Starting on http://127.0.0.1:9000"
+  ❌ Any ImportError or traceback
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+📋 COMMON ERRNO 2 SOLUTIONS
+============================
+
+Issue 1: Wrong Working Directory
+─────────────────────────────────
+Solution:
+
+  # Verify you're in the right directory
+  Get-Location
+  
+  # Should show: .../DREDGE-Cli
+  
+  # If not, navigate there:
+  cd C:\path\to\DREDGE-Cli  # Update path
+  
+  # Verify files exist:
+  Test-Path app.py              # Should be True
+  Test-Path unified_auth_gateway.py  # Should be True
+
+
+Issue 2: Missing Dependencies
+──────────────────────────────
+Solution:
+
+  # Install all dependencies
+  pip install -r requirements.txt
+  
+  # Or manually install core packages:
+  pip install fastapi uvicorn httpx python-dotenv pydantic
+
+
+Issue 3: Python Path Issues
+────────────────────────────
+Solution:
+
+  # Start Python and check path
+  python
+  
+  # Inside Python:
+  import sys
+  print(sys.path)
+  
+  # Should include '.' (current directory)
+  # Exit with: exit()
+
+
+Issue 4: Module Import Errors
+──────────────────────────────
+Solution:
+
+  # Test imports step by step:
+  python -c "from unified_auth_gateway import app"
+  
+  # If this fails, check unified_auth_gateway.py syntax:
+  python -m py_compile unified_auth_gateway.py
+
+
+Issue 5: app.py Has Syntax Errors
+──────────────────────────────────
+Solution:
+
+  # Check for syntax errors:
+  python -m py_compile app.py
+  
+  # Should show: OK (no output = success)
+  # If error shown, file has syntax issues
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+✅ STEP-BY-STEP POWERSHELL COMMANDS
+====================================
+
+Copy one command at a time and run in PowerShell:
+
+
+# 1. Navigate to project
+cd DREDGE-Cli
+
+
+# 2. Run diagnostic
+.\diagnose.ps1
+
+# Read the output carefully and follow recommendations
+
+
+# 3. If diagnostic says to install packages:
+pip install -r requirements.txt
+
+
+# 4. Start app with verbose output
+python -u app.py
+
+# Should show:
+# ════════════════════════════════════════════════════════════
+#   DREDGE Auth Gateway - Starting
+# ════════════════════════════════════════════════════════════
+# 
+# Starting on http://127.0.0.1:9000
+# ...
+
+
+# 5. In another PowerShell window, test:
+Invoke-WebRequest http://127.0.0.1:9000/health
+
+
+# 6. Stop app: Ctrl+C in the first PowerShell window
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+🔍 DETAILED DEBUGGING
+====================
+
+If still getting errno 2, check:
+
+1. Current Directory:
+   Get-Location
+   # Shows: C:\...\DREDGE-Cli
+
+2. List Files:
+   Get-ChildItem app.py
+   Get-ChildItem unified_auth_gateway.py
+
+3. Python Executable:
+   which python
+   python -c "import sys; print(sys.executable)"
+
+4. Python Version:
+   python --version
+   # Should be 3.10 or higher
+
+5. Module Search Path:
+   python -c "import sys; [print(p) for p in sys.path]"
+   # Should include current directory
+
+6. Check for hidden imports:
+   python -c "from app import app; print(app)"
+
+7. Run app with extra verbosity:
+   python -u app.py 2>&1 | Tee-Object -FilePath app_log.txt
+
+   # Then read the log:
+   Get-Content app_log.txt
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+📝 UPDATED APP.PY (ERROR RESILIENT)
+====================================
+
+The new app.py includes:
+  ✅ Graceful import error handling
+  ✅ Fallback to alternative imports
+  ✅ Clear error messages
+  ✅ Works with or without unified_auth_gateway
+  ✅ Better logging
+
+If import still fails, it creates minimal FastAPI app so at least /health works.
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+🎯 QUICK CHECKLIST
+==================
+
+Before running app.py:
+
+  [ ] Current directory is DREDGE-Cli:
+      Get-Location
+  
+  [ ] app.py exists:
+      Test-Path app.py
+  
+  [ ] Python installed:
+      python --version
+  
+  [ ] Dependencies installed:
+      pip list | findstr fastapi
+  
+  [ ] Imports working:
+      python -c "from fastapi import FastAPI; print('OK')"
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+
+✅ IF ALL ELSE FAILS
+====================
+
+Use the direct Python command to import and test:
+
+  python -c @"
+import sys
+sys.path.insert(0, '.')
+try:
+    from app import app
+    print('✅ app.py loaded successfully')
+    print(f'App routes: {len(app.routes)}')
+except Exception as e:
+    print(f'❌ Error: {e}')
+    import traceback
+    traceback.print_exc()
+"@
+
+
+Then:
+
+  python app.py
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+RECOMMENDED NEXT STEPS:
+
+1. Run diagnostic:    .\diagnose.ps1
+2. Install deps:      pip install -r requirements.txt
+3. Start app:         python -u app.py
+4. In another window: Invoke-WebRequest http://127.0.0.1:9000/health
+5. Access Swagger:    http://127.0.0.1:9000/docs
+
+════════════════════════════════════════════════════════════════════════════════
