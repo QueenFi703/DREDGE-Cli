@@ -24,12 +24,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 # Fall back to unified_auth_gateway if not available
 try:
     from full_web_server import app
-    print("✅ Using full_web_server (DREDGE Studio FastAPI)")
-except ImportError:
+    print("[OK] Using full_web_server (DREDGE Studio FastAPI)")
+except ImportError as e:
     try:
         from unified_auth_gateway import app
-        print("✅ Using unified_auth_gateway (Auth Gateway FastAPI)")
-    except ImportError:
+        print("[OK] Using unified_auth_gateway (Auth Gateway FastAPI)")
+    except ImportError as e2:
         # If neither is available, create a minimal app
         from fastapi import FastAPI
         app = FastAPI(title="DREDGE Gateway", version="2.0.0")

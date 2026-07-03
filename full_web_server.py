@@ -17,7 +17,7 @@ Features:
 import os
 import sys
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Union
 
 # Add dredge to path
 sys.path.insert(0, str(Path(__file__).parent / 'dredge-cli-repo' / 'src'))
@@ -109,8 +109,8 @@ async def health() -> Dict[str, Any]:
     }
 
 
-@app.get("/dashboard", tags=["UI"])
-async def dashboard() -> FileResponse | JSONResponse:
+@app.get("/dashboard", tags=["UI"], response_class=FileResponse)
+async def dashboard():
     """Main DREDGE Studio Dashboard"""
     static_dir = Path(__file__).parent / 'dredge-cli-repo' / 'src' / 'dredge' / 'static'
     html_file = static_dir / 'dashboard_combined.html'
@@ -121,8 +121,8 @@ async def dashboard() -> FileResponse | JSONResponse:
     raise HTTPException(status_code=404, detail="Dashboard not found")
 
 
-@app.get("/advanced", tags=["UI"])
-async def advanced_dashboard() -> FileResponse | JSONResponse:
+@app.get("/advanced", tags=["UI"], response_class=FileResponse)
+async def advanced_dashboard():
     """Advanced features dashboard"""
     static_dir = Path(__file__).parent / 'dredge-cli-repo' / 'src' / 'dredge' / 'static'
     html_file = static_dir / 'advanced_dashboard_new.html'
@@ -133,8 +133,8 @@ async def advanced_dashboard() -> FileResponse | JSONResponse:
     raise HTTPException(status_code=404, detail="Advanced dashboard not found")
 
 
-@app.get("/docs", tags=["UI"])
-async def api_docs() -> FileResponse | JSONResponse:
+@app.get("/docs", tags=["UI"], response_class=FileResponse)
+async def api_docs():
     """API documentation"""
     static_dir = Path(__file__).parent / 'dredge-cli-repo' / 'src' / 'dredge' / 'static'
     html_file = static_dir / 'docs.html'
