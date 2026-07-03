@@ -1,0 +1,325 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║                  WHAT'S BEING DEPLOYED ON VERCEL?                         ║
+║                                                                            ║
+║                    Both DREDGE CLI and DREDGE Studio                       ║
+║                           (Via Smart Gateway)                             ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+
+🎯 DEPLOYMENT ARCHITECTURE
+===========================
+
+You're deploying: api/gateway.py:app
+
+This is a SMART ENTRY POINT that provides access to:
+
+1. PRIMARY: DREDGE Studio (UI + Full Web Server)
+   Location: full_web_server.py
+   Purpose: Interactive dashboard, UI, advanced features
+   Routes: /dashboard, /advanced, /swagger, /api/dredge/*
+   Type: Web UI + API
+
+2. SECONDARY: Unified Auth Gateway (Backend API)
+   Location: unified_auth_gateway.py
+   Purpose: Central authentication proxy
+   Routes: /admin/*, /usage, /key/*, /health, /services
+   Type: Authentication + API Management
+
+3. FALLBACK: Minimal FastAPI App
+   If both above fail, provides basic health check
+   Routes: /health
+   Type: Error handler
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+📋 CURRENT DEPLOYMENT LOGIC (api/gateway.py)
+==============================================
+
+Step 1: Try to load full_web_server
+  ✅ If available: Use DREDGE Studio UI
+  └─ All dashboard routes available
+  └─ All UI endpoints available
+  └─ API endpoints available
+
+Step 2: If full_web_server unavailable, try unified_auth_gateway
+  ✅ If available: Use Auth Gateway
+  └─ All admin routes available
+  └─ API key management available
+  └─ Service proxy available
+
+Step 3: If both unavailable, use minimal app
+  ✅ Provides basic /health endpoint
+  └─ Error message explains the issue
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+🌐 WHAT ENDPOINTS ARE LIVE ON VERCEL
+======================================
+
+If DREDGE Studio (full_web_server) is primary:
+
+STUDIO UI:
+  GET  /health                    → Health check
+  GET  /dashboard                 → Main dashboard
+  GET  /advanced                  → Advanced features UI
+  GET  /swagger                   → Interactive API docs
+  GET  /redoc                     → Alternative docs
+  GET  /api/dredge/status         → DREDGE status
+  POST /api/dredge/lift           → Insight lifting
+
+If Auth Gateway (unified_auth_gateway) is primary:
+
+GATEWAY PROXY:
+  GET  /health                    → Check all services
+  GET  /services                  → List available services
+  GET  /<service>/<path>          → Route to backend service
+  POST /<service>/<path>          → Route POST request
+  
+AUTH/ADMIN:
+  POST /admin/keys/create         → Create API key
+  GET  /admin/keys/list           → List keys
+  GET  /admin/stats               → View statistics
+  GET  /usage                     → View your usage
+  GET  /key/info                  → Key information
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+🎛️  WHICH IS BEING DEPLOYED?
+=============================
+
+Current Setup (api/gateway.py tries in this order):
+
+Priority 1: full_web_server.py
+  ✅ DREDGE Studio (Web UI)
+  Status: Loaded first
+  Result: You get the UI dashboard
+
+Priority 2: unified_auth_gateway.py
+  ✅ Auth Gateway (Backend API)
+  Status: Fallback if Studio unavailable
+  Result: You get the auth/proxy gateway
+
+Priority 3: Minimal app
+  ✅ Basic error handler
+  Status: Fallback if both above unavailable
+  Result: Just /health endpoint
+
+
+Current on Vercel: Whichever is listed first that imports successfully
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+🚀 HOW TO CONTROL WHAT DEPLOYS
+===============================
+
+Option 1: Keep Smart Gateway (Current)
+─────────────────────────────────────
+Entry point: api/gateway.py:app
+Behavior: Tries full_web_server first, falls back to auth gateway
+Best for: Having both available, use whichever is available
+
+Configuration in pyproject.toml:
+  (No longer used in Vercel - was removed)
+
+Configuration in vercel.json:
+  {
+    "buildCommand": "pip install -r requirements.txt",
+    ...
+  }
+
+
+Option 2: Deploy ONLY DREDGE Studio
+────────────────────────────────────
+Entry point: full_web_server:app
+
+Change vercel.json:
+  Keep as-is (Vercel will auto-detect if you rename entry point)
+
+Or explicitly deploy:
+  vercel --prod
+  (Will auto-detect full_web_server.py if it's the main app)
+
+
+Option 3: Deploy ONLY Auth Gateway
+───────────────────────────────────
+Entry point: unified_auth_gateway:app
+
+Change vercel.json:
+  Keep as-is (Vercel will auto-detect)
+
+Or explicitly deploy:
+  vercel --prod
+  (Will auto-detect unified_auth_gateway.py)
+
+
+Option 4: Deploy via api/gateway.py (Recommended)
+────────────────────────────────────────────────
+Entry point: api.gateway:app
+
+Current setup.
+Provides flexibility - can use whichever is available.
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+📊 COMPARISON: What Each Deploys
+=================================
+
+DREDGE Studio (full_web_server.py):
+  Framework: FastAPI
+  Purpose: Web UI + Dashboard
+  Routes: /dashboard, /advanced, /swagger
+  Users: Visual interface for DREDGE features
+  Best for: Interactive UI, testing features
+  Features:
+    ✅ Main dashboard
+    ✅ Advanced features UI
+    ✅ Interactive Swagger UI
+    ✅ Insight lifting API
+    ✅ System status API
+
+Unified Auth Gateway (unified_auth_gateway.py):
+  Framework: FastAPI
+  Purpose: Central authentication proxy
+  Routes: /admin/*, /usage, /key/*, /<service>/*
+  Users: API clients, backend services
+  Best for: API-first, authentication, multi-service proxy
+  Features:
+    ✅ API key management
+    ✅ Rate limiting
+    ✅ Service proxy
+    ✅ Usage tracking
+    ✅ Admin endpoints
+
+Both Together (api/gateway.py):
+  Framework: FastAPI
+  Purpose: Smart gateway choosing best available
+  Routes: All of the above (whichever loads first)
+  Users: Everyone (gets whichever is available)
+  Best for: Flexibility, fault tolerance
+  Features:
+    ✅ All features from primary
+    ✅ Falls back to secondary
+    ✅ Error handling if both fail
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+🎯 RECOMMENDATION
+====================
+
+CURRENT SETUP IS OPTIMAL:
+
+✅ Entry point: api/gateway.py:app
+✅ Try: full_web_server.py (DREDGE Studio)
+✅ Fallback: unified_auth_gateway.py (Auth Gateway)
+✅ Fallback: Minimal app
+
+Advantages:
+  1. Single deployment handles both
+  2. Flexible - use whichever is available
+  3. Fault tolerance - fallback if one fails
+  4. No code changes needed
+  5. Can switch between Studio and Gateway without redeploying
+
+What happens on Vercel:
+  1. Vercel reads vercel.json
+  2. Runs: pip install -r requirements.txt
+  3. Imports: from api.gateway import app
+  4. api/gateway.py tries to import full_web_server
+  5. If successful: DREDGE Studio is live
+  6. If not: Falls back to unified_auth_gateway
+  7. If not: Uses minimal app
+  8. Either way: You have a running FastAPI app on Vercel
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+🔄 IF YOU WANT TO SWITCH
+=========================
+
+To prioritize Auth Gateway over Studio:
+
+Modify api/gateway.py:
+
+FROM (Current - Studio first):
+  try:
+      from full_web_server import app
+  except ImportError:
+      from unified_auth_gateway import app
+
+TO (Auth Gateway first):
+  try:
+      from unified_auth_gateway import app
+  except ImportError:
+      from full_web_server import app
+
+
+Then deploy:
+  git add api/gateway.py
+  git commit -m "Switch priority to Auth Gateway"
+  git push origin master
+  # Vercel auto-deploys
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+✅ CURRENT DEPLOYMENT SUMMARY
+=============================
+
+What's Deployed: api/gateway.py:app
+
+Smart Entry Point:
+  ┌─ Tries: full_web_server.py (DREDGE Studio)
+  ├─ Fallback: unified_auth_gateway.py (Auth Gateway)
+  └─ Fallback: Minimal FastAPI app
+
+Current Result:
+  ✅ DREDGE Studio UI is available
+  ✅ Auth Gateway is fallback
+  ✅ Both FastAPI (ASGI)
+  ✅ Both use Uvicorn
+  ✅ Both Vercel-compatible
+
+Vercel URL:
+  https://your-project-name.vercel.app/
+
+Available at URL:
+  - If Studio loaded: /dashboard, /swagger, /advanced
+  - If Gateway loaded: /admin/*, /usage, /services
+  - Both have: /health
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+YOU'RE DEPLOYING BOTH
+
+DREDGE CLI (Auth Gateway)
+  └─ Backend API
+  └─ Authentication
+  └─ Service proxy
+
+DREDGE Studio (Web UI)
+  └─ Dashboard
+  └─ Web interface
+  └─ Visual tools
+
+Deployed via: api/gateway.py (Smart Gateway)
+
+Status: BOTH AVAILABLE (whichever imports first)
+
+════════════════════════════════════════════════════════════════════════════════
