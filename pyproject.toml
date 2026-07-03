@@ -58,7 +58,6 @@ Repository = "https://github.com/QueenFi703/DREDGE-Cli.git"
 Documentation = "https://github.com/QueenFi703/DREDGE-Cli#readme"
 Issues = "https://github.com/QueenFi703/DREDGE-Cli/issues"
 
-# Tool configurations
 [tool.black]
 line-length = 100
 target-version = ['py310', 'py311', 'py312']
@@ -94,56 +93,6 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "-v --tb=short"
 
-# ============================================================================
-# VERCEL DEPLOYMENT CONFIGURATION
-# ============================================================================
-# Entry point: api.gateway:app (FastAPI ASGI instance in api/gateway.py)
-# Build command: pip install -r requirements.txt
-# Package manager: pip (NOT uv - disabled for reliability)
-# ============================================================================
-
-[tool.vercel]
-# CRITICAL: Vercel production entry point
-# Points to: api/gateway.py module, app variable (FastAPI instance)
-entrypoint = "api.gateway:app"
-
-# Build command - explicitly uses pip (not uv)
-buildCommand = "pip install -r requirements.txt"
-
-# Disable uv package manager - use pip for consistency
-disablePackageManager = true
-
-# Environment variables for production
-[tool.vercel.env]
-PYTHONUNBUFFERED = "true"
-PYTHONDONTWRITEBYTECODE = "true"
-FLASK_ENV = "production"
-AUTH_STORAGE_PATH = "/tmp/api_keys.json"
-LOG_LEVEL = "INFO"
-ENABLE_RATE_LIMITING = "true"
-
-# ============================================================================
-# LOCAL DEVELOPMENT
-# ============================================================================
-# To run locally:
-#   python -m uvicorn api.gateway:app --host 127.0.0.1 --port 9000 --reload
-# Or use the development script:
-#   python build.sh (if available)
-# ============================================================================
-
-# Railway deployment configuration (for reference)
-[tool.railway]
-# Use railway.toml instead for Railway deployment
-# railway.toml has priority over this section
-
-# Docker configuration
-[tool.docker]
-image = "dredge-auth-gateway:latest"
-dockerfile = "Dockerfile.prod"
-ports = [9000]
-healthcheck = "/health"
-
-# Development configuration
 [tool.setuptools]
 packages = ["dredge"]
 
