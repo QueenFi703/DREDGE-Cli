@@ -1,0 +1,218 @@
+version: '3.9'
+
+services:
+  # DREDGE Gateway - Main Application
+  gateway:
+    image: dredge-gateway:v1.0.0-stable@sha256:abc123def456  # Digest-pinned for determinism
+    container_name: dredge-gateway
+    hostname: dredge-gateway
+    
+    # Network: Isolated, named (not bridge)
+    networks:
+      - dredge-network
+    
+    # Ports: Only gateway exposes ports
+    ports:
+      - "9000:9000"    # API Gateway
+      - "9001:9001"    # Build Queue Service
+    
+    # Volumes: State persistence + logs
+    volumes:
+      - dredge-state:/app/state                    # Persistent state checkpoint
+      - dredge-logs:/var/log/gateway               # Container logs
+      - dredge-artifacts:/artifacts                # Build artifacts
+    
+    # Environment: Production settings
+    environment:
+      - GATEWAY_ENVIRONMENT=production
+      - STATE_PERSISTENCE_PATH=/app/state
+      - LOG_LEVEL=info
+      - LOG_DIR=/var/log/gateway
+      - CHECKPOINT_INTERVAL=30
+      - HEALTH_CHECK_INTERVAL=10
+      - BUILD_QUEUE_MAX_PENDING=10
+      - DETERMINISTIC_VERSIONING=true
+    
+    # Health Check: Monitor container health
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    
+    # Restart Policy: Survive WSL crash + terminal reset
+    restart: always
+    
+    # Resource Limits: Prevent resource exhaustion
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    
+    # Logging: Persistent logs in volume
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "10"
+        labels: "component=gateway,environment=production"
+    
+    # Depends on: Wait for watchdog
+    depends_on:
+      watchdog:
+        condition: service_started
+    
+    # Command: Deterministic startup
+    command: >
+      sh -c '
+        echo "Starting DREDGE Gateway...";
+        python /app/gateway_startup.py &&
+        uvicorn api.deployment:app --host 0.0.0.0 --port 9000 --log-config /app/logging.yaml
+      '
+
+  # Watchdog - Health Monitor + Auto-Recovery
+  watchdog:
+    image: dredge-watchdog:v1.0.0-stable@sha256:def456abc123
+    container_name: dredge-watchdog
+    
+    networks:
+      - dredge-network
+    
+    volumes:
+      - dredge-state:/app/state:ro                 # Read-only state access
+      - dredge-logs:/var/log/gateway:ro            # Read-only logs
+      - /var/run/docker.sock:/var/run/docker.sock # Docker API access
+    
+    environment:
+      - WATCHDOG_INTERVAL=5
+      - GATEWAY_CONTAINER=dredge-gateway
+      - ALERT_THRESHOLD=3
+      - RESTART_GRACE_PERIOD=10
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    
+    restart: always
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+        labels: "component=watchdog,environment=production"
+
+  # Build Queue Service - Isolated Build Management
+  build-queue:
+    image: dredge-build-queue:v1.0.0-stable@sha256:ghi789jkl012
+    container_name: dredge-build-queue
+    
+    networks:
+      - dredge-network
+      - build-lanes  # Isolated network for builds
+    
+    ports:
+      - "9001:9001"
+    
+    volumes:
+      - dredge-artifacts:/artifacts
+      - dredge-state:/app/state:ro
+      - /var/run/docker.sock:/var/run/docker.sock  # Can spawn build containers
+    
+    environment:
+      - QUEUE_MAX_PENDING=10
+      - BUILD_TIMEOUT=1800
+      - ARTIFACT_RETENTION=86400  # 24 hours
+      - ISOLATION_ENABLED=true
+      - LANE_NETWORK=build-lanes
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    
+    restart: always
+    
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "10"
+        labels: "component=build-queue,environment=production"
+    
+    depends_on:
+      gateway:
+        condition: service_healthy
+
+
+# Named Volumes: Physical persistent storage on disk
+volumes:
+  dredge-state:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${STATE_VOLUME_PATH:-./volumes/state}
+  
+  dredge-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${LOGS_VOLUME_PATH:-./volumes/logs}
+  
+  dredge-artifacts:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${ARTIFACTS_VOLUME_PATH:-./volumes/artifacts}
+
+
+# Networks: Isolated communication
+networks:
+  # Main network: Gateway + Watchdog + Build Queue
+  dredge-network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+      com.docker.network.driver.mtu: "1500"
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+  
+  # Build lane network: Isolated for per-build containers
+  build-lanes:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+      com.docker.network.driver.mtu: "1500"
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16

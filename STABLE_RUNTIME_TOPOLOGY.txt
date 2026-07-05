@@ -1,0 +1,401 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║        DREDGE STABLE RUNTIME TOPOLOGY - Single-Machine Hybrid Kernel      ║
+║                                                                            ║
+║     WSL-Resilient | Docker-Survivable | Vercel-Isolated | Deterministic   ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+
+🎯 OPERATING ENVIRONMENT ANALYSIS
+===================================
+
+Your Stack:
+  ├─ WSL2 (Windows Subsystem for Linux) - Linux kernel in userspace
+  ├─ Docker Desktop - Manages containers via Hyper-V/native
+  ├─ Vercel CLI - Cloud build system
+  ├─ Local development - Direct filesystem
+  └─ Production gateway - Must survive all layers
+
+The Challenge:
+  ❌ WSL crashes → Docker containers orphaned
+  ❌ Terminal reset → Container state lost
+  ❌ Vercel builds race conditions → Deployment failures
+  ❌ Gateway crashes → Service degradation
+
+The Solution:
+  ✅ Layered resilience architecture
+  ✅ Container health persistence
+  ✅ Build queue isolation
+  ✅ Deterministic state management
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+🏗️  STABLE RUNTIME TOPOLOGY
+=============================
+
+Layer 1: HOST KERNEL (Windows)
+  ├─ Non-critical (no containers run here)
+  ├─ Role: Orchestration only
+  └─ Crashes don't affect running containers
+
+Layer 2: WSL2 ISOLATION
+  ├─ Docker daemon runs in managed VM
+  ├─ Handles: Container execution
+  ├─ Survives terminal crashes
+  ├─ Persistence: Docker volumes (physical storage)
+  └─ Health: Watchdog monitors daemon
+
+Layer 3: DOCKER ENGINE (Isolated)
+  ├─ Named networks (not bridge)
+  ├─ Volume-backed storage
+  ├─ Health checks on all containers
+  ├─ Restart policies: always
+  └─ Logging: persistent to volume
+
+Layer 4: DREDGE GATEWAY
+  ├─ Runs in container (resilient)
+  ├─ State stored in volume
+  ├─ Admin API for health
+  ├─ Session persistence
+  └─ Deterministic version pinning
+
+Layer 5: VERCEL BUILD LANES
+  ├─ Isolated per-build containers
+  ├─ No shared state
+  ├─ Queue system (not concurrent)
+  ├─ Atomic deployments
+  └─ Rollback-capable
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+🔐 WSL CRASH RESILIENCE
+=========================
+
+Problem: WSL2 VM crashes → Docker containers lose connection
+
+Solution: Volume-Based Persistent State
+
+  Architecture:
+    WSL2 (crashes)
+      ↓
+    Docker Engine (survives in Hyper-V)
+      ↓
+    Named Volume (persistent storage on disk)
+      ↓
+    DREDGE Gateway Container (restarts)
+    ├─ Mounts volume at /app/state
+    ├─ Reads last known state
+    └─ Resumes from checkpoint
+
+Implementation:
+
+  1. Create Named Volume:
+     docker volume create dredge-state
+     
+     Physical location:
+     Windows: %APPDATA%\Docker\volumes\dredge-state\_data
+     WSL: /var/lib/docker/volumes/dredge-state/_data
+
+  2. Gateway Container:
+     volumes:
+       - dredge-state:/app/state
+       - dredge-logs:/var/log/gateway
+     
+     On startup:
+     ├─ Read /app/state/last-checkpoint.json
+     ├─ Recover session state
+     ├─ Rebuild request queue
+     └─ Resume operations
+
+  3. Checkpoint Mechanism:
+     Every 30 seconds → Write state file
+     On crash → Last valid state preserved
+     On restart → Automatic recovery
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+🛡️  DOCKER CONTAINER SURVIVAL
+===============================
+
+Problem: Terminal reset → Container connection lost
+
+Solution: Docker Daemon Persistence + Health Checks
+
+  Configuration:
+
+    1. Container Start Policy:
+       restart: always
+       → Docker daemon auto-restarts if it exits
+       → Even after terminal crash
+
+    2. Health Checks:
+       HEALTHCHECK --interval=10s --timeout=5s --retries=3
+       CMD curl -f http://localhost:9000/health || exit 1
+       
+       Actions:
+       ├─ Runs every 10 seconds
+       ├─ If 3 failures → Docker auto-restarts
+       └─ State preserved in volume
+
+    3. Docker Service:
+       On Windows:
+       ├─ Docker Desktop service runs as Windows service
+       ├─ Auto-starts on boot
+       ├─ Survives terminal reset
+       ├─ Survives WSL crash
+       └─ Only host restart stops it
+
+    4. Watchdog Container (NEW):
+       Monitors gateway health
+       ├─ Runs with --restart always
+       ├─ Checks gateway every 5s
+       ├─ Auto-restarts if unhealthy
+       ├─ Persists attempts to volume
+       └─ Alerts via health logs
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+🚀 VERCEL BUILD LANE ISOLATION
+================================
+
+Problem: Vercel builds race conditions → Non-deterministic deployments
+
+Solution: Build Queue + Isolated Containers
+
+  Architecture:
+
+    Build Request
+      ↓
+    Build Queue Service (runs in container)
+      ├─ Sequential processing (NOT concurrent)
+      ├─ One build at a time
+      ├─ Queues up to 10 pending builds
+      └─ UUID per build for tracing
+
+    Build Lane Container (ephemeral)
+      ├─ Created per build
+      ├─ Isolated network (build-lane-N)
+      ├─ Isolated volume (build-N-artifacts)
+      ├─ Runs build command
+      ├─ On success → Push to Vercel
+      ├─ On failure → Logged, retried once
+      └─ Auto-deleted after 1 hour
+
+
+  Implementation:
+
+    1. Build Queue Service:
+       Port: 9001
+       Endpoints:
+       ├─ POST /build/submit (add to queue)
+       ├─ GET /build/status/{uuid} (check status)
+       ├─ GET /build/logs/{uuid} (view logs)
+       └─ POST /build/cancel/{uuid} (cancel)
+
+    2. Per-Build Container:
+       docker run \
+         --name build-{uuid} \
+         --network build-lane-{uuid} \
+         -v build-artifacts-{uuid}:/artifacts \
+         -v dredge-state:/state:ro \
+         build-lane-image:latest \
+         /scripts/run-build.sh {uuid}
+
+    3. Build Isolation:
+       Network: build-lane-{uuid}
+       ├─ No cross-build communication
+       ├─ No access to production gateway
+       ├─ Can only read state (ro)
+       └─ Failure doesn't affect others
+
+    4. Artifact Management:
+       ├─ Build artifacts in isolated volume
+       ├─ On success → Move to stable location
+       ├─ On failure → Rotate logs
+       ├─ Automatic cleanup after 24h
+       └─ Vercel push only from stable
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+🎯 DETERMINISTIC GATEWAY DEPLOYMENT
+====================================
+
+Problem: Gateway behavior varies across deployments
+
+Solution: Version Pinning + State Synchronization
+
+  Implementation:
+
+    1. Version Pinning:
+       gateway-image:v1.0.0-stable (immutable)
+       ├─ Digest-pinned in compose file
+       ├─ SHA256 hash verified
+       ├─ Rebuilds use exact same code
+       └─ No "latest" tags
+
+    2. State Synchronization:
+       Before deployment:
+       ├─ Checkpoint current state
+       ├─ Export to volume
+       ├─ Verify checksum matches
+       └─ Atomic swap
+
+       After deployment:
+       ├─ Read from checkpoint
+       ├─ Rebuild request queue
+       ├─ Verify state integrity
+       ├─ Resume operations
+       └─ Emit recovery event
+
+    3. Deterministic Startup:
+       Startup sequence (order matters):
+       1. Read /app/state/manifest.json
+       2. Verify checksum
+       3. Load configuration
+       4. Rebuild in-memory state
+       5. Connect to volumes
+       6. Listen on 9000
+       7. Report ready
+       8. Begin accepting requests
+
+    4. Deployment Atomicity:
+       Blue-Green Pattern:
+       ├─ Keep old container (blue)
+       ├─ Start new container (green)
+       ├─ Health check new container
+       ├─ If healthy: switch traffic
+       ├─ Keep old for 5 min (rollback window)
+       └─ Auto-delete after successful validation
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+📊 TOPOLOGY DIAGRAM
+====================
+
+                          Windows Host
+    ┌─────────────────────────────────────────────────┐
+    │  Vercel CLI      Terminal     PowerShell        │
+    └────────────────┬──────────────┬─────────────────┘
+                     │              │ (can crash)
+                     ↓              ↓
+    ┌─────────────────────────────────────────────────┐
+    │           WSL2 Kernel (VM-based)                │
+    │    (crashes independently of Terminal)          │
+    └────────────┬────────────────────────────────────┘
+                 │ (survives terminal reset)
+                 ↓
+    ┌─────────────────────────────────────────────────┐
+    │        Docker Engine (Service)                  │
+    │    (runs as Windows service, survives WSL)      │
+    └────────┬──────────────────────────┬─────────────┘
+             │                          │
+      (Named Volumes)            (Container Network)
+             │                          │
+    ┌────────↓────────┐      ┌─────────↓──────────┐
+    │ dredge-state    │      │ dredge-network     │
+    │ dredge-logs     │      │ (isolated)         │
+    │ dredge-artifacts│      └────────┬───────────┘
+    └────────────────┘               │
+                                     ↓
+                        ┌────────────────────────┐
+                        │  DREDGE Gateway        │
+                        │  Container             │
+                        │  ├─ Port 9000          │
+                        │  ├─ Health checks      │
+                        │  ├─ State persistence  │
+                        │  └─ Session recovery   │
+                        └────────┬────────────────┘
+                                 │
+                    ┌────────────┼────────────┐
+                    ↓            ↓            ↓
+           ┌────────────────────────────────────────┐
+           │   Build Queue Service                  │
+           │   ├─ Sequential processing             │
+           │   ├─ Isolated build lanes              │
+           │   └─ Deterministic versioning          │
+           └────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+✅ IMPLEMENTATION CHECKLIST
+============================
+
+Phase 1: Foundation (This Session)
+  [ ] Create docker-compose.prod.yml with:
+      - Named volumes for state/logs/artifacts
+      - Health checks on all containers
+      - Restart policies
+      - Named networks (isolated)
+      - Version pinning with SHA256
+
+  [ ] Create state management module:
+      - Checkpoint on interval
+      - Recovery on startup
+      - Manifest verification
+      - Session persistence
+
+  [ ] Create health monitoring:
+      - /health endpoint
+      - Internal state validation
+      - Watchdog alerts
+      - Recovery automation
+
+Phase 2: Build System (Next)
+  [ ] Create build queue service
+  [ ] Implement per-build isolation
+  [ ] Add build lane containers
+  [ ] Create artifact management
+  [ ] Add Vercel push automation
+
+Phase 3: Monitoring (Then)
+  [ ] Create dashboard for all layers
+  [ ] Add alerts for failures
+  [ ] Implement recovery automation
+  [ ] Create rollback procedures
+
+Phase 4: Testing (Finally)
+  [ ] Simulate WSL crash → verify recovery
+  [ ] Simulate terminal reset → verify persistence
+  [ ] Simulate build race → verify isolation
+  [ ] Simulate deployment → verify determinism
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+STABLE DREDGE RUNTIME TOPOLOGY DESIGNED ✅
+
+Architecture: Layered Resilience
+  Layer 1: Host kernel (non-critical)
+  Layer 2: WSL2 isolation (resilient VM)
+  Layer 3: Docker engine (service-based survival)
+  Layer 4: DREDGE gateway (volume-backed state)
+  Layer 5: Vercel build lanes (isolated containers)
+
+Key Features:
+  ✅ WSL crashes don't affect running containers
+  ✅ Terminal resets don't stop Docker
+  ✅ Build races prevented by sequential lanes
+  ✅ Gateway state deterministic and recoverable
+  ✅ Automatic health recovery
+  ✅ Blue-green deployments
+  ✅ Volume-based persistence
+  ✅ Checkpoint/recovery mechanism
+
+Status: TOPOLOGY DESIGNED - Ready for implementation
+
+════════════════════════════════════════════════════════════════════════════════

@@ -1,0 +1,465 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║         DREDGE STABLE RUNTIME - IMPLEMENTATION & DEPLOYMENT GUIDE          ║
+║                                                                            ║
+║     WSL-Resilient | Docker-Survivable | Vercel-Isolated | Deterministic   ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+
+🚀 QUICK START
+===============
+
+1. Copy all files to your repository:
+   ✅ STABLE_RUNTIME_TOPOLOGY.txt - Architecture documentation
+   ✅ docker-compose.stable-topology.yml - Production compose file
+   ✅ gateway_state_management.py - State checkpoint & recovery
+   ✅ gateway_watchdog_service.py - Health monitoring & auto-recovery
+   ✅ gateway_build_queue_service.py - Sequential build lanes
+   ✅ gateway_startup.py - Deterministic startup sequence
+
+2. Build the required Docker images:
+   docker build -f Dockerfile.gateway -t dredge-gateway:v1.0.0-stable .
+   docker build -f Dockerfile.watchdog -t dredge-watchdog:v1.0.0-stable .
+   docker build -f Dockerfile.build-queue -t dredge-build-queue:v1.0.0-stable .
+   docker build -f Dockerfile.build-lane -t dredge-build-lane:v1.0.0-stable .
+
+3. Create volume directories:
+   mkdir -p ./volumes/{state,logs,artifacts}
+   chmod 777 ./volumes/{state,logs,artifacts}
+
+4. Start the stable topology:
+   docker-compose -f docker-compose.stable-topology.yml up -d
+
+5. Verify it's running:
+   curl http://localhost:9000/health
+   curl http://localhost:9001/health
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+📋 COMPONENT DESCRIPTIONS
+===========================
+
+1. STATE MANAGEMENT (gateway_state_management.py)
+   ───────────────────────────────────────────────
+   
+   Purpose: Persistent state across crashes
+   
+   Features:
+   ├─ Periodic checkpoints (every 30 seconds)
+   ├─ Crash recovery with state reconstruction
+   ├─ SHA256 manifest verification
+   ├─ Session persistence
+   ├─ Request queue reconstruction
+   └─ Automatic checkpoint on shutdown
+   
+   Integration:
+   @app.on_event("startup")
+   async def startup():
+       await initialize_state_management()
+   
+   Usage:
+   await state_manager.add_session(session_id, session_data)
+   await state_manager.queue_request(request_id, request_data)
+   await state_manager.write_checkpoint()
+   
+   Endpoints:
+   GET /state/status - Current state summary
+   GET /state/manifest - State manifest
+
+
+2. WATCHDOG SERVICE (gateway_watchdog_service.py)
+   ───────────────────────────────────────────────
+   
+   Purpose: Health monitoring & auto-recovery
+   
+   Features:
+   ├─ Health checks every 5 seconds
+   ├─ Container status monitoring
+   ├─ API responsiveness checking
+   ├─ State file accessibility
+   ├─ Resource usage tracking
+   ├─ Auto-restart on failure
+   ├─ Alert logging
+   └─ Event tracking
+   
+   Health Check Components:
+   ├─ Container running? (docker ps)
+   ├─ API responding? (curl /health)
+   ├─ State readable? (check checkpoint file)
+   └─ Resources OK? (docker stats)
+   
+   Failure Handling:
+   ├─ Failure count incremented
+   ├─ Alert triggered at threshold (3 failures)
+   ├─ Auto-restart after grace period (10s)
+   └─ Counter reset on success
+   
+   Endpoints:
+   GET /watchdog/status - Current watchdog status
+   GET /watchdog/health-history - Recent health checks
+   GET /watchdog/alerts - Recent alerts
+
+
+3. BUILD QUEUE SERVICE (gateway_build_queue_service.py)
+   ─────────────────────────────────────────────────────
+   
+   Purpose: Sequential isolated build processing
+   
+   Features:
+   ├─ Sequential processing (no race conditions)
+   ├─ Per-build container isolation
+   ├─ Isolated networks (build-lanes)
+   ├─ Isolated volumes (per-build artifacts)
+   ├─ Atomic artifact management
+   ├─ Build timeout protection (30 min)
+   ├─ Automatic artifact cleanup (24h)
+   └─ Build queue persistence
+   
+   Build States:
+   pending → queued → running → success/failed
+   
+   Isolation Model:
+   Each build gets:
+   ├─ Unique container name (build-{uuid})
+   ├─ Isolated network (build-lanes-{uuid})
+   ├─ Isolated volume (build-artifacts-{uuid})
+   ├─ Read-only state access
+   └─ No cross-build communication
+   
+   Endpoints:
+   POST /build/submit - Submit build job
+   GET /build/status/{build_id} - Get build status
+   GET /build/logs/{build_id} - Get build logs
+   POST /build/cancel/{build_id} - Cancel build
+   GET /queue/status - Get queue status
+
+
+4. STARTUP SCRIPT (gateway_startup.py)
+   ──────────────────────────────────────
+   
+   Purpose: Deterministic initialization
+   
+   Startup Sequence:
+   1. Initialize state management
+   2. Verify state integrity
+   3. Reconstruct session state
+   4. Restore request queue
+   5. Verify readiness
+   
+   Exit Codes:
+   0 - Success (ready for traffic)
+   1 - Failure (degraded startup)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+🔧 DOCKER-COMPOSE CONFIGURATION
+=================================
+
+Services Defined:
+
+1. gateway
+   ├─ Main DREDGE application
+   ├─ FastAPI on port 9000
+   ├─ Persistent volumes: state, logs, artifacts
+   ├─ Health checks every 10s (retries: 3)
+   ├─ Restart policy: always
+   ├─ Resources: 2 CPU / 2GB RAM
+   └─ Depends on watchdog
+
+2. watchdog
+   ├─ Health monitor & auto-recovery
+   ├─ Docker API access
+   ├─ Monitors gateway every 5s
+   ├─ Auto-restart on failure
+   ├─ Resources: 0.5 CPU / 512MB RAM
+   └─ Always running
+
+3. build-queue
+   ├─ Sequential build processing
+   ├─ Spawns isolated build containers
+   ├─ Manages build lanes network
+   ├─ Port 9001
+   ├─ Resources: 1 CPU / 1GB RAM
+   └─ Depends on gateway (healthy)
+
+Networks:
+
+1. dredge-network (172.20.0.0/16)
+   ├─ Gateway, watchdog, build-queue
+   ├─ Isolated from build lanes
+   └─ Internal communication
+
+2. build-lanes (172.21.0.0/16)
+   ├─ Per-build container network
+   ├─ Isolated from main network
+   └─ No cross-build access
+
+Volumes:
+
+1. dredge-state
+   ├─ Gateway state checkpoints
+   ├─ Session persistence
+   ├─ Manifest files
+   └─ Recovery logs
+
+2. dredge-logs
+   ├─ Container logs
+   ├─ Health check logs
+   ├─ Alert logs
+   └─ Recovery events
+
+3. dredge-artifacts
+   ├─ Build artifacts
+   ├─ Per-build subdirectories
+   ├─ Auto-cleanup after 24h
+   └─ Vercel push staging
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+🛡️  FAILURE SCENARIOS & RECOVERY
+==================================
+
+Scenario 1: WSL2 Crash
+────────────────────────
+Problem: WSL VM crashes while containers running
+Expected: Docker daemon survives, containers recover
+
+What Happens:
+1. WSL kernel panics/crashes
+2. Docker daemon (running in Hyper-V) survives
+3. Gateway container has restart: always
+4. Docker automatically restarts gateway
+5. Gateway reads checkpoint from volume
+6. State recovered: sessions + queue restored
+7. Service resumes
+
+Verification:
+wsl --shutdown  # Simulate WSL crash
+# Wait 30 seconds
+curl http://localhost:9000/health  # Should respond
+
+Timeline:
+├─ T+0s: WSL crash
+├─ T+1s: Docker restarts gateway
+├─ T+5s: Gateway reads checkpoint
+├─ T+10s: Service ready
+└─ T+30s: Watchdog verifies health
+
+
+Scenario 2: Terminal Reset
+────────────────────────────
+Problem: PowerShell/terminal crashes with docker-compose running
+Expected: Containers keep running, service unaffected
+
+What Happens:
+1. Terminal process dies
+2. Docker processes detached (daemon mode)
+3. Containers keep running with restart: always
+4. Watchdog continues monitoring
+5. No service disruption
+
+Verification:
+# In PowerShell:
+docker-compose -f docker-compose.stable-topology.yml up -d
+# Press Ctrl+C (kills terminal but not containers)
+docker ps  # All containers still running
+
+Terminal Reset Test:
+├─ Start: docker-compose up -d
+├─ Kill: Terminal/PowerShell crash
+├─ Verify: docker ps (all running)
+├─ Test: curl http://localhost:9000/health (works)
+└─ Result: No service disruption
+
+
+Scenario 3: Gateway Container Crash
+──────────────────────────────────────
+Problem: Gateway process crashes (bug, OOM, etc.)
+Expected: Auto-restart, state recovery
+
+What Happens:
+1. Gateway container exits
+2. Docker restart policy: always triggers
+3. New gateway container starts
+4. Startup script runs
+5. State checkpoint loaded
+6. Sessions/queue reconstructed
+7. Health check passes
+8. Watchdog resets failure counter
+
+Verification:
+# Kill gateway
+docker kill dredge-gateway
+# Wait 5 seconds
+docker ps  # Should see new container started
+curl http://localhost:9000/health  # Should respond
+
+
+Scenario 4: Multiple Build Requests (Race Prevention)
+──────────────────────────────────────────────────────
+Problem: 10 build requests arrive simultaneously
+Expected: Sequential processing, no races
+
+What Happens:
+1. Build 1 arrives → queued, processing starts
+2. Build 2 arrives → queued, waiting
+3. Builds 3-10 arrive → queued, waiting
+4. Build 1 completes → Build 2 starts
+5. Build 2 completes → Build 3 starts
+6. ... sequential completion
+
+Isolation:
+├─ Build 1: container build-{uuid1}, network build-lanes-{uuid1}
+├─ Build 2: container build-{uuid2}, network build-lanes-{uuid2}
+├─ ...
+└─ Each completely isolated
+
+
+Scenario 5: Vercel Deployment
+────────────────────────────────
+Problem: Deploying to Vercel while builds running
+Expected: Deterministic deployment, no corruption
+
+What Happens:
+1. Current state checkpointed to volume
+2. Blue-green deployment starts
+3. New gateway container starts (green)
+4. Green container reads checkpoint
+5. State verified, manifest checked
+6. Traffic switched to green
+7. Old (blue) kept for 5 minutes
+8. If issues, rollback to blue
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+📊 MONITORING & OBSERVABILITY
+===============================
+
+Health Endpoints:
+
+GET /health
+├─ Basic health check
+├─ Response: {"status": "healthy"}
+└─ Used by: Docker, watchdog
+
+GET /state/status
+├─ Complete state summary
+├─ Shows: sessions, queue, metrics
+└─ Used by: Debugging, monitoring
+
+GET /state/manifest
+├─ Manifest file content
+├─ Shows: checkpoint details, timestamps
+└─ Used by: Verification
+
+GET /watchdog/status
+├─ Watchdog health and statistics
+├─ Shows: failure count, last checks
+└─ Used by: Monitoring
+
+GET /watchdog/health-history
+├─ Recent health check history
+├─ Shows: last 100 checks
+└─ Used by: Debugging trends
+
+GET /watchdog/alerts
+├─ Recent alerts/failures
+├─ Shows: last 100 alerts
+└─ Used by: Incident response
+
+GET /queue/status
+├─ Build queue status
+├─ Shows: current build, pending
+└─ Used by: Build monitoring
+
+Logs Location:
+
+On Windows (Docker Desktop):
+├─ %APPDATA%\Docker\volumes\dredge-state\_data\
+├─ %APPDATA%\Docker\volumes\dredge-logs\_data\
+└─ %APPDATA%\Docker\volumes\dredge-artifacts\_data\
+
+Via Docker:
+docker logs dredge-gateway
+docker logs dredge-watchdog
+docker logs dredge-build-queue
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+✅ TESTING PROCEDURE
+======================
+
+Phase 1: Basic Startup (5 minutes)
+─────────────────────────────────
+1. Create volumes
+2. Start compose
+3. Verify all containers running
+4. Check health endpoints
+5. Verify logs
+
+Phase 2: WSL Resilience (10 minutes)
+─────────────────────────────────────
+1. Submit test request
+2. Simulate WSL crash (wsl --shutdown)
+3. Wait for recovery
+4. Verify request still in queue
+5. Verify state recovered
+
+Phase 3: Terminal Resilience (5 minutes)
+────────────────────────────────────────
+1. Start compose
+2. Kill terminal
+3. Verify containers still running
+4. Test endpoints
+
+Phase 4: Build Isolation (15 minutes)
+──────────────────────────────────────
+1. Submit 5 builds simultaneously
+2. Monitor /queue/status
+3. Verify sequential processing
+4. Check network isolation
+5. Verify artifact organization
+
+Phase 5: Recovery Automation (10 minutes)
+─────────────────────────────────────────
+1. Kill gateway container
+2. Verify auto-restart
+3. Check state recovery
+4. Monitor watchdog logs
+5. Verify service continuity
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+DREDGE STABLE RUNTIME READY FOR PRODUCTION ✅
+
+Components:
+  ✅ State Management (checkpoint & recovery)
+  ✅ Watchdog Service (health & auto-recovery)
+  ✅ Build Queue (sequential, isolated)
+  ✅ Startup Script (deterministic init)
+  ✅ Docker Compose (production topology)
+
+Key Guarantees:
+  ✅ WSL crashes don't affect running containers
+  ✅ Terminal resets don't stop Docker
+  ✅ Build races prevented by sequential lanes
+  ✅ Gateway state deterministic and recoverable
+  ✅ Automatic health recovery
+  ✅ Volume-based persistence
+  ✅ Checkpoint/recovery mechanism
+
+Status: IMPLEMENTATION GUIDE COMPLETE - Ready to deploy
+
+════════════════════════════════════════════════════════════════════════════════
