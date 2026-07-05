@@ -1,0 +1,429 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                                                                            ║
+║         DREDGE STABLE RUNTIME - QUICK REFERENCE & DEPLOYMENT               ║
+║                                                                            ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+
+🎯 YOUR PROBLEM & SOLUTION
+============================
+
+Your Operating Environment:
+  • Windows Host (non-critical)
+  • WSL2 VM (can crash)
+  • Docker Desktop (should survive crashes)
+  • Vercel CI/CD (needs isolation)
+  • Single-machine hybrid kernel
+
+Your Requirements:
+  ✅ WSL never crashes my containers
+  ✅ Dockers survives terminal resets
+  ✅ Vercel builds run in isolated lanes
+  ✅ Gateway becomes deterministic under deployment
+
+Our Solution: 5-Layer Resilient Topology
+  Layer 1: Host Kernel (Windows) - Non-critical
+  Layer 2: WSL2 Isolation - Resilient VM
+  Layer 3: Docker Engine - Service-based survival
+  Layer 4: DREDGE Gateway - Volume-backed state
+  Layer 5: Vercel Build Lanes - Isolated containers
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+🚀 DEPLOYMENT (5 MINUTES)
+===========================
+
+Step 1: Create volume directories
+  mkdir -p ./volumes/{state,logs,artifacts}
+  chmod 777 ./volumes/{state,logs,artifacts}
+
+Step 2: Start the stable topology
+  docker-compose -f docker-compose.stable-topology.yml up -d
+
+Step 3: Verify startup
+  docker ps  # Should see: gateway, watchdog, build-queue
+  curl http://localhost:9000/health
+
+Step 4: Check state recovery
+  curl http://localhost:9000/state/status
+  curl http://localhost:9000/state/manifest
+
+Step 5: Monitor health
+  curl http://localhost:9000/watchdog/status
+  curl http://localhost:9001/queue/status
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+📊 ARCHITECTURE AT A GLANCE
+=============================
+
+┌─────────────────────────────────────────────────────────┐
+│                    Windows Host                         │
+│  (Terminal can crash - doesn't affect containers)       │
+└──────────────────────┬──────────────────────────────────┘
+                       │
+┌──────────────────────↓──────────────────────────────────┐
+│            WSL2 Kernel (VM-based)                       │
+│  (can crash - Docker survives in Hyper-V)              │
+└──────────────────────┬──────────────────────────────────┘
+                       │
+┌──────────────────────↓──────────────────────────────────┐
+│         Docker Engine (Service - survives all)         │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  ┌──────────────────────────────────────────────────┐  │
+│  │         DREDGE Network (172.20.0.0/16)          │  │
+│  │                                                   │  │
+│  │  ┌─────────────────┐  ┌──────────────────────┐  │  │
+│  │  │  Gateway (9000) │  │  Watchdog Monitor    │  │  │
+│  │  │  ├─ State Vol   │  │  ├─ Health checks    │  │  │
+│  │  │  ├─ Logs Vol    │  │  ├─ Auto-restart     │  │  │
+│  │  │  └─ Checkpoint  │  │  └─ Alert logging    │  │  │
+│  │  └─────────────────┘  └──────────────────────┘  │  │
+│  │                                                   │  │
+│  │  ┌──────────────────────────────────────────┐   │  │
+│  │  │    Build Queue Service (9001)            │   │  │
+│  │  │    ├─ Sequential processing              │   │  │
+│  │  │    ├─ No race conditions                 │   │  │
+│  │  │    └─ Isolated builds                    │   │  │
+│  │  └──────────────────────────────────────────┘   │  │
+│  └──────────────────────────────────────────────────┘  │
+│                       │                                 │
+│  ┌────────────────────↓────────────────────────────┐   │
+│  │   Build Lanes Network (172.21.0.0/16)          │   │
+│  │   (Isolated from main network)                 │   │
+│  │                                                 │   │
+│  │   Per-Build: container + network + volume     │   │
+│  │   ├─ build-lane-{uuid}                        │   │
+│  │   ├─ build-artifacts-{uuid}                   │   │
+│  │   └─ No cross-build access                    │   │
+│  └─────────────────────────────────────────────────┘   │
+│                                                         │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │        Persistent Volumes (Host Disk)          │   │
+│  │                                                 │   │
+│  │  dredge-state/      → checkpoint files         │   │
+│  │  dredge-logs/       → container logs           │   │
+│  │  dredge-artifacts/  → build outputs            │   │
+│  └─────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+✅ GUARANTEES
+==============
+
+Guarantee 1: WSL Never Crashes Your Containers
+───────────────────────────────────────────────
+How it works:
+  1. Docker daemon runs in Hyper-V (survives WSL)
+  2. Containers have restart: always policy
+  3. Gateway state in volume (survives crash)
+  4. On restart: read checkpoint, recover state
+
+Test it:
+  wsl --shutdown
+  # Wait 30 seconds
+  curl http://localhost:9000/health  # Should respond
+
+Timeline:
+  ├─ T+0s: WSL crashes
+  ├─ T+1s: Docker restarts gateway
+  ├─ T+5s: State recovered from volume
+  ├─ T+10s: Service ready
+  └─ T+30s: Fully recovered
+
+
+Guarantee 2: Docker Survives Terminal Resets
+──────────────────────────────────────────────
+How it works:
+  1. Containers run in daemon mode (detached)
+  2. Docker service is independent Windows service
+  3. Terminal crash doesn't affect daemon
+  4. Containers keep running
+
+Test it:
+  docker-compose -f docker-compose.stable-topology.yml up -d
+  # Press Ctrl+C
+  docker ps  # All containers still running
+
+
+Guarantee 3: Vercel Builds Run in Isolated Lanes
+─────────────────────────────────────────────────
+How it works:
+  1. Sequential processing (one build at a time)
+  2. Per-build container with unique ID
+  3. Isolated network (no cross-build communication)
+  4. Isolated volume (no artifact sharing)
+  5. No shared state
+
+Test it:
+  POST /build/submit (5 times)
+  # Observe sequential processing in /queue/status
+
+
+Guarantee 4: Gateway Is Deterministic
+──────────────────────────────────────
+How it works:
+  1. Version pinning with SHA256 digest
+  2. State synchronized before deploy
+  3. Deterministic startup sequence
+  4. Blue-green deployment
+  5. Rollback window
+
+Test it:
+  # Deploy new version
+  # Observe /state/status shows same sessions/queue
+  # All requests still in queue, no loss
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+🔧 COMPONENTS OVERVIEW
+========================
+
+1. STATE MANAGEMENT (gateway_state_management.py)
+   └─ Checkpoint every 30 seconds
+   └─ Recovery on startup
+   └─ SHA256 verification
+   └─ Session + queue persistence
+
+2. WATCHDOG SERVICE (gateway_watchdog_service.py)
+   └─ Health check every 5 seconds
+   └─ Auto-restart on failure
+   └─ Resource monitoring
+   └─ Alert logging
+
+3. BUILD QUEUE (gateway_build_queue_service.py)
+   └─ Sequential processing
+   └─ Per-build isolation
+   └─ Atomic artifacts
+   └─ Vercel integration
+
+4. STARTUP SCRIPT (gateway_startup.py)
+   └─ Deterministic init
+   └─ State recovery
+   └─ Readiness checks
+   └─ Exit codes
+
+5. DOCKER COMPOSE (docker-compose.stable-topology.yml)
+   └─ Named volumes
+   └─ Health checks
+   └─ Restart policies
+   └─ Resource limits
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+🚨 MONITORING & HEALTH
+=========================
+
+Essential Endpoints:
+
+GET /health
+  Purpose: Container health
+  Response: {"status": "healthy"}
+  Used by: Docker health checks, watchdog
+
+GET /state/status
+  Purpose: State summary
+  Response: {
+    "gateway_id": "...",
+    "sessions_active": N,
+    "requests_queued": N,
+    "crashes_recovered": N
+  }
+  Used by: Debugging, status dashboard
+
+GET /watchdog/status
+  Purpose: Watchdog health
+  Response: {
+    "running": true,
+    "failure_count": N,
+    "last_health_check": {...}
+  }
+  Used by: Monitoring
+
+GET /queue/status
+  Purpose: Build queue status
+  Response: {
+    "queue_length": N,
+    "current_build": {...},
+    "pending_builds": [...]
+  }
+  Used by: Build monitoring
+
+Logs Access:
+
+View gateway logs:
+  docker logs dredge-gateway
+
+View watchdog logs:
+  docker logs dredge-watchdog
+
+View build queue logs:
+  docker logs dredge-build-queue
+
+Access volumes:
+  Windows: %APPDATA%\Docker\volumes\dredge-*
+  Via docker: docker volume inspect dredge-state
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+🧪 TESTING CHECKLIST
+=======================
+
+□ Basic Startup
+  docker-compose -f docker-compose.stable-topology.yml up -d
+  curl http://localhost:9000/health  # ✅ responds
+
+□ State Persistence
+  curl http://localhost:9000/state/status
+  curl http://localhost:9000/state/manifest
+
+□ WSL Resilience
+  wsl --shutdown
+  sleep 30
+  curl http://localhost:9000/health  # ✅ recovers
+
+□ Terminal Reset
+  docker-compose up -d
+  Ctrl+C
+  docker ps  # ✅ containers still running
+
+□ Container Restart
+  docker kill dredge-gateway
+  sleep 5
+  docker ps  # ✅ new container started
+
+□ Build Isolation
+  POST /build/submit (5 times)
+  GET /queue/status  # ✅ sequential processing
+
+□ Watchdog Monitoring
+  curl http://localhost:9000/watchdog/status
+  curl http://localhost:9000/watchdog/health-history
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+📋 TROUBLESHOOTING
+====================
+
+Issue: Containers not starting
+Solution:
+  1. Check Docker is running
+  2. Verify volumes exist: ./volumes/{state,logs,artifacts}
+  3. Check ports: netstat -an | find "9000" "9001"
+  4. View logs: docker-compose logs
+
+Issue: Gateway crashes after startup
+Solution:
+  1. Check watchdog: curl http://localhost:9000/watchdog/status
+  2. Check state: docker volume ls | grep dredge
+  3. View logs: docker logs dredge-gateway
+  4. Restart: docker restart dredge-gateway
+
+Issue: Builds not processing
+Solution:
+  1. Check queue: curl http://localhost:9001/queue/status
+  2. View build logs: docker logs dredge-build-queue
+  3. Check network: docker network ls | grep build-lanes
+  4. Check isolation: docker ps (look for build-* containers)
+
+Issue: State not recovering
+Solution:
+  1. Check checkpoint: ls ./volumes/state/
+  2. Verify permissions: chmod 777 ./volumes/state
+  3. Check manifest: cat ./volumes/state/manifest.json
+  4. View recovery log: cat ./volumes/state/recovery.log
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+📚 DOCUMENTATION FILES
+=======================
+
+STABLE_RUNTIME_TOPOLOGY.txt
+  └─ Complete architecture explanation
+  └─ 5-layer model
+  └─ All failure scenarios
+  └─ Design rationale
+
+STABLE_RUNTIME_IMPLEMENTATION_GUIDE.txt
+  └─ Detailed setup instructions
+  └─ Component descriptions
+  └─ Testing procedures
+  └─ Troubleshooting guide
+
+Source Code Files:
+  gateway_state_management.py
+  gateway_watchdog_service.py
+  gateway_build_queue_service.py
+  gateway_startup.py
+  docker-compose.stable-topology.yml
+
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+🎓 KEY CONCEPTS
+=================
+
+Determinism
+  Same code + same state = same behavior
+  Achieved via:
+  ├─ SHA256 image digests (exact image)
+  ├─ State checkpoints (exact state)
+  ├─ Deterministic startup (ordered init)
+  └─ Blue-green deployments (atomic switch)
+
+Resilience
+  System survives failures at multiple layers
+  Achieved via:
+  ├─ Volume persistence (survives crash)
+  ├─ Auto-restart policies (auto-recovery)
+  ├─ Health checks (detect failures)
+  ├─ Watchdog monitoring (respond to failures)
+  └─ Layered isolation (failures contained)
+
+Isolation
+  Failures in one area don't affect others
+  Achieved via:
+  ├─ Named networks (separate networks)
+  ├─ Named volumes (separate storage)
+  ├─ Per-build containers (per-request isolation)
+  ├─ Resource limits (prevent exhaustion)
+  └─ Health checks (detect degradation)
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+🎯 YOUR DREDGE STABLE RUNTIME IS READY
+
+✅ WSL Crash Resilience     - Volume-based persistence
+✅ Docker Survival          - Auto-restart & state recovery
+✅ Vercel Build Isolation   - Sequential + isolated containers
+✅ Deterministic Deployment - Version pinning & state sync
+
+Start: docker-compose -f docker-compose.stable-topology.yml up -d
+
+Verify: curl http://localhost:9000/health
+
+Monitor: curl http://localhost:9000/state/status
+
+Deploy with confidence. Your gateway is now stable, resilient, and deterministic.
+
+════════════════════════════════════════════════════════════════════════════════
