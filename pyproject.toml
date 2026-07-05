@@ -93,6 +93,22 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "-v --tb=short"
 
+# ============================================================================
+# VERCEL DEPLOYMENT CONFIGURATION
+# ============================================================================
+# Entry point: api.deployment:app (Hybrid ASGI/WSGI Gateway)
+# This tells Vercel to use the hybrid_gateway.py application which mounts
+# both FastAPI (ASGI) and Flask (WSGI) adapters via WSGIMiddleware.
+# ============================================================================
+
+[tool.vercel]
+entrypoint = "api.deployment:app"
+buildCommand = "pip install -r requirements.txt"
+
+[tool.vercel.env]
+PYTHONUNBUFFERABLE = "true"
+PYTHONDONTWRITEBYTECODE = "true"
+
 [tool.setuptools]
 packages = ["dredge"]
 
