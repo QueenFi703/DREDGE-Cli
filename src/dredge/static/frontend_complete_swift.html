@@ -1093,7 +1093,10 @@ let bridge = DREDGESwiftBridge(
             const output = document.getElementById(`${panel}-output`);
             const timestamp = new Date().toLocaleTimeString();
             const className = type === 'error' ? 'output-error' : type === 'success' ? 'output-success' : type === 'warning' ? 'output-warning' : type === 'swift' ? 'output-swift' : '';
-            output.innerHTML += `<div class="output-line ${className}">[${timestamp}] ${message}</div>`;
+            const line = document.createElement('div');
+            line.className = className ? `output-line ${className}` : 'output-line';
+            line.textContent = `[${timestamp}] ${message}`;
+            output.appendChild(line);
             output.scrollTop = output.scrollHeight;
         }
 
