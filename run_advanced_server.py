@@ -61,9 +61,11 @@ def api_docs():
     return jsonify({"error": "Documentation not found"}), 404
 
 if __name__ == '__main__':
+    debug_mode = os.getenv("FLASK_DEBUG", "0") == "1"
     print("Starting DREDGE Studio Advanced on http://127.0.0.1:8000")
     print("Dashboard: http://127.0.0.1:8000/advanced")
     print("Documentation: http://127.0.0.1:8000/docs")
     print("API: http://127.0.0.1:8000/api/advanced/")
+    print(f"Debug mode: {'enabled' if debug_mode else 'disabled'}")
     print("Press Ctrl+C to stop")
-    app.run(host='127.0.0.1', port=8000, debug=True, use_reloader=False)
+    app.run(host='127.0.0.1', port=8000, debug=debug_mode, use_reloader=False)
