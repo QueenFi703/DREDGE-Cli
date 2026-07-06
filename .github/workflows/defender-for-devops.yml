@@ -72,6 +72,14 @@ jobs:
             printf '%s\n' '{"version":"2.1.0","runs":[]}' > checkov.sarif
           fi
 
+      - name: 🛠 Normalize Checkov SARIF path
+        run: |
+          if [ -d checkov.sarif ] && [ -f checkov.sarif/results_sarif.sarif ]; then
+            mv checkov.sarif/results_sarif.sarif checkov-results.sarif
+            rmdir checkov.sarif
+            mv checkov-results.sarif checkov.sarif
+          fi
+
       # -----------------------------
       # Ensure SARIF exists
       # -----------------------------
@@ -81,8 +89,8 @@ jobs:
           ls -lah *.sarif
           test -s bandit.sarif
           test -s checkov.sarif
-          python -m json.tool bandit.sarif >/dev/null
-          python -m json.tool checkov.sarif >/dev/null
+          jq -e . bandit.sarif > /dev/null
+          jq -e . checkov.sarif > /dev/null
 
       # -----------------------------
       # Upload results to GitHub Security tab
