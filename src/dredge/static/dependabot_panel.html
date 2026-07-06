@@ -702,15 +702,31 @@
                 const data = await response.json();
                 
                 const responseDiv = document.getElementById('chat-response');
-                responseDiv.innerHTML = `
-                    <div style="margin-bottom: 10px;">
-                        <strong>You:</strong> ${question}
-                    </div>
-                    <div class="chat-response">
-                        <strong>FiBot:</strong> ${data.answer}
-                        <div style="font-size: 10px; color: #666; margin-top: 5px;">Confidence: ${(data.confidence * 100).toFixed(0)}%</div>
-                    </div>
-                `;
+                responseDiv.innerHTML = '';
+
+                const userRow = document.createElement('div');
+                userRow.style.marginBottom = '10px';
+                const userStrong = document.createElement('strong');
+                userStrong.textContent = 'You:';
+                userRow.appendChild(userStrong);
+                userRow.appendChild(document.createTextNode(' ' + question));
+
+                const botRow = document.createElement('div');
+                botRow.className = 'chat-response';
+                const botStrong = document.createElement('strong');
+                botStrong.textContent = 'FiBot:';
+                botRow.appendChild(botStrong);
+                botRow.appendChild(document.createTextNode(' ' + data.answer));
+
+                const confidenceDiv = document.createElement('div');
+                confidenceDiv.style.fontSize = '10px';
+                confidenceDiv.style.color = '#666';
+                confidenceDiv.style.marginTop = '5px';
+                confidenceDiv.textContent = `Confidence: ${(data.confidence * 100).toFixed(0)}%`;
+                botRow.appendChild(confidenceDiv);
+
+                responseDiv.appendChild(userRow);
+                responseDiv.appendChild(botRow);
                 
                 document.getElementById('chat-input').value = '';
             } catch (error) {
