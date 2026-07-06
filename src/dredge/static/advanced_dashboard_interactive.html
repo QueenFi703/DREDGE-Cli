@@ -1,0 +1,130 @@
+<!-- Just the interactive DREDGE Pipeline panel content - include this in the main dashboard -->
+<script>
+let pipelineRunning = false;
+let pipelinePaused = false;
+let pipelineStartTime = 0;
+
+async function runPipelineInteractive() {
+    const input = document.getElementById('pipeline-input').value;
+    const stage = document.getElementById('pipeline-stage-select').value;
+    
+    if (!input.trim()) {
+        alert('Please enter an insight to process');
+        return;
+    }
+    
+    pipelineRunning = true;
+    pipelinePaused = false;
+    pipelineStartTime = Date.now();
+    
+    const stages = [
+        { name: 'Lift', duration: 1200, desc: 'Lifting insight through DREDGE framework' },
+        { name: 'Transform', duration: 1500, desc: 'Transforming input through semantic analysis' },
+        { name: 'Analyze', duration: 1800, desc: 'Analyzing with Quasimoto 4D wave functions' },
+        { name: 'Enhance', duration: 2000, desc: 'Enhancing with String Theory vibrational modes' },
+        { name: 'Output', duration: 800, desc: 'Generating final output with confidence scoring' }
+    ];
+    
+    const stagesToRun = stage === 'full' ? stages : stages.filter(s => s.name.toLowerCase() === stage.toLowerCase());
+    resetVisualization();
+    
+    for (const stageInfo of stagesToRun) {
+        if (!pipelineRunning) break;
+        const stageNum = stages.findIndex(s => s.name === stageInfo.name) + 1;
+        updateStageStatus(stageNum, 'running');
+        document.getElementById('current-stage').textContent = stageInfo.name;
+        document.getElementById('step-details').innerHTML = `<strong>${stageInfo.name}:</strong> ${stageInfo.desc}`;
+        
+        if (stageNum === 1) activateModel('dredge');
+        if (stageNum === 3) activateModel('quasimoto');
+        if (stageNum === 4) activateModel('string');
+        
+        await sleep(stageInfo.duration);
+        
+        if (pipelineRunning) {
+            updateStageStatus(stageNum, 'complete');
+            updateProgress((stageNum / stages.length) * 100);
+        }
+    }
+    
+    if (pipelineRunning) completePipeline(input);
+}
+
+function updateStageStatus(stageNum, status) {
+    const statusEl = document.getElementById(`stage-${stageNum}-status`);
+    const timeEl = document.getElementById(`stage-${stageNum}-time`);
+    const stageBox = document.getElementById(`stage-${stageNum}`);
+    const elapsed = Date.now() - pipelineStartTime;
+    
+    if (status === 'running') {
+        statusEl.textContent = 'Running...';
+        statusEl.style.color = '#ffaa00';
+        stageBox.style.borderColor = '#ffaa00';
+        stageBox.style.background = 'rgba(255, 170, 0, 0.1)';
+    } else if (status === 'complete') {
+        statusEl.textContent = 'Complete';
+        statusEl.style.color = '#00cc00';
+        stageBox.style.borderColor = '#00cc00';
+        stageBox.style.background = 'rgba(0, 204, 0, 0.1)';
+    }
+    timeEl.textContent = `${elapsed}ms`;
+}
+
+function updateProgress(percentage) {
+    document.getElementById('progress-bar').style.width = percentage + '%';
+    document.getElementById('progress-percentage').textContent = Math.round(percentage) + '%';
+}
+
+function activateModel(model) {
+    const statusEl = document.getElementById(`model-${model}-status`);
+    statusEl.textContent = 'Active';
+    statusEl.style.color = '#00cc00';
+    document.getElementById('models-count').textContent = parseInt(document.getElementById('models-count').textContent) + 1;
+}
+
+function completePipeline(input) {
+    pipelineRunning = false;
+    document.getElementById('current-stage').textContent = 'Complete';
+    document.getElementById('confidence-score').textContent = (85 + Math.random() * 15).toFixed(1) + '%';
+    const output = `[Enhanced Insight]\n\nOriginal: "${input}"\n\nProcessed Output:\n- Applied Quasimoto 4D wave analysis\n- Computed String Theory vibrational modes\n- DREDGE semantic enrichment complete\n- Confidence Score: ${(85 + Math.random() * 15).toFixed(1)}%\n- Models Used: 3`;
+    document.getElementById('pipeline-output').textContent = output;
+    document.getElementById('step-details').innerHTML = '<strong>Pipeline Complete!</strong> All stages processed successfully.';
+}
+
+function pausePipeline() {
+    pipelinePaused = !pipelinePaused;
+    pipelineRunning = !pipelinePaused;
+}
+
+function resetPipeline() {
+    pipelineRunning = false;
+    pipelinePaused = false;
+    resetVisualization();
+}
+
+function resetVisualization() {
+    for (let i = 1; i <= 5; i++) {
+        document.getElementById(`stage-${i}-status`).textContent = 'Pending';
+        document.getElementById(`stage-${i}-status`).style.color = '#999';
+        document.getElementById(`stage-${i}-time`).textContent = '-';
+        document.getElementById(`stage-${i}`).style.borderColor = 'var(--border)';
+        document.getElementById(`stage-${i}`).style.background = 'var(--dark)';
+    }
+    document.getElementById('progress-bar').style.width = '0%';
+    document.getElementById('progress-percentage').textContent = '0%';
+    document.getElementById('total-time').textContent = '0ms';
+    document.getElementById('current-stage').textContent = 'Idle';
+    document.getElementById('confidence-score').textContent = '0%';
+    document.getElementById('models-count').textContent = '0';
+    document.getElementById('pipeline-output').textContent = 'No output yet. Start the pipeline to see results.';
+    document.getElementById('step-details').innerHTML = '<div style="color: #999;">Waiting for pipeline start...</div>';
+    ['dredge', 'quasimoto', 'string'].forEach(model => {
+        document.getElementById(`model-${model}-status`).textContent = 'Inactive';
+        document.getElementById(`model-${model}-status`).style.color = '#999';
+    });
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+</script>

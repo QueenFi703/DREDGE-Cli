@@ -217,9 +217,11 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: mcp-responder-output
+          name: m365-agents-toolkit-mcp-responder-${{ github.run_id }}
           path: out.json
-          if-no-files-found: warn
+          if-no-files-found: ignore
+          overwrite: true
+          retention-days: 7
 
       - name: Job Summary
         if: always()

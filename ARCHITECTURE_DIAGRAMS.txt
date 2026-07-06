@@ -1,0 +1,380 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                  COMPLETE SYSTEM ARCHITECTURE DIAGRAM                       ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                        GORDON MULTI-AGENT FRAMEWORK                        ┃
+┃                                                                            ┃
+┃  ┌──────────────────┐   ┌──────────────────┐   ┌──────────────────┐     ┃
+┃  │ Other Agents     │   │ Database Agent   │   │ API Agent        │     ┃
+┃  │ (Task Routing)   │   │ (Storage/Fetch)  │   │ (HTTP/REST)      │     ┃
+┃  └──────────────────┘   └──────────────────┘   └──────────────────┘     ┃
+┃           ↑                      ↑                      ↑                 ┃
+┃           └──────────────────────┼──────────────────────┘                ┃
+┃                                  │                                        ┃
+┃                        ┌─────────▼─────────┐                             ┃
+┃                        │ GORDON ORCHESTR.  │                             ┃
+┃                        │ - Load Balancing  │                             ┃
+┃                        │ - Task Routing    │                             ┃
+┃                        │ - Health Monitor  │                             ┃
+┃                        └─────────┬─────────┘                             ┃
+┃                                  │                                        ┃
+┃                         ┌────────▼────────┐                              ┃
+┃                         │  DREDGE BRIDGE  │                              ┃
+┃                         │  Sub-Agent      │                              ┃
+┃                         └────────┬────────┘                              ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+                                  │
+                ┌─────────────────▼─────────────────┐
+                │    DREDGE SYSTEM (Main System)    │
+                └─────────────────┬─────────────────┘
+                                  │
+        ┌─────────────────────────┼─────────────────────────┐
+        │                         │                         │
+        ▼                         ▼                         ▼
+┌─────────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│   REST API      │     │   CLI System     │     │   Dashboard      │
+│                 │     │                  │     │                  │
+│ /api/gordon/*   │     │ dredge pipeline  │     │ Web Interface    │
+│ /api/arch/*     │     │ dredge translate │     │ Analytics        │
+│ /auth/*         │     │ dredge analyze   │     │ Monitoring       │
+└────────┬────────┘     │ dredge status    │     └──────────────────┘
+         │              │ dredge interactive
+         │              │ dredge config
+         │              └──────────┬──────────
+         │                         │
+         └─────────────────────────┼──────────────
+                                   │
+                        ┌──────────▼─────────┐
+                        │  EXECUTION LAYER   │
+                        └──────────┬─────────┘
+                                   │
+        ┌──────────────────────────┼──────────────────────────┐
+        │                          │                          │
+        ▼                          ▼                          ▼
+  ┌──────────────┐        ┌──────────────┐        ┌──────────────┐
+  │  Pipeline    │        │ Translation  │        │  Analysis    │
+  │  Execution   │        │   Chain      │        │   Chain      │
+  │              │        │              │        │              │
+  │ • DAG        │        │ • Google     │        │ • Deep       │
+  │ • Nodes      │        │ • Deep       │        │ • Context    │
+  │ • Sequence   │        │ • Failover   │        │ • Entities   │
+  └──────────────┘        └──────────────┘        └──────────────┘
+        │                        │                        │
+        └────────────────────────┼────────────────────────┘
+                                 │
+                    ┌────────────▼─────────────┐
+                    │  PROVIDER SYSTEM         │
+                    │                          │
+                    │ ┌────────────────────┐   │
+                    │ │ GoogleProvider     │   │
+                    │ │ - Translation      │   │
+                    │ │ - NLP              │   │
+                    │ │ Metrics:           │   │
+                    │ │  Success: 99.2%    │   │
+                    │ │  Latency: 150ms    │   │
+                    │ └────────────────────┘   │
+                    │                          │
+                    │ ┌────────────────────┐   │
+                    │ │ DeepProvider       │   │
+                    │ │ - Semantic         │   │
+                    │ │ - Analysis         │   │
+                    │ │ Metrics:           │   │
+                    │ │  Success: 98.5%    │   │
+                    │ │  Latency: 245ms    │   │
+                    │ └────────────────────┘   │
+                    │                          │
+                    │ Circuit Breaker:         │
+                    │ - Track failures         │
+                    │ - Unhealthy after 5x     │
+                    │ - Auto-recovery          │
+                    └────────────┬─────────────┘
+                                 │
+                    ┌────────────▼─────────────┐
+                    │   CACHE LAYER            │
+                    │                          │
+                    │  Tier 1: Redis           │
+                    │  ├─ Distributed          │
+                    │  ├─ TTL: 3600s           │
+                    │  └─ Key: MD5(input)      │
+                    │                          │
+                    │  Tier 2: Local           │
+                    │  ├─ In-memory            │
+                    │  ├─ Fallback             │
+                    │  └─ Process-scoped       │
+                    │                          │
+                    │  Hit Rate: 40-60%        │
+                    │  Avg Response: 1-5ms     │
+                    └────────────┬─────────────┘
+                                 │
+                    ┌────────────▼─────────────┐
+                    │   TELEMETRY SYSTEM       │
+                    │                          │
+                    │ Events Logged:           │
+                    │  - pipeline_start        │
+                    │  - node_executed         │
+                    │  - cache_hit/miss        │
+                    │  - provider_attempt      │
+                    │  - provider_success      │
+                    │  - provider_failure      │
+                    │  - pipeline_complete     │
+                    │                          │
+                    │ Metrics Tracked:         │
+                    │  - Latency (ms)          │
+                    │  - Success Rate (%)      │
+                    │  - Cache Hits            │
+                    │  - Duration (ms)         │
+                    │  - Error Rate            │
+                    │  - Provider Health       │
+                    │                          │
+                    │ Output: JSON/Table       │
+                    └─────────────────────────┘
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                         10-LAYER ARCHITECTURE                               ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                                                            ┃
+┃  Layer 1: CLI ENTRY                                                        ┃
+┃  ┌──────────────────────────────────────────────────────────────┐         ┃
+┃  │ dredge_run_pipeline(input_data, pipeline_type)              │         ┃
+┃  │ • Generate pipeline_id                                       │         ┃
+┃  │ • Create PipelineContext                                     │         ┃
+┃  │ • Initialize execution                                       │         ┃
+┃  └────────────┬─────────────────────────────────────────────────┘         ┃
+┃               │                                                           ┃
+┃  Layer 2: DAG EXECUTION ENGINE (Async Orchestration)                      ┃
+┃  ┌────────────▼──────────────────────────────────────────────────┐        ┃
+┃  │ DAGExecutionEngine                                            │        ┃
+┃  │ • add_node(node)                                              │        ┃
+┃  │ • _topological_sort(node_id)                                  │        ┃
+┃  │ • async execute(context)                                      │        ┃
+┃  │ • Dependency resolution                                       │        ┃
+┃  │ • Error handling & propagation                                │        ┃
+┃  └────────────┬──────────────────────────────────────────────────┘        ┃
+┃               │                                                           ┃
+┃  Layer 3: MODE GRAPH (Branching)                                         ┃
+┃  ┌────────────▼──────────────────────────────────────────────────┐        ┃
+┃  │ ModeBranchNode                                                │        ┃
+┃  │ • Read mode from input                                        │        ┃
+┃  │ • Branch execution path                                       │        ┃
+┃  │ • Normalize mode                                              │        ┃
+┃  │ Modes: standard, base, custom                                │        ┃
+┃  └────────────┬──────────────────────────────────────────────────┘        ┃
+┃               │                                                           ┃
+┃  Layer 4: NODE GRAPH + PROVIDERS                                         ┃
+┃  ┌────────────▼──────────────────────────────────────────────────┐        ┃
+┃  │ Specialized Nodes:                                            │        ┃
+┃  │ • IngestNode: Raw input ingestion                             │        ┃
+┃  │ • TranslateNode: Format conversion                            │        ┃
+┃  │ • NormalizeNode: Validation + fallback                        │        ┃
+┃  │ • ExecuteNode: Model inference                                │        ┃
+┃  │                                                               │        ┃
+┃  │ Multi-Provider Failover:                                      │        ┃
+┃  │ • Primary provider (Google, Deep)                             │        ┃
+┃  │ • Fallback providers (automatic retry)                        │        ┃
+┃  │ • Circuit breaker (5 failures = disable)                      │        ┃
+┃  │ • Metrics tracking                                            │        ┃
+┃  └────────────┬──────────────────────────────────────────────────┘        ┃
+┃               │                                                           ┃
+┃  Layer 5: REDIS CACHE LAYER                                              ┃
+┃  ┌────────────▼──────────────────────────────────────────────────┐        ┃
+┃  │ CacheLayer (Dual-Tier)                                        │        ┃
+┃  │ • Tier 1: Redis (distributed, TTL: 3600s)                    │        ┃
+┃  │ • Tier 2: Local (in-memory fallback)                          │        ┃
+┃  │ • Key: MD5(pipeline_id + node_id + input)                     │        ┃
+┃  │ • Hit/miss tracking                                           │        ┃
+┃  └────────────┬──────────────────────────────────────────────────┘        ┃
+┃               │                                                           ┃
+┃  Layer 6: TELEMETRY / OBSERVATION                                        ┃
+┃  ┌────────────▼──────────────────────────────────────────────────┐        ┃
+┃  │ Telemetry Class                                               │        ┃
+┃  │ • log_event(name, tags, value)                                │        ┃
+┃  │ • record_metric(name, value)                                  │        ┃
+┃  │ • get_summary()                                               │        ┃
+┃  │ • Comprehensive event logging                                 │        ┃
+┃  └────────────┬──────────────────────────────────────────────────┘        ┃
+┃               │                                                           ┃
+┃  Layer 7: TELEMETRY LAYER (Real)                                         ┃
+┃  ┌────────────▼──────────────────────────────────────────────────┐        ┃
+┃  │ Telemetry Output Formatting                                  │        ┃
+┃  │ • Event count                                                 │        ┃
+┃  │ • Metrics display                                             │        ┃
+┃  │ • Performance summary                                         │        ┃
+┃  │ • Provider metrics                                            │        ┃
+┃  └────────────┬──────────────────────────────────────────────────┘        ┃
+┃               │                                                           ┃
+┃  Layer 8: DAG DEFINITION (Pipeline Graph)                               ┃
+┃  ┌────────────▼──────────────────────────────────────────────────┐        ┃
+┃  │ DAG Visualization                                             │        ┃
+┃  │ • ASCII graph representation                                  │        ┃
+┃  │ • Node dependency display                                     │        ┃
+┃  │ • Execution order                                             │        ┃
+┃  │ • Node results per-step                                       │        ┃
+┃  └────────────┬──────────────────────────────────────────────────┘        ┃
+┃               │                                                           ┃
+┃  Layer 9: CLI SYSTEM                                                     ┃
+┃  ┌────────────▼──────────────────────────────────────────────────┐        ┃
+┃  │ DREDGECLI + Click Commands                                    │        ┃
+┃  │ • @cli.command() decorators                                   │        ┃
+┃  │ • pipeline, translate, analyze, status, config, interactive   │        ┃
+┃  │ • Argument parsing                                            │        ┃
+┃  │ • Option handling                                             │        ┃
+┃  └────────────┬──────────────────────────────────────────────────┘        ┃
+┃               │                                                           ┃
+┃  Layer 10: CLI USAGE                                                    ┃
+┃  ┌────────────▼──────────────────────────────────────────────────┐        ┃
+┃  │ User Interface (Interactive/Batch)                            │        ┃
+┃  │ • Command execution loop                                      │        ┃
+┃  │ • Output formatting (table, JSON, verbose)                    │        ┃
+┃  │ • Error handling & display                                    │        ┃
+┃  │ • User prompts & responses                                    │        ┃
+┃  └──────────────────────────────────────────────────────────────┘        ┃
+┃                                                                            ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                      REQUEST/RESPONSE FLOW DIAGRAMS                        ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                                                            ┃
+┃  PIPELINE EXECUTION FLOW:                                                 ┃
+┃                                                                            ┃
+┃    Client                                                                  ┃
+┃      │                                                                     ┃
+┃      ├─ POST /api/architecture/pipeline/execute                            ┃
+┃      │  {input_data: {...}, pipeline_type: "standard"}                     ┃
+┃      │                                                                     ┃
+┃      ▼                                                                     ┃
+┃    API Layer                                                               ┃
+┃      │                                                                     ┃
+┃      ├─ Call dredge_run_pipeline()                                         ┃
+┃      │                                                                     ┃
+┃      ▼                                                                     ┃
+┃    Pipeline Builder                                                        ┃
+┃      │                                                                     ┃
+┃      ├─ Create DAG with nodes                                              ┃
+┃      ├─ Register node dependencies                                         ┃
+┃      │                                                                     ┃
+┃      ▼                                                                     ┃
+┃    DAG Executor (async)                                                    ┃
+┃      │                                                                     ┃
+┃      ├─ Topological sort by dependencies                                   ┃
+┃      ├─ Execute nodes in order                                             ┃
+┃      │                                                                     ┃
+┃      ├─ For each node:                                                     ┃
+┃      │  ├─ Check cache (Redis → Local)                                     ┃
+┃      │  ├─ If miss: Execute node                                           ┃
+┃      │  ├─ Store in cache                                                  ┃
+┃      │  └─ Log telemetry                                                   ┃
+┃      │                                                                     ┃
+┃      ▼                                                                     ┃
+┃    Collect Results                                                         ┃
+┃      │                                                                     ┃
+┃      ├─ node_results: {node_id: result, ...}                               ┃
+┃      ├─ execution_log: [event, event, ...]                                 ┃
+┃      ├─ telemetry: {metrics, events}                                       ┃
+┃      │                                                                     ┃
+┃      ▼                                                                     ┃
+┃    Format Response                                                         ┃
+┃      │                                                                     ┃
+┃      └─ Return to client ✓                                                 ┃
+┃                                                                            ┃
+┃  ─────────────────────────────────────────────────────────────────────    ┃
+┃                                                                            ┃
+┃  TRANSLATION WITH FAILOVER:                                               ┃
+┃                                                                            ┃
+┃    Client Request                                                          ┃
+┃      │                                                                     ┃
+┃      ├─ translate("Hello", "en", "es")                                     ┃
+┃      │                                                                     ┃
+┃      ▼                                                                     ┃
+┃    ProviderChain                                                           ┃
+┃      │                                                                     ┃
+┃      ├─ Try Primary: GoogleProvider                                        ┃
+┃      │  ├─ Success → Return result ✓                                       ┃
+┃      │  │  Metrics: latency=150ms, cache_hit=false                         ┃
+┃      │  │                                                                   ┃
+┃      │  └─ Failure → Increment counter                                     ┃
+┃      │                                                                     ┃
+┃      ├─ Try Fallback 1: DeepProvider                                       ┃
+┃      │  ├─ Success → Return result ✓                                       ┃
+┃      │  │  Metrics: latency=245ms, fallback_used=true                      ┃
+┃      │  │                                                                   ┃
+┃      │  └─ Failure → Increment counter                                     ┃
+┃      │                                                                     ┃
+┃      └─ All Failed → Raise exception                                       ┃
+┃         Circuit breaker: Mark provider UNHEALTHY after 5x                  ┃
+┃                                                                            ┃
+┃      ▼                                                                     ┃
+┃    Return to Client                                                        ┃
+┃      ├─ Status: success | error                                            ┃
+┃      ├─ Provider used: "google" | "deep" | failed                          ┃
+┃      ├─ Result: translated text                                            ┃
+┃      └─ Execution history: [attempt1, attempt2, ...]                       ┃
+┃                                                                            ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                     DEPLOYMENT ARCHITECTURE OPTIONS                        ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                                                            ┃
+┃  OPTION 1: Local Development                                              ┃
+┃  ┌──────────────────────────────────────────────────────────────┐         ┃
+┃  │  Python Process                                              │         ┃
+┃  │  ├─ Flask server (port 3001)                                 │         ┃
+┃  │  ├─ Local cache only                                         │         ┃
+┃  │  ├─ CLI via dredge command                                   │         ┃
+┃  │  └─ File-based logging                                       │         ┃
+┃  └──────────────────────────────────────────────────────────────┘         ┃
+┃                                                                            ┃
+┃  ─────────────────────────────────────────────────────────────────────    ┃
+┃                                                                            ┃
+┃  OPTION 2: Docker Compose (Development/Testing)                           ┃
+┃  ┌──────────────────────────────────────────────────────────────┐         ┃
+┃  │  Container 1: DREDGE                Container 2: Redis       │         ┃
+┃  │  ├─ Port 3001 ──────────────────────────── Port 6379        │         ┃
+┃  │  ├─ Flask + API                        (Key-value store)     │         ┃
+┃  │  └─ Shared Redis                                             │         ┃
+┃  │                                                               │         ┃
+┃  │  Container 3: Gordon (Optional)                              │         ┃
+┃  │  └─ Port 8000 (Task routing)                                 │         ┃
+┃  └──────────────────────────────────────────────────────────────┘         ┃
+┃                                                                            ┃
+┃  ─────────────────────────────────────────────────────────────────────    ┃
+┃                                                                            ┃
+┃  OPTION 3: Kubernetes (Production)                                        ┃
+┃  ┌──────────────────────────────────────────────────────────────┐         ┃
+┃  │  Kubernetes Cluster                                          │         ┃
+┃  │                                                               │         ┃
+┃  │  LoadBalancer (HTTPS)                                        │         ┃
+┃  │         │                                                     │         ┃
+┃  │  ┌──────┴──────────────────┐                                 │         ┃
+┃  │  │   Pod Replicas (N)      │                                 │         ┃
+┃  │  │  ┌─────────────────────┐│                                 │         ┃
+┃  │  │  │ DREDGE Container 1  ││                                 │         ┃
+┃  │  │  └─────────────────────┘│                                 │         ┃
+┃  │  │  ┌─────────────────────┐│                                 │         ┃
+┃  │  │  │ DREDGE Container 2  ││                                 │         ┃
+┃  │  │  └─────────────────────┘│                                 │         ┃
+┃  │  │  ┌─────────────────────┐│                                 │         ┃
+┃  │  │  │ DREDGE Container N  ││                                 │         ┃
+┃  │  │  └─────────────────────┘│                                 │         ┃
+┃  │  └──────────────────────────┘                                │         ┃
+┃  │         │                                                     │         ┃
+┃  │  ┌──────▼────────┐      ┌──────────┐      ┌─────────────┐   │         ┃
+┃  │  │ Redis Service │      │ Logging  │      │ Monitoring  │   │         ┃
+┃  │  │ (StatefulSet) │      │ (ELK)    │      │ (Prometheus)│   │         ┃
+┃  │  └───────────────┘      └──────────┘      └─────────────┘   │         ┃
+┃  └──────────────────────────────────────────────────────────────┘         ┃
+┃                                                                            ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+════════════════════════════════════════════════════════════════════════════════
+                         SYSTEM COMPLETE & OPERATIONAL
+                          All Components Integrated
+                         Ready for Production Deployment
+════════════════════════════════════════════════════════════════════════════════

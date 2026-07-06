@@ -79,10 +79,9 @@ updates:
           - "patch"
     
     labels:
-      - "🤖 FiBot"
-      - "dependencies"
+      - "deps"
       - "python"
-      - "dredge-core"
+      - "orion"
     
     reviewers:
       - "QueenFi703"
@@ -128,10 +127,9 @@ updates:
     open-pull-requests-limit: 10
     target-branch: "main"
     labels:
-      - "🤖 FiBot"
-      - "dependencies"
+      - "deps"
       - "swift"
-      - "dredge-cli"
+      - "forge"
     reviewers:
       - "QueenFi703"
     commit-message:
@@ -150,10 +148,9 @@ updates:
     open-pull-requests-limit: 10
     target-branch: "main"
     labels:
-      - "🤖 FiBot"
-      - "dependencies"
+      - "deps"
       - "swift"
-      - "dredge-cli-module"
+      - "forge"
     reviewers:
       - "QueenFi703"
     commit-message:
@@ -183,10 +180,8 @@ updates:
           - "minor"
           - "patch"
     labels:
-      - "🤖 FiBot"
-      - "dependencies"
-      - "github-actions"
-      - "ci-cd"
+      - "deps"
+      - "ci"
     reviewers:
       - "QueenFi703"
     commit-message:
@@ -206,10 +201,9 @@ updates:
     open-pull-requests-limit: 10
     target-branch: "main"
     labels:
-      - "🤖 FiBot"
-      - "dependencies"
+      - "deps"
       - "docker"
-      - "infrastructure"
+      - "infra"
     reviewers:
       - "QueenFi703"
     commit-message:

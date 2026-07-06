@@ -1,0 +1,413 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Scheduled Gradle Build Pipeline using AWS CodePipeline, CodeBuild, and
+  EventBridge Scheduler. Connects to the queenfi703/amazon-iap-kotlin
+  repository and triggers a periodic Gradle build on a configurable schedule.
+
+Parameters:
+  ConnectionArn:
+    Description: The CodeConnections ARN for your source repository.
+    Type: String
+  FullRepositoryId:
+    Description: The full repository ID to use with your CodeConnections connection.
+    Type: String
+    Default: 'queenfi703/amazon-iap-kotlin'
+  BranchName:
+    Description: The branch name to use with your CodeConnections connection.
+    Type: String
+    Default: 'main'
+  CodePipelineName:
+    Description: The CodePipeline pipeline name that will build your gradle source project.
+    Type: String
+    Default: SimpleScheduleGradleBuildService
+  ProjectName:
+    Description: The CodeBuild project name that will build your gradle source project.
+    Type: String
+    Default: SimpleScheduleGradleBuildProject-0227cd36e0f1
+  CICodeBuildSpec:
+    Description: The CodeBuild project build spec gradle configuration
+    Type: String
+    Default: |
+      version: 0.2
+
+      phases:
+         build:
+           commands:
+             - echo "Starting gradle build..."
+             - ./gradlew build
+             - echo "Gradle build finished successfully!"
+  ScheduleExpression:
+    Description: >-
+      The Amazon EventBridge schedule cron expression that would trigger a
+      pipeline periodically. A cron expression consists of five required fields
+      separated by white space (minutes, hours, day-of-month, month,
+      day-of-week, and one optional field, year). The default cron expression
+      would trigger the pipeline at 9AM everyday from Monday to Friday. For
+      scheduling nightly builds you can use (0 0 ? * * *). For scheduling
+      weekly builds you can use (0 0 ? * SUN *).
+    Type: String
+    Default: '0 9 ? * MON-FRI *'
+  ScheduleExpressionTimezone:
+    Description: >-
+      The timezone in which the EventBridge scheduling expression is evaluated.
+      For example, America/Los_Angeles | America/New_York | UTC
+    Type: String
+    Default: 'America/Los_Angeles'
+  RetentionPolicy:
+    Description: >-
+      Define if you'd like the resource retained or deleted when the
+      CloudFormation stack is deleted.
+    Type: String
+    Default: Delete
+    AllowedValues:
+      - Delete
+      - Retain
+
+Resources:
+
+  # ── EventBridge Scheduler ────────────────────────────────────────────────────
+
+  SimpleGradleBuildScheduler:
+    Type: AWS::Scheduler::Schedule
+    DependsOn:
+      - CodePipeline
+    Properties:
+      Description: "Schedule that would trigger a gradle build pipeline periodically"
+      Name: !Sub 'SimpleGradleBuildScheduler-${AWS::StackName}'
+      ScheduleExpression: !Sub
+        - 'cron(${scheduleExpression})'
+        - scheduleExpression: !Ref ScheduleExpression
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      ScheduleExpressionTimezone: !Ref ScheduleExpressionTimezone
+      State: "ENABLED"
+      Target:
+        Arn: !Sub
+          - 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${pipelineName}'
+          - pipelineName: !Ref CodePipelineName
+        RoleArn: !GetAtt EventBridgeGradleSchedulerRole.Arn
+
+  EventBridgeGradleSchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: AmazonCodePipelineGradleEventBridgeSchedulerPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'codepipeline:StartPipelineExecution'
+                Resource: !Sub
+                  - 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${pipelineName}'
+                  - pipelineName: !Ref CodePipelineName
+
+  # ── CodeBuild ────────────────────────────────────────────────────────────────
+
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: '2012-10-17'
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Effect: Allow
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}'
+                  - !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${ProjectName}:*'
+              - Action:
+                  - codebuild:BatchPutCodeCoverages
+                  - codebuild:BatchPutTestCases
+                  - codebuild:CreateReport
+                  - codebuild:CreateReportGroup
+                  - codebuild:UpdateReport
+                Effect: Allow
+                Resource: !Sub 'arn:${AWS::Partition}:codebuild:${AWS::Region}:${AWS::AccountId}:report-group/${ProjectName}-*'
+              - Action:
+                  - s3:GetBucket*
+                  - s3:GetObject*
+                  - s3:List*
+                Effect: Allow
+                Resource:
+                  - !GetAtt CodePipelineArtifactsBucket.Arn
+                  - !Sub
+                    - '${arn}/*'
+                    - arn: !GetAtt CodePipelineArtifactsBucket.Arn
+            Version: '2012-10-17'
+          PolicyName: CodeBuildProjectRoleDefaultPolicy
+
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Build gradle source code
+      EncryptionKey: alias/aws/s3
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      Name: !Ref ProjectName
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Source:
+        BuildSpec: !Ref CICodeBuildSpec
+        # Fixed: changed from NO_SOURCE to CODEPIPELINE so the project
+        # accepts the SourceOutput artifact from the pipeline source stage.
+        Type: CODEPIPELINE
+
+  # ── S3 Artifacts Bucket ──────────────────────────────────────────────────────
+
+  CodePipelineArtifactsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: !Ref RetentionPolicy
+    DeletionPolicy: !Ref RetentionPolicy
+
+  CodePipelineArtifactsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref CodePipelineArtifactsBucket
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Condition:
+              Bool:
+                aws:SecureTransport: 'false'
+            Effect: Deny
+            Principal:
+              AWS: '*'
+            Resource:
+              - !GetAtt CodePipelineArtifactsBucket.Arn
+              - !Join
+                - /
+                - - !GetAtt CodePipelineArtifactsBucket.Arn
+                  - '*'
+        Version: '2012-10-17'
+
+  # ── CodePipeline IAM ─────────────────────────────────────────────────────────
+
+  CodePipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: '2012-10-17'
+
+  CodeConnectionsActionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:root'
+        Version: '2012-10-17'
+      Policies:
+        - PolicyName: CodeConnectionsActionRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action: codestar-connections:UseConnection
+                Effect: Allow
+                Resource: !Ref ConnectionArn
+              - Action:
+                  - s3:GetBucket*
+                  - s3:GetObject*
+                  - s3:List*
+                  - s3:PutObject*
+                  - s3:Abort*
+                  - s3:DeleteObject*
+                Effect: Allow
+                Resource:
+                  - !GetAtt CodePipelineArtifactsBucket.Arn
+                  - !Sub '${CodePipelineArtifactsBucket.Arn}/*'
+
+  CodeBuildActionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:root'
+        Version: '2012-10-17'
+      Policies:
+        - PolicyName: CodeBuildActionRolePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Action:
+                  - codebuild:BatchGetBuilds
+                  - codebuild:StartBuild
+                  - codebuild:StopBuild
+                Effect: Allow
+                Resource: !GetAtt CodeBuildProject.Arn
+
+  CodePipelineDefaultPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:Abort*
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+            Effect: Allow
+            Resource:
+              - !GetAtt CodePipelineArtifactsBucket.Arn
+              - !Join
+                - /
+                - - !GetAtt CodePipelineArtifactsBucket.Arn
+                  - '*'
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              - !GetAtt CodeBuildActionRole.Arn
+              - !GetAtt CodeConnectionsActionRole.Arn
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - !Sub
+                - 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codepipeline/${pipelineName}'
+                - pipelineName: !Ref CodePipelineName
+              - !Sub
+                - 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codepipeline/${pipelineName}:*'
+                - pipelineName: !Ref CodePipelineName
+          - Action:
+              - inspector-scan:ScanSbom
+            Effect: Allow
+            Resource: '*'
+        Version: '2012-10-17'
+      PolicyName: CodePipelineDefaultPolicy
+      Roles:
+        - !Ref CodePipelineRole
+
+  # ── CodePipeline ─────────────────────────────────────────────────────────────
+
+  CodePipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      ArtifactStore:
+        Location: !Ref CodePipelineArtifactsBucket
+        Type: S3
+      ExecutionMode: QUEUED
+      Name: !Ref CodePipelineName
+      PipelineType: V2
+      RoleArn: !GetAtt CodePipelineRole.Arn
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: CodeConnections
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeStarSourceConnection
+                Version: '1'
+              Configuration:
+                ConnectionArn: !Ref ConnectionArn
+                FullRepositoryId: !Ref FullRepositoryId
+                BranchName: !Ref BranchName
+                DetectChanges: 'false'
+              OutputArtifacts:
+                - Name: SourceOutput
+              RoleArn: !GetAtt CodeConnectionsActionRole.Arn
+              RunOrder: 1
+        - Name: GradleBuild
+          BeforeEntry:
+            Conditions:
+              - Result: FAIL
+                Rules:
+                  - Name: MyDeploymentWindowRule
+                    RuleTypeId:
+                      Category: Rule
+                      Owner: AWS
+                      Provider: DeploymentWindow
+                      Version: '1'
+                    Configuration:
+                      # Cron defines the window when builds are ALLOWED.
+                      # Replace with your deployment window, e.g.:
+                      #   Business hours MON-FRI 9AM-5PM UTC: '0 9-17 ? * MON-FRI *'
+                      #   Always allowed (disable the gate):   remove BeforeEntry
+                      # With Result: FAIL the stage fails when the current time
+                      # is INSIDE the cron window, so set the cron to blocked hours.
+                      Cron: '* * * * * ? *'
+          Actions:
+            - Name: GradleBuildAction
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: '1'
+              Configuration:
+                ProjectName: !Ref ProjectName
+              # Fixed: SourceOutput artifact passed as input so the Gradle
+              # source code from the repository is available to CodeBuild.
+              InputArtifacts:
+                - Name: SourceOutput
+              RoleArn: !GetAtt CodeBuildActionRole.Arn
+              RunOrder: 1
+
+Outputs:
+  CodePipelineArn:
+    Description: ARN of the CodePipeline pipeline
+    Value: !Sub 'arn:${AWS::Partition}:codepipeline:${AWS::Region}:${AWS::AccountId}:${CodePipelineName}'
+
+  CodeBuildProjectArn:
+    Description: ARN of the CodeBuild project
+    Value: !GetAtt CodeBuildProject.Arn
+
+  SchedulerArn:
+    Description: ARN of the EventBridge Scheduler
+    Value: !GetAtt SimpleGradleBuildScheduler.Arn
+
+  ArtifactsBucketName:
+    Description: Name of the S3 bucket used for pipeline artifacts
+    Value: !Ref CodePipelineArtifactsBucket

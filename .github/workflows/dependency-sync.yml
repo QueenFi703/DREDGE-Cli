@@ -111,7 +111,8 @@ jobs:
 
           # Prefer the workflow_dispatch input; fall back to dep-sync-config.json
           if [ -n "${INPUT_REPOS:-}" ]; then
-            # Convert comma list to JSON array via jq for consistent handling
+            # Convert comma list to JSON array via jq for consistent handling.
+            # Avoid grep so an empty input does not fail under pipefail.
             TARGET_REPOS_JSON=$(
               printf '%s' "${INPUT_REPOS}" \
                 | tr ',' '\n' \

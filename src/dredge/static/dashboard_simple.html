@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DREDGE Studio - Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #0066cc;
+            --secondary: #00d9ff;
+            --dark: #1a1a1a;
+            --darker: #0f0f0f;
+            --border: #333;
+            --text: #e0e0e0;
+            --success: #00cc00;
+        }
+        body { font-family: 'Monaco', monospace; background: var(--dark); color: var(--text); }
+        html, body, #app { width: 100%; height: 100%; }
+        .container { display: flex; flex-direction: column; height: 100vh; }
+        .header { background: var(--darker); border-bottom: 2px solid var(--secondary); padding: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header-title { font-size: 28px; font-weight: bold; color: var(--secondary); }
+        .header-right { display: flex; gap: 20px; align-items: center; }
+        .user-info { display: flex; gap: 15px; align-items: center; border-right: 1px solid var(--border); padding-right: 20px; }
+        .user-avatar { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #0066cc, #00d9ff); display: flex; align-items: center; justify-content: center; font-size: 24px; }
+        .user-details { }
+        .user-name { font-weight: bold; color: var(--secondary); font-size: 14px; }
+        .user-provider { font-size: 12px; color: #999; }
+        .logout-btn { padding: 8px 16px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .logout-btn:hover { background: #d32f2f; }
+        .content { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px; overflow-y: auto; }
+        .card { background: var(--darker); border: 2px solid var(--border); border-radius: 8px; padding: 20px; }
+        .card:hover { border-color: var(--secondary); }
+        .card-title { font-size: 16px; font-weight: bold; color: var(--secondary); margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
+        .card-content { font-size: 14px; line-height: 1.8; }
+        .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+        .info-label { color: #999; }
+        .info-value { color: var(--secondary); font-weight: bold; }
+        .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: rgba(0, 204, 0, 0.2); border-left: 3px solid var(--success); border-radius: 3px; font-size: 12px; }
+        .status-badge .dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; }
+        .grid-2 { grid-column: 1 / -1; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--darker); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-title">
+                <i class="fas fa-rocket"></i> DREDGE Studio
+            </div>
+            <div class="header-right">
+                <div class="user-info" id="user-info">
+                    <div class="user-avatar">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name">Loading...</div>
+                        <div class="user-provider">Authenticating...</div>
+                    </div>
+                </div>
+                <a href="/auth/logout" class="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- User Profile -->
+            <div class="card">
+                <div class="card-title">
+                    <i class="fas fa-user-circle"></i> Your Profile
+                </div>
+                <div class="card-content" id="profile-content">
+                    <div class="info-row">
+                        <span class="info-label">Name:</span>
+                        <span class="info-value" id="profile-name">Loading...</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Email:</span>
+                        <span class="info-value" id="profile-email">Loading...</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Provider:</span>
+                        <span class="info-value" id="profile-provider">Loading...</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">User ID:</span>
+                        <span class="info-value" id="profile-id" style="font-size: 12px;">Loading...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Service Status -->
+            <div class="card">
+                <div class="card-title">
+                    <i class="fas fa-heart-pulse"></i> Service Status
+                </div>
+                <div class="card-content">
+                    <div class="info-row">
+                        <span class="info-label">Status:</span>
+                        <span class="status-badge">
+                            <div class="dot"></div>
+                            <span id="service-status">Checking...</span>
+                        </span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Version:</span>
+                        <span class="info-value" id="service-version">v0.1.5</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Port:</span>
+                        <span class="info-value" id="service-port">3001</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Uptime:</span>
+                        <span class="info-value" id="service-uptime">Calculating...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Features Overview -->
+            <div class="card grid-2">
+                <div class="card-title">
+                    <i class="fas fa-star"></i> Available Features
+                </div>
+                <div class="card-content">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div style="background: var(--dark); padding: 15px; border-radius: 6px; border-left: 3px solid var(--primary);">
+                            <div style="font-weight: bold; color: var(--secondary); margin-bottom: 5px;">Model Management</div>
+                            <div style="font-size: 12px; color: #999;">Load and manage AI models for inference</div>
+                        </div>
+                        <div style="background: var(--dark); padding: 15px; border-radius: 6px; border-left: 3px solid var(--secondary);">
+                            <div style="font-weight: bold; color: var(--secondary); margin-bottom: 5px;">Security Alerts</div>
+                            <div style="font-size: 12px; color: #999;">Dependabot integration for vulnerability tracking</div>
+                        </div>
+                        <div style="background: var(--dark); padding: 15px; border-radius: 6px; border-left: 3px solid #00d9ff;">
+                            <div style="font-weight: bold; color: var(--secondary); margin-bottom: 5px;">Insight Lifting</div>
+                            <div style="font-size: 12px; color: #999;">Transform insights through DREDGE pipeline</div>
+                        </div>
+                        <div style="background: var(--dark); padding: 15px; border-radius: 6px; border-left: 3px solid #0066cc;">
+                            <div style="font-weight: bold; color: var(--secondary); margin-bottom: 5px;">API Testing</div>
+                            <div style="font-size: 12px; color: #999;">Interactive endpoint testing and debugging</div>
+                        </div>
+                        <div style="background: var(--dark); padding: 15px; border-radius: 6px; border-left: 3px solid var(--success);">
+                            <div style="font-weight: bold; color: var(--secondary); margin-bottom: 5px;">Monitoring</div>
+                            <div style="font-size: 12px; color: #999;">Real-time system metrics and performance tracking</div>
+                        </div>
+                        <div style="background: var(--dark); padding: 15px; border-radius: 6px; border-left: 3px solid #ffaa00;">
+                            <div style="font-weight: bold; color: var(--secondary); margin-bottom: 5px;">Documentation</div>
+                            <div style="font-size: 12px; color: #999;">Complete API reference and guides</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Endpoints -->
+            <div class="card grid-2">
+                <div class="card-title">
+                    <i class="fas fa-plug"></i> API Endpoints
+                </div>
+                <div class="card-content" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div>
+                        <div style="font-weight: bold; color: var(--secondary); margin-bottom: 10px; font-size: 12px;">GET Endpoints</div>
+                        <div style="font-size: 12px; line-height: 2;">
+                            <div><code>/health</code> - Health check</div>
+                            <div><code>/auth/status</code> - Auth status</div>
+                            <div><code>/auth/me</code> - User profile</div>
+                            <div><code>/api/advanced/*</code> - Features API</div>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-weight: bold; color: var(--secondary); margin-bottom: 10px; font-size: 12px;">Other Operations</div>
+                        <div style="font-size: 12px; line-height: 2;">
+                            <div><code>POST /lift</code> - Lift insights</div>
+                            <div><code>GET /advanced</code> - Dashboard</div>
+                            <div><code>GET /auth/login</code> - Login page</div>
+                            <div><code>GET /auth/logout</code> - Logout</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Load user profile
+        async function loadUserProfile() {
+            try {
+                const response = await fetch('/auth/me');
+                const user = await response.json();
+                
+                document.querySelector('.user-name').textContent = user.name || 'User';
+                document.querySelector('.user-provider').textContent = user.provider ? `via ${user.provider}` : 'Authenticated';
+                
+                document.getElementById('profile-name').textContent = user.name || 'N/A';
+                document.getElementById('profile-email').textContent = user.email || 'N/A';
+                document.getElementById('profile-provider').textContent = user.provider ? user.provider.toUpperCase() : 'N/A';
+                document.getElementById('profile-id').textContent = user.id;
+                
+            } catch (e) {
+                console.error('Failed to load profile:', e);
+                document.querySelector('.user-name').textContent = 'User';
+                document.querySelector('.user-provider').textContent = 'Authenticated';
+            }
+        }
+
+        // Check service health
+        async function checkServiceHealth() {
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('service-status').textContent = 'Healthy';
+                    document.getElementById('service-version').textContent = data.version || 'v0.1.5';
+                }
+            } catch (e) {
+                console.error('Failed to check health:', e);
+                document.getElementById('service-status').textContent = 'Checking...';
+            }
+        }
+
+        // Calculate uptime
+        function updateUptime() {
+            const startTime = Date.now();
+            setInterval(() => {
+                const elapsed = Date.now() - startTime;
+                const seconds = Math.floor((elapsed / 1000) % 60);
+                const minutes = Math.floor((elapsed / (1000 * 60)) % 60);
+                const hours = Math.floor((elapsed / (1000 * 60 * 60)) % 24);
+                
+                let uptime = '';
+                if (hours > 0) uptime += `${hours}h `;
+                if (minutes > 0) uptime += `${minutes}m `;
+                uptime += `${seconds}s`;
+                
+                document.getElementById('service-uptime').textContent = uptime;
+            }, 1000);
+        }
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            loadUserProfile();
+            checkServiceHealth();
+            updateUptime();
+        });
+    </script>
+</body>
+</html>
