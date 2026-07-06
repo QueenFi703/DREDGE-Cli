@@ -11,8 +11,8 @@ gunicorn==22.0.0
 gevent==23.9.1
 
 # Web & HTTP
-requests==2.31.0
-aiohttp==3.9.1
+requests==2.33.0
+aiohttp==3.14.1
 urllib3==2.7.0
 
 # Authentication & Security
@@ -38,7 +38,7 @@ soundfile==0.13.1
 
 # Data Formats
 PyYAML==6.0.3
-python-dotenv==1.0.0
+python-dotenv==1.2.2
 pydantic==2.13.4
 
 # Async Support
