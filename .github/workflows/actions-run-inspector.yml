@@ -1,0 +1,138 @@
+name: Actions Run Inspector
+
+on:
+  workflow_dispatch:
+    inputs:
+      owner:
+        description: "Repository owner (e.g. QueenFi703). Ignored when run_url is set."
+        required: false
+        type: string
+      repo:
+        description: "Repository name (e.g. DREDGE-Cli). Ignored when run_url is set."
+        required: false
+        type: string
+      run_id:
+        description: "Workflow run ID. Ignored when run_url is set."
+        required: false
+        type: string
+      run_url:
+        description: "Full GitHub Actions run URL (takes precedence). E.g. https://github.com/owner/repo/actions/runs/12345"
+        required: false
+        type: string
+      include_logs:
+        description: "Include step-level detail in the output JSON"
+        required: false
+        default: "false"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    name: Inspect workflow run
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          registry-url: 'https://registry.npmjs.org/'
+          cache: "npm"
+          cache-dependency-path: github-app/package-lock.json
+
+      - name: Bootstrap npm registry
+        run: bash scripts/bootstrap-registry.sh
+
+      - name: Install dependencies
+        working-directory: github-app
+        run: npm ci
+
+      - name: Build CLI args
+        id: build-args
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARGS=""
+          if [ -n "${{ github.event.inputs.run_url }}" ]; then
+            ARGS="--run-url ${{ github.event.inputs.run_url }}"
+          else
+            if [ -z "${{ github.event.inputs.owner }}" ] || \
+               [ -z "${{ github.event.inputs.repo }}" ]  || \
+               [ -z "${{ github.event.inputs.run_id }}" ]; then
+              echo "Error: provide either run_url OR all of owner, repo, run_id" >&2
+              exit 1
+            fi
+            ARGS="--owner ${{ github.event.inputs.owner }} --repo ${{ github.event.inputs.repo }} --run-id ${{ github.event.inputs.run_id }}"
+          fi
+          if [ "${{ github.event.inputs.include_logs }}" = "true" ]; then
+            ARGS="$ARGS --include-logs"
+          fi
+          echo "args=$ARGS" >> "$GITHUB_OUTPUT"
+
+      - name: Run inspector
+        id: inspector
+        working-directory: github-app
+        env:
+          GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
+          GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+          GITHUB_APP_INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
+        run: |
+          set -euo pipefail
+          npx tsx src/index.ts ${{ steps.build-args.outputs.args }} | tee ../run-inspection.json
+
+      - name: Write step summary
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f run-inspection.json ]; then
+            RUN_STATUS=$(jq -r '.run.status // "unknown"' run-inspection.json)
+            RUN_CONCLUSION=$(jq -r '.run.conclusion // "—"' run-inspection.json)
+            RUN_NAME=$(jq -r '.run.name // "—"' run-inspection.json)
+            RUN_URL=$(jq -r '.run.html_url // "—"' run-inspection.json)
+            JOB_COUNT=$(jq '.jobs | length' run-inspection.json)
+            FAILED_JOBS=$(jq '[.jobs[] | select(.conclusion == "failure")] | length' run-inspection.json)
+
+            cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Actions Run Inspection Summary
+
+          | Field       | Value                         |
+          |-------------|-------------------------------|
+          | Name        | $RUN_NAME                     |
+          | Status      | $RUN_STATUS                   |
+          | Conclusion  | $RUN_CONCLUSION               |
+          | Jobs total  | $JOB_COUNT                    |
+          | Jobs failed | $FAILED_JOBS                  |
+          | URL         | [$RUN_URL]($RUN_URL)          |
+
+          Full details are available in the attached artifact.
+          EOF
+          else
+            echo "No inspection output found." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Extract inspected run id
+        if: always()
+        id: inspected-run
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f run-inspection.json ]; then
+            RUN_ID=$(jq -r '.run.id // empty' run-inspection.json || true)
+            if [ -n "$RUN_ID" ]; then
+              echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Upload inspection artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: run-inspection-${{ steps.inspected-run.outputs.run_id || inputs.run_id || github.run_id }}
+          path: run-inspection.json
+          retention-days: 30

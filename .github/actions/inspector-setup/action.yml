@@ -1,0 +1,33 @@
+name: Inspector Setup
+description: >
+  Sets up Node.js (v24 LTS), installs npm dependencies, and compiles the
+  actions-run-inspector TypeScript package. Intended to be reused by every
+  job in the Actions Run Inspector workflow.
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node 24
+      uses: actions/setup-node@v4
+      with:
+        node-version: 24
+        registry-url: 'https://registry.npmjs.org/'
+
+    - name: Bootstrap npm registry
+      shell: bash
+      run: bash scripts/bootstrap-registry.sh
+
+    - name: Install
+      working-directory: github-app/actions-run-inspector
+      shell: bash
+      run: npm install
+
+    - name: Create dist directory
+      working-directory: github-app/actions-run-inspector
+      shell: bash
+      run: mkdir -p dist
+
+    - name: Build
+      working-directory: github-app/actions-run-inspector
+      shell: bash
+      run: npm run build

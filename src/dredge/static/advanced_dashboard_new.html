@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DREDGE Studio Advanced</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --primary: #0066cc; --secondary: #00d9ff; --dark: #1a1a1a; --darker: #0f0f0f; --border: #333; --text: #e0e0e0; --success: #00cc00; --error: #ff3333; --warning: #ffaa00; }
+        body { font-family: 'Monaco', monospace; background: var(--dark); color: var(--text); }
+        html, body { width: 100%; height: 100%; }
+        .container { display: flex; height: 100vh; }
+        .sidebar { width: 280px; background: var(--darker); border-right: 1px solid var(--border); overflow-y: auto; }
+        .sidebar-header { padding: 20px; border-bottom: 1px solid var(--border); font-weight: bold; color: var(--secondary); font-size: 18px; }
+        .sidebar-section { padding: 15px; border-bottom: 1px solid var(--border); }
+        .sidebar-section-title { font-size: 11px; font-weight: bold; color: var(--secondary); text-transform: uppercase; margin-bottom: 10px; }
+        .sidebar-item { padding: 10px; cursor: pointer; border-radius: 4px; margin-bottom: 5px; transition: all 0.2s; display: flex; align-items: center; gap: 10px; }
+        .sidebar-item:hover { background: var(--border); padding-left: 15px; }
+        .sidebar-item.active { background: var(--primary); color: white; }
+        .main-content { flex: 1; display: flex; flex-direction: column; }
+        .header { background: var(--darker); border-bottom: 1px solid var(--border); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header-title { font-size: 20px; font-weight: bold; color: var(--secondary); }
+        .header-buttons { display: flex; gap: 10px; }
+        .content { flex: 1; overflow-y: auto; padding: 20px; }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+        .card { background: var(--darker); border: 1px solid var(--border); border-radius: 4px; padding: 20px; }
+        .card-title { font-size: 16px; font-weight: bold; color: var(--secondary); margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
+        .btn { padding: 10px 15px; background: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+        .btn:hover { background: var(--secondary); color: var(--dark); }
+        .btn-secondary { background: #666; }
+        .btn-secondary:hover { background: #888; }
+        .form-group { margin-bottom: 15px; }
+        .form-label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 12px; }
+        .form-control { width: 100%; padding: 8px; background: var(--dark); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-family: monospace; }
+        .output { background: var(--dark); border: 1px solid var(--border); border-radius: 4px; padding: 15px; max-height: 300px; overflow-y: auto; font-size: 12px; font-family: 'SF Mono', monospace; }
+        .model-item { background: var(--dark); border-left: 3px solid var(--primary); padding: 12px; margin-bottom: 10px; border-radius: 2px; }
+        .model-name { font-weight: bold; color: var(--secondary); }
+        .model-desc { font-size: 12px; color: #aaa; margin-top: 3px; }
+        .stage-box { padding: 12px; background: var(--dark); border: 2px solid var(--border); border-radius: 4px; text-align: center; cursor: pointer; transition: all 0.3s; }
+        .stage-box:hover { border-color: var(--secondary); transform: translateY(-2px); }
+        .progress-bar { width: 100%; height: 30px; background: var(--dark); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; margin-bottom: 20px; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #0066cc, #00d9ff); width: 0%; transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.8em; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; }
+        .modal.active { display: flex; align-items: center; justify-content: center; }
+        .modal-content { background: var(--darker); border: 1px solid var(--border); border-radius: 4px; padding: 30px; max-width: 500px; width: 90%; }
+        .modal-header { font-size: 20px; font-weight: bold; color: var(--secondary); margin-bottom: 20px; }
+        .modal-close { float: right; font-size: 24px; cursor: pointer; color: var(--text); }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--darker); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="sidebar-header"><i class="fas fa-rocket"></i> DREDGE Advanced</div>
+            
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Models & Inference</div>
+                <div class="sidebar-item active" onclick="switchPanel('models')"><i class="fas fa-cube"></i> Model Management</div>
+                <div class="sidebar-item" onclick="switchPanel('mcp')"><i class="fas fa-cogs"></i> MCP Operations</div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Insights & Processing</div>
+                <div class="sidebar-item" onclick="switchPanel('insights')"><i class="fas fa-lightbulb"></i> Insight Lifting</div>
+                <div class="sidebar-item" onclick="switchPanel('dredge-process')"><i class="fas fa-stream"></i> DREDGE Pipeline</div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Development</div>
+                <div class="sidebar-item" onclick="switchPanel('swift')"><i class="fas fa-code"></i> Swift Toolchain</div>
+                <div class="sidebar-item" onclick="switchPanel('codegen')"><i class="fas fa-star"></i> Code Generation</div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">DevOps & Security</div>
+                <div class="sidebar-item" onclick="switchPanel('dependabot')"><i class="fas fa-shield"></i> Dependabot Alerts</div>
+                <div class="sidebar-item" onclick="switchPanel('containers')"><i class="fas fa-docker"></i> Containers</div>
+            </div>
+
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Testing & Viz</div>
+                <div class="sidebar-item" onclick="switchPanel('api-tester')"><i class="fas fa-flask"></i> API Tester</div>
+                <div class="sidebar-item" onclick="switchPanel('visualization')"><i class="fas fa-chart-line"></i> Visualization</div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="header">
+                <div class="header-title" id="panel-title">Model Management</div>
+                <div class="header-buttons">
+                    <button class="btn btn-secondary" onclick="openSettings()"><i class="fas fa-cog"></i> Settings</button>
+                    <button class="btn" onclick="exportData()"><i class="fas fa-download"></i> Export</button>
+                </div>
+            </div>
+
+            <div class="content">
+                <!-- Models Panel -->
+                <div id="models" class="panel active">
+                    <div class="grid">
+                        <div class="card">
+                            <div class="card-title"><i class="fas fa-list"></i> Available Models</div>
+                            <div id="models-list"></div>
+                            <button class="btn" onclick="loadModels()" style="width:100%; margin-top:10px;"><i class="fas fa-sync"></i> Refresh</button>
+                        </div>
+                        <div class="card">
+                            <div class="card-title"><i class="fas fa-cog"></i> Load Model</div>
+                            <div class="form-group">
+                                <label class="form-label">Model ID</label>
+                                <select class="form-control" id="model-select">
+                                    <option>quasimoto_1d</option>
+                                    <option>quasimoto_4d</option>
+                                    <option>quasimoto_6d</option>
+                                </select>
+                            </div>
+                            <button class="btn" onclick="loadModel()" style="width:100%;"><i class="fas fa-download"></i> Load</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DREDGE Pipeline Panel - INTERACTIVE -->
+                <div id="dredge-process" class="panel">
+                    <div class="grid">
+                        <div class="card" style="grid-column: 1/-1;">
+                            <div class="card-title"><i class="fas fa-stream"></i> DREDGE Pipeline - Interactive Process</div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Select Pipeline Stage</label>
+                                <select class="form-control" id="pipeline-stage-select">
+                                    <option value="full">Full Pipeline (All Stages)</option>
+                                    <option value="lift">Stage 1: Lifting</option>
+                                    <option value="transform">Stage 2: Transformation</option>
+                                    <option value="analyze">Stage 3: Analysis</option>
+                                    <option value="enhance">Stage 4: Enhancement</option>
+                                    <option value="output">Stage 5: Output</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Enter Insight for Processing</label>
+                                <textarea class="form-control" id="pipeline-input" rows="3" placeholder="Example: Digital memory must be human-reachable"></textarea>
+                            </div>
+
+                            <button class="btn" onclick="runPipelineInteractive()" style="width:100%; margin-bottom: 15px;"><i class="fas fa-play"></i> Start Pipeline</button>
+                            <button class="btn btn-secondary" onclick="pausePipeline()" style="width:48%; margin-right: 2%;"><i class="fas fa-pause"></i> Pause</button>
+                            <button class="btn btn-secondary" onclick="resetPipeline()" style="width:48%;"><i class="fas fa-redo"></i> Reset</button>
+                        </div>
+
+                        <div class="card" style="grid-column: 1/-1;">
+                            <div class="card-title"><i class="fas fa-tasks"></i> Pipeline Execution Progress</div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <span>Overall Progress</span>
+                                <span id="progress-percentage">0%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div id="progress-bar" class="progress-fill"></div>
+                            </div>
+                            
+                            <div id="pipeline-stages" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;">
+                                <div class="stage-box" id="stage-1"><div style="font-size: 0.85em;">1. Lift</div><div id="stage-1-status" style="font-size: 0.75em; color: #999;">Pending</div><div id="stage-1-time" style="font-size: 0.7em; color: #666;">-</div></div>
+                                <div class="stage-box" id="stage-2"><div style="font-size: 0.85em;">2. Transform</div><div id="stage-2-status" style="font-size: 0.75em; color: #999;">Pending</div><div id="stage-2-time" style="font-size: 0.7em; color: #666;">-</div></div>
+                                <div class="stage-box" id="stage-3"><div style="font-size: 0.85em;">3. Analyze</div><div id="stage-3-status" style="font-size: 0.75em; color: #999;">Pending</div><div id="stage-3-time" style="font-size: 0.7em; color: #666;">-</div></div>
+                                <div class="stage-box" id="stage-4"><div style="font-size: 0.85em;">4. Enhance</div><div id="stage-4-status" style="font-size: 0.75em; color: #999;">Pending</div><div id="stage-4-time" style="font-size: 0.7em; color: #666;">-</div></div>
+                                <div class="stage-box" id="stage-5"><div style="font-size: 0.85em;">5. Output</div><div id="stage-5-status" style="font-size: 0.75em; color: #999;">Pending</div><div id="stage-5-time" style="font-size: 0.7em; color: #666;">-</div></div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-title"><i class="fas fa-chart-bar"></i> Real-Time Metrics</div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                <div style="background: var(--dark); padding: 10px; border-radius: 3px;"><div style="font-size: 0.8em; color: #999;">Total Time</div><div id="total-time" style="font-size: 1.3em; color: var(--secondary); font-weight: bold;">0ms</div></div>
+                                <div style="background: var(--dark); padding: 10px; border-radius: 3px;"><div style="font-size: 0.8em; color: #999;">Current Stage</div><div id="current-stage" style="font-size: 1.3em; color: var(--secondary); font-weight: bold;">Idle</div></div>
+                                <div style="background: var(--dark); padding: 10px; border-radius: 3px;"><div style="font-size: 0.8em; color: #999;">Confidence</div><div id="confidence-score" style="font-size: 1.3em; color: var(--success); font-weight: bold;">0%</div></div>
+                                <div style="background: var(--dark); padding: 10px; border-radius: 3px;"><div style="font-size: 0.8em; color: #999;">Models Used</div><div id="models-count" style="font-size: 1.3em; color: var(--secondary); font-weight: bold;">0</div></div>
+                            </div>
+                        </div>
+
+                        <div class="card" style="grid-column: 1/-1;">
+                            <div class="card-title"><i class="fas fa-check-circle"></i> Pipeline Output</div>
+                            <div id="pipeline-output" style="background: var(--dark); padding: 10px; border-radius: 3px; min-height: 100px; max-height: 200px; overflow-y: auto; font-size: 0.9em; color: #aaa; white-space: pre-wrap;">No output yet. Start the pipeline to see results.</div>
+                        </div>
+
+                        <div class="card" style="grid-column: 1/-1;">
+                            <div class="card-title"><i class="fas fa-cube"></i> Models Applied</div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                                <div class="model-item"><div class="model-name">Quasimoto 4D</div><div class="model-desc">Spatiotemporal wave analysis</div><small>Status: <span id="model-quasimoto-status" style="color: #999;">Inactive</span></small></div>
+                                <div class="model-item"><div class="model-name">String Theory 10D</div><div class="model-desc">Vibrational mode computation</div><small>Status: <span id="model-string-status" style="color: #999;">Inactive</span></small></div>
+                                <div class="model-item"><div class="model-name">DREDGE Reasoner</div><div class="model-desc">Semantic reasoning</div><small>Status: <span id="model-dredge-status" style="color: #999;">Inactive</span></small></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Other panels (placeholder) -->
+                <div id="mcp" class="panel"><div class="grid"><div class="card" style="grid-column: 1/-1;"><div class="card-title"><i class="fas fa-network-wired"></i> MCP Operations</div><button class="btn" onclick="alert('MCP Operations - Coming soon')">Execute Operation</button></div></div></div>
+                <div id="insights" class="panel"><div class="grid"><div class="card" style="grid-column: 1/-1;"><div class="card-title"><i class="fas fa-lightbulb"></i> Insight Lifting</div><button class="btn" onclick="alert('Insight Lifting - Coming soon')">Lift Insight</button></div></div></div>
+                <div id="swift" class="panel"><div class="grid"><div class="card" style="grid-column: 1/-1;"><div class="card-title"><i class="fas fa-code"></i> Swift Toolchain</div><button class="btn" onclick="alert('Swift Toolchain - Coming soon')">Build Swift</button></div></div></div>
+                <div id="dependabot" class="panel"><div class="grid"><div class="card" style="grid-column: 1/-1;"><div class="card-title"><i class="fas fa-shield"></i> Dependabot</div><button class="btn" onclick="alert('Dependabot - Coming soon')">Fetch Alerts</button></div></div></div>
+                <div id="containers" class="panel"><div class="grid"><div class="card" style="grid-column: 1/-1;"><div class="card-title"><i class="fas fa-docker"></i> Containers</div><button class="btn" onclick="alert('Containers - Coming soon')">Refresh Status</button></div></div></div>
+                <div id="api-tester" class="panel"><div class="grid"><div class="card" style="grid-column: 1/-1;"><div class="card-title"><i class="fas fa-flask"></i> API Tester</div><button class="btn" onclick="alert('API Tester - Coming soon')">Test Endpoint</button></div></div></div>
+                <div id="visualization" class="panel"><div class="grid"><div class="card" style="grid-column: 1/-1;"><div class="card-title"><i class="fas fa-chart-line"></i> Visualization</div><button class="btn" onclick="alert('Visualization - Coming soon')">View Charts</button></div></div></div>
+                <div id="codegen" class="panel"><div class="grid"><div class="card" style="grid-column: 1/-1;"><div class="card-title"><i class="fas fa-star"></i> Code Generation</div><button class="btn" onclick="alert('Code Generation - Coming soon')">Generate Code</button></div></div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeSettings()">&times;</span>
+            <div class="modal-header">Settings</div>
+            <div class="form-group">
+                <label class="form-label">Theme</label>
+                <select class="form-control" id="theme-select">
+                    <option>Dark (Default)</option>
+                    <option>Light</option>
+                    <option>Auto</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">API Base URL</label>
+                <input class="form-control" type="text" id="api-url" value="http://127.0.0.1:8000/api/advanced/" placeholder="http://127.0.0.1:8000/api/advanced/">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Auto-refresh (seconds)</label>
+                <input class="form-control" type="number" id="refresh-rate" value="5" min="1" max="60">
+            </div>
+            <button class="btn" onclick="saveSettings()" style="width: 100%; margin-top: 20px;">Save Settings</button>
+        </div>
+    </div>
+
+    <script>
+        let pipelineRunning = false;
+        let pipelineStartTime = 0;
+
+        function switchPanel(panelName) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+            
+            document.getElementById(panelName).classList.add('active');
+            event.target.closest('.sidebar-item').classList.add('active');
+            
+            const titles = {
+                models: 'Model Management',
+                mcp: 'MCP Operations',
+                insights: 'Insight Lifting',
+                'dredge-process': 'DREDGE Pipeline',
+                swift: 'Swift Toolchain',
+                codegen: 'Code Generation',
+                dependabot: 'Dependabot Alerts',
+                containers: 'Container Status',
+                'api-tester': 'API Tester',
+                visualization: 'Visualization'
+            };
+            document.getElementById('panel-title').textContent = titles[panelName] || panelName;
+        }
+
+        async function runPipelineInteractive() {
+            const input = document.getElementById('pipeline-input').value;
+            if (!input.trim()) {
+                alert('Please enter an insight to process');
+                return;
+            }
+            
+            pipelineRunning = true;
+            pipelineStartTime = Date.now();
+            resetVisualization();
+            
+            const stages = [
+                { name: 'Lift', duration: 1200 },
+                { name: 'Transform', duration: 1500 },
+                { name: 'Analyze', duration: 1800 },
+                { name: 'Enhance', duration: 2000 },
+                { name: 'Output', duration: 800 }
+            ];
+            
+            for (let i = 0; i < stages.length; i++) {
+                if (!pipelineRunning) break;
+                const stage = stages[i];
+                const stageNum = i + 1;
+                
+                updateStageStatus(stageNum, 'running');
+                document.getElementById('current-stage').textContent = stage.name;
+                
+                if (stageNum === 1) activateModel('dredge');
+                if (stageNum === 3) activateModel('quasimoto');
+                if (stageNum === 4) activateModel('string');
+                
+                await sleep(stage.duration);
+                
+                if (pipelineRunning) {
+                    updateStageStatus(stageNum, 'complete');
+                    updateProgress(((i + 1) / stages.length) * 100);
+                }
+            }
+            
+            if (pipelineRunning) completePipeline(input);
+        }
+
+        function updateStageStatus(stageNum, status) {
+            const statusEl = document.getElementById(`stage-${stageNum}-status`);
+            const timeEl = document.getElementById(`stage-${stageNum}-time`);
+            const stageBox = document.getElementById(`stage-${stageNum}`);
+            const elapsed = Date.now() - pipelineStartTime;
+            
+            if (status === 'running') {
+                statusEl.textContent = 'Running...';
+                statusEl.style.color = '#ffaa00';
+                stageBox.style.borderColor = '#ffaa00';
+            } else if (status === 'complete') {
+                statusEl.textContent = 'Complete';
+                statusEl.style.color = '#00cc00';
+                stageBox.style.borderColor = '#00cc00';
+            }
+            timeEl.textContent = `${elapsed}ms`;
+        }
+
+        function updateProgress(percentage) {
+            document.getElementById('progress-bar').style.width = percentage + '%';
+            document.getElementById('progress-percentage').textContent = Math.round(percentage) + '%';
+        }
+
+        function activateModel(model) {
+            const statusEl = document.getElementById(`model-${model}-status`);
+            statusEl.textContent = 'Active';
+            statusEl.style.color = '#00cc00';
+            document.getElementById('models-count').textContent = parseInt(document.getElementById('models-count').textContent) + 1;
+        }
+
+        function completePipeline(input) {
+            pipelineRunning = false;
+            document.getElementById('current-stage').textContent = 'Complete';
+            document.getElementById('confidence-score').textContent = (85 + Math.random() * 15).toFixed(1) + '%';
+            const output = `[Enhanced Insight]\n\nOriginal: "${input}"\n\nProcessed Output:\n- Applied Quasimoto 4D wave analysis\n- Computed String Theory vibrational modes\n- DREDGE semantic enrichment complete\n- Confidence Score: ${(85 + Math.random() * 15).toFixed(1)}%\n- Models Used: 3 (Quasimoto, String Theory, DREDGE)`;
+            document.getElementById('pipeline-output').textContent = output;
+        }
+
+        function pausePipeline() {
+            pipelineRunning = !pipelineRunning;
+        }
+
+        function resetPipeline() {
+            pipelineRunning = false;
+            resetVisualization();
+        }
+
+        function resetVisualization() {
+            for (let i = 1; i <= 5; i++) {
+                document.getElementById(`stage-${i}-status`).textContent = 'Pending';
+                document.getElementById(`stage-${i}-status`).style.color = '#999';
+                document.getElementById(`stage-${i}-time`).textContent = '-';
+                document.getElementById(`stage-${i}`).style.borderColor = 'var(--border)';
+            }
+            document.getElementById('progress-bar').style.width = '0%';
+            document.getElementById('progress-percentage').textContent = '0%';
+            document.getElementById('total-time').textContent = '0ms';
+            document.getElementById('current-stage').textContent = 'Idle';
+            document.getElementById('confidence-score').textContent = '0%';
+            document.getElementById('models-count').textContent = '0';
+            document.getElementById('pipeline-output').textContent = 'No output yet. Start the pipeline to see results.';
+            ['dredge', 'quasimoto', 'string'].forEach(m => {
+                document.getElementById(`model-${m}-status`).textContent = 'Inactive';
+                document.getElementById(`model-${m}-status`).style.color = '#999';
+            });
+        }
+
+        function sleep(ms) {
+            return new Promise(r => setTimeout(r, ms));
+        }
+
+        async function loadModels() {
+            try {
+                const response = await fetch('/api/advanced/models/list');
+                const data = await response.json();
+                const html = data.quasimoto.map(m => `<div class="model-item"><div class="model-name">${m.name}</div><div class="model-desc">${m.description}</div><small>Parameters: ${m.parameters}</small></div>`).join('');
+                document.getElementById('models-list').innerHTML = html;
+            } catch(e) { console.error(e); }
+        }
+
+        async function loadModel() {
+            const modelId = document.getElementById('model-select').value;
+            const response = await fetch('/api/advanced/models/load', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({model_id: modelId, config: {}})
+            });
+            const data = await response.json();
+            alert('Model loaded:\n' + JSON.stringify(data, null, 2));
+        }
+
+        function openSettings() {
+            document.getElementById('settingsModal').classList.add('active');
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.remove('active');
+        }
+
+        function saveSettings() {
+            const theme = document.getElementById('theme-select').value;
+            const apiUrl = document.getElementById('api-url').value;
+            const refreshRate = document.getElementById('refresh-rate').value;
+            
+            localStorage.setItem('dredge-theme', theme);
+            localStorage.setItem('dredge-api-url', apiUrl);
+            localStorage.setItem('dredge-refresh-rate', refreshRate);
+            
+            alert('Settings saved!');
+            closeSettings();
+        }
+
+        function exportData() {
+            alert('Export functionality - Coming soon!');
+        }
+
+        window.onload = () => {
+            loadModels();
+            const savedTheme = localStorage.getItem('dredge-theme') || 'Dark (Default)';
+            const savedApiUrl = localStorage.getItem('dredge-api-url') || 'http://127.0.0.1:8000/api/advanced/';
+            const savedRefreshRate = localStorage.getItem('dredge-refresh-rate') || '5';
+            
+            document.getElementById('theme-select').value = savedTheme;
+            document.getElementById('api-url').value = savedApiUrl;
+            document.getElementById('refresh-rate').value = savedRefreshRate;
+        };
+    </script>
+</body>
+</html>

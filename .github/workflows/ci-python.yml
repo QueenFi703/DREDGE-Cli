@@ -13,6 +13,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ['3.9', '3.10', '3.11', '3.14']
 
@@ -29,21 +30,56 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('requirements.txt') }}
           restore-keys: |
+            ${{ runner.os }}-pip-${{ matrix.python-version }}-
             ${{ runner.os }}-pip-
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+
+          # Install all non-torch requirements first.
+          awk '!/^torch([<>=]|$)/' requirements.txt > /tmp/requirements-no-torch.txt
+          pip install -r /tmp/requirements-no-torch.txt
           pip install -e .
           pip install pytest pytest-cov
 
-      - name: Run tests
+          # Auto-detect torch availability for this interpreter and set env flag.
+          if pip install "torch>=2.0.0"; then
+            echo "TORCH_AVAILABLE=true" >> "$GITHUB_ENV"
+            echo "✅ torch is available for Python ${{ matrix.python-version }}"
+          else
+            echo "TORCH_AVAILABLE=false" >> "$GITHUB_ENV"
+            echo "⚠️ torch is not available for Python ${{ matrix.python-version }}; torch-dependent tests will be skipped"
+          fi
+
+      - name: Run tests (full suite)
+        if: env.TORCH_AVAILABLE == 'true'
         run: pytest tests/ -v --cov=src/dredge --cov-report=term-missing
+
+      - name: Run tests (without torch)
+        if: env.TORCH_AVAILABLE != 'true'
+        run: |
+          pytest tests/ -v --cov=src/dredge --cov-report=term-missing \
+            --ignore=tests/test_custom_ops.py \
+            --ignore=tests/test_enhancements.py \
+            --ignore=tests/test_mcp_server.py \
+            --ignore=tests/test_performance.py \
+            --ignore=tests/test_string_theory.py
 
       - name: Test CLI commands
         run: |
           dredge-cli --version
           dredge-cli --help
+
+      - name: Report build to Grafana Cloud
+        if: always()
+        uses: ./.github/actions/grafana-build-report
+        with:
+          status: ${{ job.status }}
+          logs_url: ${{ secrets.GCLOUD_HOSTED_LOGS_URL }}
+          logs_id: ${{ secrets.GCLOUD_HOSTED_LOGS_ID }}
+          api_key: ${{ secrets.GCLOUD_RW_API_KEY }}
+          grafana_url: ${{ secrets.GCLOUD_GRAFANA_URL }}
+          extra_labels: '{"python_version":"${{ matrix.python-version }}","torch_available":"${{ env.TORCH_AVAILABLE }}"}'
