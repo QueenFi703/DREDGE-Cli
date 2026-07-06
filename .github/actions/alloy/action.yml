@@ -1,0 +1,52 @@
+name: "Start Grafana Alloy"
+description: >
+  Runs Grafana Alloy as an OTLP collector container so CI jobs can emit
+  traces/metrics to Grafana Cloud.  Exposes gRPC on port 4317 and HTTP
+  on port 4318.
+
+  Required environment variables (set as GitHub Secrets):
+    GRAFANA_CLOUD_OTLP_ENDPOINT — OTLP gRPC endpoint
+    GRAFANA_CLOUD_AUTH          — Base64 "instance_id:api_key"
+
+inputs:
+  alloy_version:
+    description: "Grafana Alloy container image tag"
+    required: false
+    default: "latest"
+  config_path:
+    description: "Path to the Alloy config file (relative to repo root)"
+    required: false
+    default: "monitoring/alloy/config.alloy"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Start Alloy container
+      shell: bash
+      env:
+        GRAFANA_CLOUD_OTLP_ENDPOINT: ${{ env.GRAFANA_CLOUD_OTLP_ENDPOINT }}
+        GRAFANA_CLOUD_AUTH: ${{ env.GRAFANA_CLOUD_AUTH }}
+      run: |
+        set -euo pipefail
+        docker run -d --name alloy \
+          -p 4317:4317 -p 4318:4318 \
+          -e GRAFANA_CLOUD_OTLP_ENDPOINT \
+          -e GRAFANA_CLOUD_AUTH \
+          -v "$PWD/${{ inputs.config_path }}:/etc/alloy/config.alloy:ro" \
+          "grafana/alloy:${{ inputs.alloy_version }}" \
+          run /etc/alloy/config.alloy
+
+    - name: Wait for Alloy to be ready
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "Waiting for Alloy OTLP endpoints to become available..."
+        for i in $(seq 1 10); do
+          if curl -sf http://localhost:12345/-/ready > /dev/null 2>&1; then
+            echo "✅ Alloy is ready."
+            exit 0
+          fi
+          echo "  Attempt $i/10 — retrying in 2s..."
+          sleep 2
+        done
+        echo "⚠️  Alloy did not become ready in time. Continuing anyway."

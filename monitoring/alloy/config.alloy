@@ -1,0 +1,202 @@
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Grafana Alloy Configuration for DREDGE-Cli
+// Scrapes local metrics and ships them + logs to Grafana Cloud.
+//
+// Required environment variables (set before starting alloy):
+//   GCLOUD_HOSTED_METRICS_URL  — Prometheus remote-write endpoint
+//   GCLOUD_HOSTED_METRICS_ID   — Grafana Cloud metrics instance ID
+//   GCLOUD_HOSTED_LOGS_URL     — Loki push endpoint
+//   GCLOUD_HOSTED_LOGS_ID      — Grafana Cloud logs instance ID
+//   GCLOUD_RW_API_KEY          — Grafana Cloud read/write API key
+//   GCLOUD_SCRAPE_INTERVAL     — Scrape interval (e.g. "60s")
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// ──────────────────────────────────────────────────────────────────────
+// Prometheus metrics scraping
+// ──────────────────────────────────────────────────────────────────────
+
+prometheus.scrape "dredge_prometheus" {
+  targets = [{ "__address__" = "localhost:9090" }]
+  scrape_interval = env("GCLOUD_SCRAPE_INTERVAL")
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+
+  job_name = "prometheus"
+}
+
+prometheus.scrape "dredge_metrics" {
+  targets = [{ "__address__" = "localhost:9091", "service" = "dredge-cli" }]
+  scrape_interval = env("GCLOUD_SCRAPE_INTERVAL")
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+
+  job_name = "dredge-metrics"
+}
+
+prometheus.scrape "dredge_server" {
+  targets = [{ "__address__" = "localhost:3000", "service" = "dredge-api" }]
+  scrape_interval = env("GCLOUD_SCRAPE_INTERVAL")
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+
+  job_name = "dredge-server"
+}
+
+prometheus.scrape "quasimoto_mcp" {
+  targets = [{ "__address__" = "localhost:3002", "service" = "mcp-server" }]
+  scrape_interval = env("GCLOUD_SCRAPE_INTERVAL")
+  forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+
+  job_name = "quasimoto-mcp"
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Prometheus remote write → Grafana Cloud
+// ──────────────────────────────────────────────────────────────────────
+
+prometheus.remote_write "grafana_cloud" {
+  endpoint {
+    url = env("GCLOUD_HOSTED_METRICS_URL")
+
+    basic_auth {
+      username = env("GCLOUD_HOSTED_METRICS_ID")
+      password = env("GCLOUD_RW_API_KEY")
+    }
+  }
+
+  external_labels = {
+    cluster     = "dredge-cli",
+    environment = "local",
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Log collection → Grafana Cloud Loki
+// ──────────────────────────────────────────────────────────────────────
+
+local.file_match "dredge_logs" {
+  path_targets = [
+    { "__path__" = "/tmp/dredge-cli/*.log", "service" = "dredge-cli" },
+    { "__path__" = "/tmp/dredge-server/*.log", "service" = "dredge-api" },
+    { "__path__" = "/tmp/quasimoto-mcp/*.log", "service" = "mcp-server" },
+  ]
+  sync_period = "5s"
+}
+
+loki.source.file "dredge_log_files" {
+  targets    = local.file_match.dredge_logs.targets
+  forward_to = [loki.write.grafana_cloud.receiver]
+}
+
+loki.write "grafana_cloud" {
+  endpoint {
+    url = env("GCLOUD_HOSTED_LOGS_URL")
+
+    basic_auth {
+      username = env("GCLOUD_HOSTED_LOGS_ID")
+      password = env("GCLOUD_RW_API_KEY")
+    }
+  }
+
+  external_labels = {
+    cluster     = "dredge-cli",
+    environment = "local",
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Network probes — HTTP/TCP health checks (ESTEEMED NETWORKING)
+// ──────────────────────────────────────────────────────────────────────
+
+prometheus.exporter.blackbox "dredge_network_probes" {
+  config = `
+    modules:
+      http_2xx:
+        prober: http
+        timeout: 5s
+        http:
+          valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+          valid_status_codes: []
+          method: GET
+          follow_redirects: true
+          preferred_ip_protocol: ip4
+
+      tcp_connect:
+        prober: tcp
+        timeout: 5s
+  `
+
+  targets = [
+    {
+      name    = "dredge-server-health",
+      address = "http://localhost:3000/health",
+      module  = "http_2xx",
+      service = "dredge-api",
+    },
+    {
+      name    = "quasimoto-mcp-root",
+      address = "http://localhost:3002/",
+      module  = "http_2xx",
+      service = "mcp-server",
+    },
+    {
+      name    = "prometheus-local",
+      address = "http://localhost:9090/-/healthy",
+      module  = "http_2xx",
+      service = "prometheus",
+    },
+    {
+      name    = "alloy-ui",
+      address = "http://localhost:12345/-/ready",
+      module  = "http_2xx",
+      service = "alloy",
+    },
+  ]
+}
+
+prometheus.scrape "dredge_network_probes" {
+  targets         = prometheus.exporter.blackbox.dredge_network_probes.targets
+  forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+  scrape_interval = env("GCLOUD_SCRAPE_INTERVAL")
+  job_name        = "dredge/network-probes"
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// OTLP trace pipeline → Grafana Cloud
+// Additional required environment variables:
+//   GRAFANA_CLOUD_OTLP_ENDPOINT — OTLP gRPC endpoint (e.g. tempo-prod-XX.grafana.net:443)
+//   GRAFANA_CLOUD_AUTH          — Base64-encoded "instance_id:api_key"
+// ──────────────────────────────────────────────────────────────────────
+
+otelcol.receiver.otlp "ci" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+}
+
+otelcol.processor.batch "default" {}
+
+otelcol.exporter.otlp "grafana" {
+  client {
+    endpoint = env("GRAFANA_CLOUD_OTLP_ENDPOINT")
+    headers = {
+      "Authorization" = "Basic " + env("GRAFANA_CLOUD_AUTH"),
+    }
+  }
+}
+
+otelcol.connector.servicegraph "default" {
+  dimensions = ["service.name", "deployment.environment"]
+  latency_histogram_buckets = ["100ms", "250ms", "500ms", "1s", "2.5s", "5s"]
+  forward_to = [otelcol.exporter.otlp.grafana.input]
+}
+
+otelcol.service "traces" {
+  pipelines {
+    traces = {
+      receivers  = [otelcol.receiver.otlp.ci.output]
+      processors = [otelcol.processor.batch.default.output]
+      exporters  = [otelcol.exporter.otlp.grafana.input]
+    }
+  }
+}

@@ -10,6 +10,7 @@ resources:
   - dredge-server.yaml
   - quasimoto-mcp.yaml
   - hpa.yaml
+  - networkpolicy.yaml
 
 commonLabels:
   app.kubernetes.io/name: dredge-cli

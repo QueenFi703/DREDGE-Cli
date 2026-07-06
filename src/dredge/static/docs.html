@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DREDGE Studio Advanced - API Documentation</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #0066cc;
+            --secondary: #00d9ff;
+            --dark: #1a1a1a;
+            --darker: #0f0f0f;
+            --border: #333;
+            --text: #e0e0e0;
+            --success: #00cc00;
+            --error: #ff3333;
+        }
+        body { font-family: 'Monaco', monospace; background: var(--dark); color: var(--text); line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        h1 { color: var(--secondary); font-size: 2.5em; margin-bottom: 10px; }
+        h2 { color: var(--primary); font-size: 1.8em; margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid var(--border); padding-bottom: 10px; }
+        h3 { color: var(--secondary); font-size: 1.3em; margin-top: 20px; margin-bottom: 10px; }
+        .endpoint { background: var(--darker); border-left: 3px solid var(--primary); padding: 15px; margin: 10px 0; border-radius: 4px; }
+        .method { display: inline-block; padding: 4px 8px; border-radius: 3px; font-weight: bold; font-size: 0.9em; margin-right: 10px; }
+        .get { background: #4CAF50; color: white; }
+        .post { background: #2196F3; color: white; }
+        .put { background: #ff9800; color: white; }
+        .delete { background: #f44336; color: white; }
+        .path { color: var(--secondary); font-weight: bold; font-size: 1.1em; }
+        .description { color: #aaa; margin: 10px 0; }
+        .request { background: var(--dark); padding: 10px; border-radius: 3px; margin: 10px 0; }
+        .response { background: var(--dark); padding: 10px; border-radius: 3px; margin: 10px 0; }
+        code { background: var(--dark); padding: 2px 6px; border-radius: 3px; color: #61dafb; }
+        pre { background: var(--darker); padding: 15px; border-radius: 4px; overflow-x: auto; margin: 10px 0; border: 1px solid var(--border); }
+        .section { background: var(--darker); border: 1px solid var(--border); border-radius: 4px; padding: 20px; margin: 20px 0; }
+        .toc { background: var(--darker); border: 1px solid var(--border); padding: 20px; border-radius: 4px; margin: 20px 0; }
+        .toc a { color: var(--secondary); text-decoration: none; display: block; padding: 5px 0; }
+        .toc a:hover { color: var(--primary); }
+        .feature-list { list-style: none; }
+        .feature-list li { padding: 8px 0; border-bottom: 1px solid var(--border); }
+        .feature-list li:before { content: "✓ "; color: var(--success); font-weight: bold; margin-right: 10px; }
+        .example { background: var(--dark); padding: 10px; border-left: 3px solid var(--secondary); margin: 10px 0; }
+        .try-it { background: var(--primary); color: white; padding: 10px 15px; border: none; border-radius: 3px; cursor: pointer; font-size: 0.95em; }
+        .try-it:hover { background: var(--secondary); color: var(--dark); }
+        .nav { background: var(--darker); border-bottom: 1px solid var(--border); padding: 15px 0; position: sticky; top: 0; z-index: 100; }
+        .nav-content { max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; gap: 20px; }
+        .nav-content a { color: var(--secondary); text-decoration: none; }
+        .nav-content a:hover { color: var(--primary); }
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 3px; font-size: 0.85em; margin-left: 10px; }
+        .badge-new { background: var(--success); color: white; }
+        .badge-beta { background: var(--error); color: white; }
+        .status-bar { background: var(--primary); color: white; padding: 15px; border-radius: 4px; margin: 20px 0; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        table td, table th { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        table th { background: var(--darker); color: var(--secondary); font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        <div class="nav-content">
+            <a href="http://127.0.0.1:8000/">Home</a>
+            <a href="http://127.0.0.1:8000/health">Health</a>
+            <a href="http://127.0.0.1:8000/advanced">Dashboard</a>
+            <a href="#endpoints">Endpoints</a>
+            <a href="#examples">Examples</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1>DREDGE Studio Advanced - API Documentation</h1>
+        <p>Comprehensive REST API reference for all 10 advanced features</p>
+
+        <div class="status-bar">
+            Status: OPERATIONAL | Live Server: http://127.0.0.1:8000 | Total Endpoints: 26
+        </div>
+
+        <div class="toc">
+            <h2>Table of Contents</h2>
+            <a href="#overview">Overview</a>
+            <a href="#models">Model Management</a>
+            <a href="#mcp">MCP Operations</a>
+            <a href="#insights">Insight Lifting</a>
+            <a href="#swift">Swift Toolchain</a>
+            <a href="#dependabot">Dependabot</a>
+            <a href="#tester">API Tester</a>
+            <a href="#containers">Containers</a>
+            <a href="#visualization">Visualization</a>
+            <a href="#codegen">Code Generation</a>
+            <a href="#examples">Examples</a>
+        </div>
+
+        <div class="section" id="overview">
+            <h2>Overview</h2>
+            <p>DREDGE Studio Advanced provides 26 REST API endpoints for AI/ML model management, Swift development, security alerts, and visualization.</p>
+            
+            <h3>Features</h3>
+            <ul class="feature-list">
+                <li>Model Management (Quasimoto, String Theory)</li>
+                <li>MCP Operations (Model Context Protocol)</li>
+                <li>Insight Lifting (DREDGE Pipeline)</li>
+                <li>Swift Toolchain (Build, Test, Deploy)</li>
+                <li>Dependabot Alerts (Security Management)</li>
+                <li>API Endpoint Tester</li>
+                <li>Container Status Monitor</li>
+                <li>String Theory Visualization</li>
+                <li>Quasimoto Wave Function Plotter</li>
+                <li>Code Generation Templates</li>
+            </ul>
+
+            <h3>Base URL</h3>
+            <p><code>http://127.0.0.1:8000/api/advanced</code></p>
+
+            <h3>Response Format</h3>
+            <p>All responses are JSON with consistent structure:</p>
+            <pre>{
+  "status": "success|error",
+  "data": { ... },
+  "timestamp": "ISO-8601",
+  "execution_time_ms": 123.45
+}</pre>
+        </div>
+
+        <div class="section" id="models">
+            <h2>1. Model Management <span class="badge badge-new">NEW</span></h2>
+            
+            <div class="endpoint">
+                <div><span class="method get">GET</span><span class="path">/models/list</span></div>
+                <div class="description">List all available Quasimoto and String Theory models</div>
+                <div class="request">
+                    <strong>Response:</strong>
+                    <pre>{
+  "quasimoto": [
+    {
+      "id": "quasimoto_1d",
+      "name": "1D Wave Function",
+      "parameters": 8
+    },
+    ...
+  ],
+  "string_theory": [...]
+}</pre>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method post">POST</span><span class="path">/models/load</span></div>
+                <div class="description">Load a model by ID with optional configuration</div>
+                <div class="request">
+                    <strong>Request Body:</strong>
+                    <pre>{
+  "model_id": "quasimoto_4d",
+  "config": { }
+}</pre>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method post">POST</span><span class="path">/models/{id}/inference</span></div>
+                <div class="description">Run inference on loaded model</div>
+                <div class="request">
+                    <strong>Request Body:</strong>
+                    <pre>{
+  "parameters": { }
+}</pre>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method post">POST</span><span class="path">/models/{id}/benchmark</span></div>
+                <div class="description">Benchmark model performance</div>
+                <div class="request">
+                    <strong>Request Body:</strong>
+                    <pre>{
+  "iterations": 100
+}</pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="section" id="mcp">
+            <h2>2. MCP Operations <span class="badge badge-new">NEW</span></h2>
+            
+            <div class="endpoint">
+                <div><span class="method get">GET</span><span class="path">/mcp/operations</span></div>
+                <div class="description">List available MCP operations</div>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method post">POST</span><span class="path">/mcp/execute</span></div>
+                <div class="description">Execute MCP operation</div>
+                <div class="request">
+                    <strong>Request Body:</strong>
+                    <pre>{
+  "operation": "unified_inference",
+  "params": {
+    "dredge_insight": "...",
+    "quasimoto_coords": [0.5, 0.5, 0.5],
+    "string_modes": [1, 2, 3]
+  }
+}</pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="section" id="insights">
+            <h2>3. Insight Lifting <span class="badge badge-new">NEW</span></h2>
+            
+            <div class="endpoint">
+                <div><span class="method post">POST</span><span class="path">/insights/lift</span></div>
+                <div class="description">Lift an insight through DREDGE pipeline</div>
+                <div class="request">
+                    <strong>Request Body:</strong>
+                    <pre>{
+  "insight_text": "Digital memory must be human-reachable"
+}</pre>
+                </div>
+                <div class="response">
+                    <strong>Response:</strong>
+                    <pre>{
+  "status": "lifted",
+  "insight": "...",
+  "lifted_insight": "[Enhanced] ...",
+  "confidence_score": 0.89,
+  "models_applied": ["quasimoto_4d", "string_theory_10d"]
+}</pre>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method get">GET</span><span class="path">/insights/history</span></div>
+                <div class="description">Get lifted insight history</div>
+            </div>
+        </div>
+
+        <div class="section" id="swift">
+            <h2>4. Swift Toolchain <span class="badge badge-new">NEW</span></h2>
+            
+            <div class="endpoint">
+                <div><span class="method post">POST</span><span class="path">/swift/build</span></div>
+                <div class="description">Build Swift CLI</div>
+                <div class="request">
+                    <strong>Request Body:</strong>
+                    <pre>{
+  "optimization": "-O"
+}</pre>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method post">POST</span><span class="path">/swift/run</span></div>
+                <div class="description">Run Swift package</div>
+                <div class="request">
+                    <strong>Request Body:</strong>
+                    <pre>{
+  "args": ["--version"]
+}</pre>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method post">POST</span><span class="path">/swift/tests</span></div>
+                <div class="description">Run Swift tests</div>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method post">POST</span><span class="path">/swift/ios-build</span></div>
+                <div class="description">Build iOS MVP app</div>
+            </div>
+        </div>
+
+        <div class="section" id="dependabot">
+            <h2>5. Dependabot Alerts <span class="badge badge-new">NEW</span></h2>
+            
+            <div class="endpoint">
+                <div><span class="method get">GET</span><span class="path">/dependabot/alerts</span></div>
+                <div class="description">Fetch GitHub Dependabot alerts</div>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method get">GET</span><span class="path">/dependabot/alerts/{id}/explain</span></div>
+                <div class="description">Get AI-powered alert explanation</div>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method post">POST</span><span class="path">/dependabot/alerts/{id}/dismiss</span></div>
+                <div class="description">Dismiss an alert</div>
+                <div class="request">
+                    <strong>Request Body:</strong>
+                    <pre>{
+  "reason": "not_used",
+  "comment": "..."
+}</pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="section" id="tester">
+            <h2>6. API Endpoint Tester <span class="badge badge-new">NEW</span></h2>
+            
+            <div class="endpoint">
+                <div><span class="method get">GET</span><span class="path">/api-tester/endpoints</span></div>
+                <div class="description">List all DREDGE API endpoints</div>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method post">POST</span><span class="path">/api-tester/test</span></div>
+                <div class="description">Test an API endpoint</div>
+                <div class="request">
+                    <strong>Request Body:</strong>
+                    <pre>{
+  "method": "GET",
+  "endpoint": "/health"
+}</pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="section" id="containers">
+            <h2>7. Container Status Monitor <span class="badge badge-new">NEW</span></h2>
+            
+            <div class="endpoint">
+                <div><span class="method get">GET</span><span class="path">/containers/status</span></div>
+                <div class="description">Get status of running containers</div>
+                <div class="response">
+                    <strong>Response:</strong>
+                    <pre>{
+  "containers": [
+    {
+      "name": "dredge-flask",
+      "port": 3001,
+      "status": "running",
+      "cpu_percent": 0.5,
+      "memory_mb": 256.32
+    }
+  ]
+}</pre>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method get">GET</span><span class="path">/containers/{name}/logs</span></div>
+                <div class="description">Stream container logs</div>
+            </div>
+        </div>
+
+        <div class="section" id="visualization">
+            <h2>8-9. Visualization <span class="badge badge-new">NEW</span></h2>
+            
+            <div class="endpoint">
+                <div><span class="method post">POST</span><span class="path">/visualization/string-spectrum</span></div>
+                <div class="description">Compute string theory vibrational spectrum</div>
+                <div class="request">
+                    <strong>Request Body:</strong>
+                    <pre>{
+  "max_modes": 10,
+  "dimensions": 10
+}</pre>
+                </div>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method post">POST</span><span class="path">/visualization/wave-function</span></div>
+                <div class="description">Generate wave function plot data</div>
+                <div class="request">
+                    <strong>Request Body:</strong>
+                    <pre>{
+  "model": "quasimoto_1d",
+  "parameters": { }
+}</pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="section" id="codegen">
+            <h2>10. Code Generation <span class="badge badge-new">NEW</span></h2>
+            
+            <div class="endpoint">
+                <div><span class="method get">GET</span><span class="path">/codegen/templates</span></div>
+                <div class="description">List code generation templates</div>
+            </div>
+
+            <div class="endpoint">
+                <div><span class="method post">POST</span><span class="path">/codegen/generate</span></div>
+                <div class="description">Generate code from template</div>
+                <div class="request">
+                    <strong>Request Body:</strong>
+                    <pre>{
+  "template": "swift_cli",
+  "config": { }
+}</pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="section" id="examples">
+            <h2>Examples</h2>
+
+            <h3>cURL Examples</h3>
+            <div class="example">
+                <strong>List Models:</strong>
+                <pre>curl http://127.0.0.1:8000/api/advanced/models/list</pre>
+            </div>
+
+            <div class="example">
+                <strong>Load Model:</strong>
+                <pre>curl -X POST http://127.0.0.1:8000/api/advanced/models/load \
+  -H "Content-Type: application/json" \
+  -d '{"model_id":"quasimoto_4d"}'</pre>
+            </div>
+
+            <div class="example">
+                <strong>Lift Insight:</strong>
+                <pre>curl -X POST http://127.0.0.1:8000/api/advanced/insights/lift \
+  -H "Content-Type: application/json" \
+  -d '{"insight_text":"Your insight"}'</pre>
+            </div>
+
+            <h3>Python Examples</h3>
+            <div class="example">
+                <strong>List Models:</strong>
+                <pre>import requests
+r = requests.get('http://127.0.0.1:8000/api/advanced/models/list')
+print(r.json())</pre>
+            </div>
+
+            <h3>JavaScript Examples</h3>
+            <div class="example">
+                <strong>List Models:</strong>
+                <pre>fetch('http://127.0.0.1:8000/api/advanced/models/list')
+  .then(r => r.json())
+  .then(d => console.log(d))</pre>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Response Status Codes</h2>
+            <table>
+                <tr>
+                    <th>Code</th>
+                    <th>Meaning</th>
+                </tr>
+                <tr>
+                    <td>200</td>
+                    <td>Success</td>
+                </tr>
+                <tr>
+                    <td>400</td>
+                    <td>Bad Request</td>
+                </tr>
+                <tr>
+                    <td>404</td>
+                    <td>Not Found</td>
+                </tr>
+                <tr>
+                    <td>500</td>
+                    <td>Server Error</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2>Rate Limiting</h2>
+            <p>No rate limiting applied. Recommended:</p>
+            <ul>
+                <li>Max 1000 requests/minute per IP</li>
+                <li>Max 100 concurrent connections</li>
+                <li>Implement request queuing for production</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Support & Resources</h2>
+            <ul>
+                <li>Dashboard: <a href="http://127.0.0.1:8000/advanced" target="_blank">http://127.0.0.1:8000/advanced</a></li>
+                <li>Repository: <a href="https://github.com/QueenFi703/DREDGE-Cli" target="_blank">github.com/QueenFi703/DREDGE-Cli</a></li>
+                <li>Documentation: <a href="http://127.0.0.1:8000/api/advanced/" target="_blank">API Reference</a></li>
+            </ul>
+        </div>
+
+        <hr style="margin: 40px 0; border: 1px solid var(--border);">
+        <p style="text-align: center; color: #666;">DREDGE Studio Advanced v1.0.0 | Last Updated: 2026-05-29</p>
+    </div>
+</body>
+</html>

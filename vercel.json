@@ -1,0 +1,22 @@
+{
+  "buildCommand": "pip install -r requirements.txt && python -m flask --app src.dredge.server:create_app export",
+  "functions": {
+    "src/dredge/server.py": {
+      "runtime": "python3.10"
+    }
+  },
+  "env": {
+    "FLASK_ENV": "production",
+    "SECRET_KEY": "@VERCEL_SECRET_KEY",
+    "GITHUB_CLIENT_ID": "@GITHUB_CLIENT_ID",
+    "GITHUB_CLIENT_SECRET": "@GITHUB_CLIENT_SECRET",
+    "OAUTH_REDIRECT_BASE": "https://api.dredge.ai"
+  },
+  "regions": ["iad1", "cdg1", "syd1"],
+  "crons": [
+    {
+      "path": "/health",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}

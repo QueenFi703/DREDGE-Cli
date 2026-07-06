@@ -1,5 +1,5 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# DEPENDADREDGEABOT
+# FiBot
 # The DREDGE Dependency Oracle - Where Automation Meets Philosophy
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #
@@ -23,7 +23,7 @@ updates:
     schedule:
       interval: "daily"
       time: "03:10"
-      timezone: "America/New_York"
+      timezone: "UTC"
     open-pull-requests-limit: 10
     target-branch: "main"
     
@@ -79,17 +79,16 @@ updates:
           - "patch"
     
     labels:
-      - "🤖 dependadredgeabot"
-      - "dependencies"
+      - "deps"
       - "python"
-      - "dredge-core"
+      - "orion"
     
     reviewers:
       - "QueenFi703"
     
     commit-message:
-      prefix: "⬆️ [DEPENDADREDGEABOT/Python]"
-      prefix-development: "⬆️ [DEPENDADREDGEABOT/Dev]"
+      prefix: "⬆️ [FiBot/Python]"
+      prefix-development: "⬆️ [FiBot/Dev]"
       include: "scope"
     
     ignore:
@@ -124,18 +123,17 @@ updates:
     schedule:
       interval: "daily"
       time: "03:10"
-      timezone: "America/New_York"
+      timezone: "UTC"
     open-pull-requests-limit: 10
     target-branch: "main"
     labels:
-      - "🤖 dependadredgeabot"
-      - "dependencies"
+      - "deps"
       - "swift"
-      - "dredge-cli"
+      - "forge"
     reviewers:
       - "QueenFi703"
     commit-message:
-      prefix: "⬆️ [DEPENDADREDGEABOT/Swift]"
+      prefix: "⬆️ [FiBot/Swift]"
       include: "scope"
     ignore:
       - dependency-name: "*"
@@ -146,18 +144,17 @@ updates:
     schedule:
       interval: "daily"
       time: "03:10"
-      timezone: "America/New_York"
+      timezone: "UTC"
     open-pull-requests-limit: 10
     target-branch: "main"
     labels:
-      - "🤖 dependadredgeabot"
-      - "dependencies"
+      - "deps"
       - "swift"
-      - "dredge-cli-module"
+      - "forge"
     reviewers:
       - "QueenFi703"
     commit-message:
-      prefix: "⬆️ [DEPENDADREDGEABOT/Swift-Module]"
+      prefix: "⬆️ [FiBot/Swift-Module]"
       include: "scope"
     ignore:
       - dependency-name: "*"
@@ -172,7 +169,7 @@ updates:
     schedule:
       interval: "daily"
       time: "03:10"
-      timezone: "America/New_York"
+      timezone: "UTC"
     open-pull-requests-limit: 10
     target-branch: "main"
     
@@ -187,14 +184,12 @@ updates:
           - "patch"
     
     labels:
-      - "🤖 dependadredgeabot"
-      - "dependencies"
-      - "github-actions"
-      - "ci-cd"
+      - "deps"
+      - "ci"
     reviewers:
       - "QueenFi703"
     commit-message:
-      prefix: "⬆️ [DEPENDADREDGEABOT/CI]"
+      prefix: "⬆️ [FiBot/CI]"
       include: "scope"
   
   # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -220,14 +215,13 @@ updates:
           - "patch"
     
     labels:
-      - "🤖 dependadredgeabot"
-      - "dependencies"
+      - "deps"
       - "docker"
-      - "infrastructure"
+      - "infra"
     reviewers:
       - "QueenFi703"
     commit-message:
-      prefix: "⬆️ [DEPENDADREDGEABOT/Docker]"
+      prefix: "⬆️ [FiBot/Docker]"
       include: "scope"
     ignore:
       # Python 3.15+: Not yet compatible with current dependency ecosystem
@@ -246,7 +240,7 @@ updates:
         update-types: ["version-update:semver-major"]
   
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 📜 DEPENDADREDGEABOT PHILOSOPHY
+# 📜 FiBot PHILOSOPHY
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #
-# "Be Literal. Be Philosophical. Be DEPENDADREDGEABOT." 🤖🔮
+# "Be Literal. Be Philosophical. Be FiBot." 🤖🔮

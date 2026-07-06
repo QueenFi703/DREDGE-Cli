@@ -1,0 +1,52 @@
+{
+  "name": "@dredge-cli/github-app-actions-inspector",
+  "version": "1.0.0",
+  "description": "Serverless GitHub App that inspects GitHub Actions workflow run status and jobs",
+  "engines": {
+    "node": ">=24"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "actions-run-inspect": "./bin/actions-run-inspect"
+  },
+  "scripts": {
+    "build": "tsc",
+    "inspect": "tsx src/index.ts",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --testPathPattern=tests/",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@octokit/auth-app": "^7.1.0",
+    "@octokit/rest": "^21.0.0",
+    "tsx": "^4.22.4",
+    "@vercel/analytics": "^1.5.0",
+    "react": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.14",
+    "@types/node": "^24.0.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.0",
+    "typescript": "^5.8.0",
+    "@types/react": "^19.2.2"
+  },
+  "jest": {
+    "preset": "ts-jest/presets/default-esm",
+    "testEnvironment": "node",
+    "extensionsToTreatAsEsm": [
+      ".ts"
+    ],
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    },
+    "transform": {
+      "^.+\\.tsx?$": [
+        "ts-jest",
+        {
+          "useESM": true
+        }
+      ]
+    }
+  }
+}

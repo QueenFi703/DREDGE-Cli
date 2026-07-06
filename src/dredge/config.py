@@ -10,7 +10,7 @@ from typing import Dict, Any, Optional
 DEFAULT_CONFIG = {
     "server": {
         "host": "0.0.0.0",
-        "port": 3001,
+        "port": 3000,
         "debug": False,
         "threads": 1,
     },

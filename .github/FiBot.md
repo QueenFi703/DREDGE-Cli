@@ -1,4 +1,4 @@
-# 🤖 DEPENDADREDGEABOT Status
+# 🤖 FiBot Status
 
 > "The Oracle watches, the Oracle updates, the Oracle maintains."
 
@@ -23,7 +23,7 @@
 
 ## 📈 Recent Activity
 
-<!-- DEPENDADREDGEABOT will track this -->
+<!-- FiBot will track this -->
 - Initial Oracle activation (2026-01-16)
 
 ## 🎯 Override Protocol
@@ -31,7 +31,7 @@
 To test a major update (e.g., PyTorch 3.0 or NumPy 2.0):
 1. Create feature branch: `git checkout -b test/pytorch-3.0`
 2. Comment out relevant ignore rule in `.github/dependabot.yml`
-3. Wait for DEPENDADREDGEABOT to open PR
+3. Wait for FiBot to open PR
 4. Run benchmarks: `python benchmarks/quasimoto_extended_benchmark.py`
 5. If stable → merge, else → revert ignore rule
 
@@ -39,7 +39,7 @@ To test a major update (e.g., PyTorch 3.0 or NumPy 2.0):
 
 **Last Oracle Consultation:** 2026-01-16
 
-## 🔮 DEPENDADREDGEABOT Philosophy
+## 🔮 FiBot Philosophy
 
 "I dredge the depths of dependency hell so you may sail smooth seas."
 

@@ -1,0 +1,91 @@
+name: Security Scan (Bandit + Checkov)
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-security-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-security-pip-
+
+      - name: Install scanners
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install bandit checkov
+
+      - name: Run Bandit (SARIF)
+        run: |
+          set -euo pipefail
+          bandit -r . -f sarif -o bandit.sarif || true
+
+      - name: Run Checkov (SARIF)
+        run: |
+          set -euo pipefail
+          checkov -d . -o sarif > checkov.sarif || true
+
+      - name: Verify SARIF files
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          sarif_files=( *.sarif )
+
+          if [ ${#sarif_files[@]} -eq 0 ]; then
+            echo "No SARIF files were generated"
+            exit 1
+          fi
+
+          ls -lah *.sarif
+
+          for sarif in "${sarif_files[@]}"; do
+            if [ ! -s "$sarif" ]; then
+              echo "SARIF file is empty: $sarif"
+              exit 1
+            fi
+          done
+
+      - name: Upload Bandit SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: bandit.sarif
+
+      - name: Upload Checkov SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: checkov.sarif
+
+      - name: Upload SARIF artifacts
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: security-scan-sarif-${{ github.run_id }}
+          path: |
+            bandit.sarif
+            checkov.sarif
+          if-no-files-found: ignore
+          retention-days: 7

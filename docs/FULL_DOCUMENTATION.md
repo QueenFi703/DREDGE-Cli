@@ -17,6 +17,14 @@ DREDGE is inspired by natural systems:
 
 ---
 
+## 🤖 Agent Orchestration Addendum
+
+For agent-native deployments, DREDGE includes a descriptor-driven orchestration pattern documented in `docs/dredge-agent-integration.md` (see section **"8) DREDGE Agent Descriptor (DAD) Pattern"**).
+
+The DAD model makes each node self-describing (identity, capabilities, routing, trust posture), enabling deterministic dispatch and policy-aware execution before runtime tasks begin.
+
+---
+
 ## 📦 Core Concepts
 
 ### Modules

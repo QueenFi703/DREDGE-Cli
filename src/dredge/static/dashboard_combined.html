@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DREDGE Studio - Combined UI v2.0</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --primary: #0066cc; --secondary: #00d9ff; --dark: #1a1a1a; --darker: #0f0f0f; --border: #333; --text: #e0e0e0; --success: #00cc00; --error: #ff3333; }
+        body { font-family: 'Monaco', monospace; background: var(--dark); color: var(--text); }
+        html, body { width: 100%; height: 100%; }
+        .navbar { background: var(--darker); border-bottom: 1px solid var(--border); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .logo { font-size: 20px; font-weight: bold; color: var(--secondary); display: flex; align-items: center; gap: 10px; }
+        .nav-links { display: flex; gap: 20px; }
+        .nav-links a { color: var(--secondary); text-decoration: none; cursor: pointer; transition: color 0.2s; }
+        .nav-links a:hover { color: var(--primary); }
+        .nav-links a.active { color: var(--primary); border-bottom: 2px solid var(--primary); padding-bottom: 5px; }
+        .container { display: flex; min-height: calc(100vh - 60px); }
+        .sidebar { width: 280px; background: var(--darker); border-right: 1px solid var(--border); overflow-y: auto; }
+        .sidebar-section { padding: 15px; border-bottom: 1px solid var(--border); }
+        .sidebar-section-title { font-size: 11px; font-weight: bold; color: var(--secondary); text-transform: uppercase; margin-bottom: 10px; }
+        .sidebar-item { padding: 10px; cursor: pointer; border-radius: 4px; margin-bottom: 5px; transition: all 0.2s; display: flex; align-items: center; gap: 10px; }
+        .sidebar-item:hover { background: var(--border); padding-left: 15px; }
+        .sidebar-item.active { background: var(--primary); color: white; }
+        .main-content { flex: 1; display: flex; flex-direction: column; }
+        .header { background: var(--darker); border-bottom: 1px solid var(--border); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .header-title { font-size: 20px; font-weight: bold; color: var(--secondary); }
+        .header-buttons { display: flex; gap: 10px; }
+        .content { flex: 1; overflow-y: auto; padding: 20px; }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+        .card { background: var(--darker); border: 1px solid var(--border); border-radius: 4px; padding: 20px; }
+        .card-title { font-size: 16px; font-weight: bold; color: var(--secondary); margin-bottom: 15px; display: flex; align-items: center; gap: 10px; }
+        .btn { padding: 10px 15px; background: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+        .btn:hover { background: var(--secondary); color: var(--dark); }
+        .btn-secondary { background: #666; }
+        .btn-secondary:hover { background: #888; }
+        .form-control { width: 100%; padding: 8px; background: var(--dark); border: 1px solid var(--border); border-radius: 4px; color: var(--text); font-family: monospace; }
+        .hero { background: linear-gradient(135deg, #0066cc, #00d9ff); padding: 40px; border-radius: 4px; color: white; margin-bottom: 20px; }
+        .hero h2 { margin-bottom: 10px; }
+        .hero p { opacity: 0.9; font-size: 14px; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 20px; }
+        .feature-card { background: var(--darker); border: 1px solid var(--border); padding: 15px; border-radius: 4px; text-align: center; }
+        .feature-card i { font-size: 24px; color: var(--secondary); margin-bottom: 10px; }
+        .feature-card h4 { color: var(--secondary); margin-bottom: 5px; font-size: 12px; }
+        .feature-card p { font-size: 11px; color: #aaa; }
+        .progress-bar { width: 100%; height: 30px; background: var(--dark); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; margin-bottom: 20px; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #0066cc, #00d9ff); width: 0%; transition: width 0.3s; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.8em; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--darker); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <div class="navbar">
+        <div class="logo"><i class="fas fa-rocket"></i> DREDGE Studio v2.0</div>
+        <div class="nav-links">
+            <a onclick="switchMode('home')" class="nav-item active">Home</a>
+            <a onclick="switchMode('standard')" class="nav-item">Standard</a>
+            <a onclick="switchMode('advanced')" class="nav-item">Advanced</a>
+            <a href="/docs" class="nav-item">Docs</a>
+            <a onclick="openSettings()" class="nav-item"><i class="fas fa-cog"></i> Settings</a>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">Quick Access</div>
+                <div class="sidebar-item active" onclick="switchPanel('dashboard')"><i class="fas fa-home"></i> Dashboard</div>
+                <div class="sidebar-item" onclick="switchPanel('status')"><i class="fas fa-pulse"></i> Status</div>
+            </div>
+
+            <div class="sidebar-section" id="standard-sidebar" style="display:none;">
+                <div class="sidebar-section-title">Standard Features</div>
+                <div class="sidebar-item" onclick="switchPanel('models')"><i class="fas fa-cube"></i> Model Mgmt</div>
+                <div class="sidebar-item" onclick="switchPanel('pipeline')"><i class="fas fa-stream"></i> DREDGE Pipeline</div>
+                <div class="sidebar-item" onclick="switchPanel('lift')"><i class="fas fa-lightbulb"></i> Insights</div>
+            </div>
+
+            <div class="sidebar-section" id="advanced-sidebar" style="display:none;">
+                <div class="sidebar-section-title">Advanced Tools</div>
+                <div class="sidebar-item" onclick="switchPanel('swift')"><i class="fas fa-code"></i> Swift Build</div>
+                <div class="sidebar-item" onclick="switchPanel('dependabot')"><i class="fas fa-shield"></i> Security</div>
+                <div class="sidebar-item" onclick="switchPanel('containers')"><i class="fas fa-docker"></i> Containers</div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="header">
+                <div class="header-title" id="page-title">DREDGE Studio - Combined Interface</div>
+                <div class="header-buttons">
+                    <button class="btn btn-secondary" onclick="exportData()"><i class="fas fa-download"></i> Export</button>
+                </div>
+            </div>
+
+            <div class="content">
+                <!-- Home Panel -->
+                <div id="dashboard" class="panel active">
+                    <div class="hero">
+                        <h2>Welcome to DREDGE Studio v2.0</h2>
+                        <p>Combined Standard + Advanced Features | Production-Ready Web UI</p>
+                    </div>
+
+                    <div class="grid">
+                        <div class="card">
+                            <div class="card-title"><i class="fas fa-chart-line"></i> System Status</div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                <div><div style="color: #999; font-size: 12px;">Status</div><div style="font-size: 18px; color: var(--success); font-weight: bold;">Operational</div></div>
+                                <div><div style="color: #999; font-size: 12px;">Version</div><div style="font-size: 18px; color: var(--secondary); font-weight: bold;">2.0.0</div></div>
+                                <div><div style="color: #999; font-size: 12px;">Uptime</div><div style="font-size: 18px; color: var(--secondary); font-weight: bold;">Live</div></div>
+                                <div><div style="color: #999; font-size: 12px;">Features</div><div style="font-size: 18px; color: var(--secondary); font-weight: bold;">20+</div></div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-title"><i class="fas fa-rocket"></i> Quick Start</div>
+                            <button class="btn" onclick="switchMode('standard'); switchPanel('pipeline')" style="width: 100%; margin-bottom: 10px;"><i class="fas fa-play"></i> Start Pipeline</button>
+                            <button class="btn btn-secondary" onclick="switchMode('advanced'); switchPanel('swift')" style="width: 100%;"><i class="fas fa-code"></i> Build Swift</button>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <h3 style="color: var(--secondary); margin-bottom: 15px;">Available Features</h3>
+                        <div class="feature-grid">
+                            <div class="feature-card"><i class="fas fa-cube"></i><h4>Model Management</h4><p>Load & manage AI models</p></div>
+                            <div class="feature-card"><i class="fas fa-stream"></i><h4>DREDGE Pipeline</h4><p>Interactive processing</p></div>
+                            <div class="feature-card"><i class="fas fa-lightbulb"></i><h4>Insight Lifting</h4><p>AI-enhanced insights</p></div>
+                            <div class="feature-card"><i class="fas fa-code"></i><h4>Swift Toolchain</h4><p>Build & compile</p></div>
+                            <div class="feature-card"><i class="fas fa-shield"></i><h4>Security Alerts</h4><p>Dependabot integration</p></div>
+                            <div class="feature-card"><i class="fas fa-docker"></i><h4>Container Mgmt</h4><p>Monitor & control</p></div>
+                            <div class="feature-card"><i class="fas fa-chart-line"></i><h4>Visualization</h4><p>Data & spectrum plots</p></div>
+                            <div class="feature-card"><i class="fas fa-flask"></i><h4>API Testing</h4><p>Endpoint tester</p></div>
+                            <div class="feature-card"><i class="fas fa-star"></i><h4>Code Generation</h4><p>Template-based</p></div>
+                            <div class="feature-card"><i class="fas fa-cogs"></i><h4>MCP Operations</h4><p>Model protocol</p></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status Panel -->
+                <div id="status" class="panel">
+                    <div class="grid">
+                        <div class="card" style="grid-column: 1/-1;">
+                            <div class="card-title"><i class="fas fa-heartbeat"></i> System Health</div>
+                            <div style="margin-bottom: 20px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span>Overall Health</span>
+                                    <span id="health-status">100%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div id="health-bar" class="progress-fill" style="width: 100%;"></div>
+                                </div>
+                            </div>
+                            <button class="btn" onclick="checkHealth()" style="width: 100%;"><i class="fas fa-sync"></i> Refresh Status</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pipeline Panel -->
+                <div id="pipeline" class="panel">
+                    <div class="grid">
+                        <div class="card" style="grid-column: 1/-1;">
+                            <div class="card-title"><i class="fas fa-stream"></i> DREDGE Pipeline - Interactive</div>
+                            <div class="form-group" style="margin-bottom: 15px;">
+                                <label style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 12px;">Enter Insight</label>
+                                <textarea class="form-control" id="pipeline-input" rows="3" placeholder="Example: Digital memory must be human-reachable"></textarea>
+                            </div>
+                            <button class="btn" onclick="runPipeline()" style="width: 100%; margin-bottom: 10px;"><i class="fas fa-play"></i> Start Pipeline</button>
+                            <button class="btn btn-secondary" onclick="resetPipeline()" style="width: 100%;"><i class="fas fa-redo"></i> Reset</button>
+                            <div id="pipeline-output" style="background: var(--dark); padding: 10px; border-radius: 3px; margin-top: 15px; min-height: 80px; font-size: 12px; color: #aaa;">Ready to process...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Other Panels (Placeholder) -->
+                <div id="models" class="panel"><div class="grid"><div class="card" style="grid-column: 1/-1;"><div class="card-title"><i class="fas fa-cube"></i> Model Management</div><button class="btn" onclick="alert('Model Management - Loading...')">Load Models</button></div></div></div>
+                <div id="lift" class="panel"><div class="grid"><div class="card" style="grid-column: 1/-1;"><div class="card-title"><i class="fas fa-lightbulb"></i> Insight Lifting</div><button class="btn" onclick="alert('Insight Lifting - Coming Soon')">Lift Insight</button></div></div></div>
+                <div id="swift" class="panel"><div class="grid"><div class="card" style="grid-column: 1/-1;"><div class="card-title"><i class="fas fa-code"></i> Swift Toolchain</div><button class="btn" onclick="alert('Swift Build - Coming Soon')">Build</button></div></div></div>
+                <div id="dependabot" class="panel"><div class="grid"><div class="card" style="grid-column: 1/-1;"><div class="card-title"><i class="fas fa-shield"></i> Security Alerts</div><button class="btn" onclick="alert('Dependabot - Coming Soon')">Check Alerts</button></div></div></div>
+                <div id="containers" class="panel"><div class="grid"><div class="card" style="grid-column: 1/-1;"><div class="card-title"><i class="fas fa-docker"></i> Containers</div><button class="btn" onclick="alert('Container Status - Coming Soon')">Refresh</button></div></div></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchMode(mode) {
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (mode === 'standard') {
+                document.getElementById('standard-sidebar').style.display = 'block';
+                document.getElementById('advanced-sidebar').style.display = 'none';
+                switchPanel('models');
+            } else if (mode === 'advanced') {
+                document.getElementById('standard-sidebar').style.display = 'none';
+                document.getElementById('advanced-sidebar').style.display = 'block';
+                switchPanel('swift');
+            } else {
+                document.getElementById('standard-sidebar').style.display = 'none';
+                document.getElementById('advanced-sidebar').style.display = 'none';
+                switchPanel('dashboard');
+            }
+        }
+
+        function switchPanel(panelName) {
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+            
+            const panel = document.getElementById(panelName);
+            if (panel) {
+                panel.classList.add('active');
+                const title = {
+                    'dashboard': 'DREDGE Studio v2.0 - Welcome',
+                    'status': 'System Status',
+                    'pipeline': 'DREDGE Pipeline - Interactive',
+                    'models': 'Model Management',
+                    'lift': 'Insight Lifting',
+                    'swift': 'Swift Toolchain',
+                    'dependabot': 'Security Alerts',
+                    'containers': 'Container Management'
+                };
+                document.getElementById('page-title').textContent = title[panelName] || panelName;
+            }
+            
+            if (event && event.target.closest('.sidebar-item')) {
+                event.target.closest('.sidebar-item').classList.add('active');
+            }
+        }
+
+        async function runPipeline() {
+            const input = document.getElementById('pipeline-input').value;
+            if (!input.trim()) {
+                alert('Please enter an insight');
+                return;
+            }
+            
+            document.getElementById('pipeline-output').textContent = 'Processing...';
+            
+            try {
+                const response = await fetch('/api/dredge/lift', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ insight: input })
+                });
+                const data = await response.json();
+                document.getElementById('pipeline-output').textContent = JSON.stringify(data, null, 2);
+            } catch (e) {
+                document.getElementById('pipeline-output').textContent = 'Error: ' + e.message;
+            }
+        }
+
+        function resetPipeline() {
+            document.getElementById('pipeline-input').value = '';
+            document.getElementById('pipeline-output').textContent = 'Ready to process...';
+        }
+
+        async function checkHealth() {
+            try {
+                const response = await fetch('/api/dredge/status');
+                const data = await response.json();
+                document.getElementById('health-status').textContent = data.status === 'operational' ? '100%' : '50%';
+                alert('System Status: ' + JSON.stringify(data, null, 2));
+            } catch (e) {
+                alert('Health check failed: ' + e.message);
+            }
+        }
+
+        function exportData() {
+            alert('Export feature coming soon!');
+        }
+
+        function openSettings() {
+            alert('Settings panel coming soon!');
+        }
+    </script>
+</body>
+</html>

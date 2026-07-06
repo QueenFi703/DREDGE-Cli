@@ -1,0 +1,29 @@
+#!/usr/bin/env node
+// bin/actions-run-inspect
+//
+// Thin shim that delegates to the TypeScript source via tsx.
+// This allows running `npx actions-run-inspect` or `node bin/actions-run-inspect`
+// without a separate build step.
+
+import { createRequire } from "module";
+import { fileURLToPath } from "url";
+import { resolve, dirname } from "path";
+import { spawn } from "child_process";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const tsxBin = resolve(__dirname, "..", "node_modules", ".bin", "tsx");
+const entrypoint = resolve(__dirname, "..", "src", "index.ts");
+
+const child = spawn(tsxBin, [entrypoint, ...process.argv.slice(2)], {
+  stdio: "inherit",
+  env: process.env,
+});
+
+child.on("exit", (code) => {
+  process.exit(code ?? 0);
+});
+
+// Satisfy the import of createRequire (unused but kept for Node ESM compatibility)
+void createRequire;

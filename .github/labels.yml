@@ -1,59 +1,43 @@
-- name: "🤖 dependadredgeabot"
-  color: "8B5CF6"
-  description: "Automated dependency updates by DEPENDADREDGEABOT"
+# DREDGE / Orion Label Scripture
+# Drop into: .github/labels.yml
+# Compatible with github-label-sync / action-labeler workflows
 
-- name: "dependencies"
-  color: "0075CA"
-  description: "Dependency version updates"
+- name: docker
+  color: "0db7ed"
+  description: "Container and runtime layer mutations across images, compose stacks, and execution environments."
 
-- name: "dredge-core"
-  color: "3B82F6"
-  description: "DREDGE Python core dependencies"
+- name: infra
+  color: "5b5f97"
+  description: "Infrastructure scripture touching networks, cloud topology, provisioning, storage, DNS, and platform foundations."
 
-- name: "python"
-  color: "3572A5"
-  description: "Python ecosystem updates"
+- name: security
+  color: "d73a4a"
+  description: "Security hardening, vulnerability remediation, auth boundaries, secrets flow, and trust enforcement."
 
-- name: "swift"
-  color: "F05138"
-  description: "Swift ecosystem updates"
+- name: deps
+  color: "0366d6"
+  description: "Dependency drift corrections, package upgrades, lockfile mutations, and ecosystem synchronization."
 
-- name: "dredge-cli"
-  color: "5A9FD4"
-  description: "DREDGE Swift CLI dependencies"
+- name: agent
+  color: "7f52ff"
+  description: "Autonomous agent cognition, orchestration logic, task routing, execution chains, and synthetic operator behavior."
 
-- name: "dredge-cli-module"
-  color: "4B8BBE"
-  description: "DREDGE Swift CLI module dependencies"
+- name: telemetry
+  color: "1d76db"
+  description: "Metrics, tracing, observability streams, runtime visibility, and signal emission pipelines."
 
-- name: "dolly-gpu"
-  color: "10B981"
-  description: "Dolly GPU/ML framework dependencies"
+- name: orion
+  color: "8a2be2"
+  description: "Core Orion subsystem evolution, orchestration intelligence, control-plane behavior, and system consciousness."
 
-- name: "quasimoto-physics"
-  color: "F59E0B"
-  description: "Quasimoto wave function dependencies"
+- name: forge
+  color: "fb8500"
+  description: "Forge runtime execution layer, synthesis engines, build pipelines, and autonomous fabrication flows."
 
-- name: "docker"
-  color: "2496ED"
-  description: "Docker image and container updates"
+- name: ci
+  color: "2ea44f"
+  description: "GitHub Actions workflows, automation chains, validation gates, and continuous integration scripture."
 
-- name: "docker-compose"
-  color: "1A6496"
-  description: "Docker Compose service updates"
-
-- name: "infrastructure"
-  color: "6B7280"
-  description: "Docker/CI/CD infrastructure updates"
-
-- name: "ci-cd"
-  color: "0075CA"
-  description: "CI/CD pipeline and automation updates"
-
-- name: "github-actions"
-  color: "2088FF"
-  description: "GitHub Actions workflow updates"
-
-- name: "codex"
-  color: "ededed"
-  description: "Codex automated changes"
+- name: release
+  color: "b60205"
+  description: "Deployment operations, release propagation, version promotion, rollout sequencing, and production activation."
