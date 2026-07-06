@@ -172,6 +172,9 @@ updates:
       timezone: "UTC"
     open-pull-requests-limit: 10
     target-branch: "main"
+    
+    groups:
+      github-actions-all:
     groups:
       github-actions:
         patterns:
@@ -179,6 +182,7 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    
     labels:
       - "deps"
       - "ci"
@@ -195,11 +199,21 @@ updates:
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+      day: "monday"
       time: "03:10"
-      timezone: "UTC"
-    open-pull-requests-limit: 10
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
     target-branch: "main"
+    
+    groups:
+      docker-base-images:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    
     labels:
       - "deps"
       - "docker"
