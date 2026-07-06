@@ -74,7 +74,7 @@ jobs:
             CHANGED_DEPS=$(
               git diff --name-only HEAD~1 HEAD 2>/dev/null \
                 | grep -E '^(requirements\.txt|pyproject\.toml|Package\.swift|Package\.resolved)$' \
-                | jq -R -s 'split("\n") | map(select(length > 0))' \
+                | jq -R -s -c 'split("\n") | map(select(length > 0))' \
               || echo "[]"
             )
           fi
@@ -117,19 +117,22 @@ jobs:
               printf '%s' "${INPUT_REPOS}" \
                 | tr ',' '\n' \
                 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
-                | jq -R -s 'split("\n") | map(select(length > 0))'
+                | grep -v '^$' \
+                | jq -R -s -c 'split("\n") | map(select(length > 0))'
             )
           else
-            TARGET_REPOS_JSON=$(jq -c '.target_repos // []' .github/dep-sync-config.json)
+            TARGET_REPOS_JSON=$(jq -c '.target_repos' .github/dep-sync-config.json)
           fi
 
-          # Guard against empty/invalid JSON to prevent downstream jq parse errors.
-          if ! printf '%s' "${TARGET_REPOS_JSON:-}" | jq -e 'type == "array"' >/dev/null; then
-            echo "::warning::Resolved target repositories value is invalid JSON; defaulting to empty list."
-            TARGET_REPOS_JSON='[]'
-          fi
+          # Validate repository slugs early for clearer failures.
+          jq -e 'all(.[]; type == "string" and test("^[^/]+/[^/]+$"))'             <<<"${TARGET_REPOS_JSON}" >/dev/null
 
-          echo "repos=${TARGET_REPOS_JSON}" >> "${GITHUB_OUTPUT}"
+          # Use block output format to safely support any valid JSON content.
+          {
+            echo "repos<<EOF"
+            echo "${TARGET_REPOS_JSON}"
+            echo "EOF"
+          } >> "${GITHUB_OUTPUT}"
 
       - name: Emit cross-repo dependency sync signal
         env:
