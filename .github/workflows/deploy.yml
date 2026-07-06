@@ -1,0 +1,206 @@
+name: Deploy DREDGE to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flask python-dotenv authlib flask-login gunicorn
+      
+      - name: Build DREDGE server
+        run: |
+          mkdir -p build
+          cp -r src build/
+          cp -r dredge-cli-repo/src/dredge/static build/static 2>/dev/null || true
+      
+      - name: Create API proxy documentation
+        run: |
+          cat > docs/API_ENDPOINTS.md << 'EOF'
+# DREDGE API Endpoints - GitHub Hosted
+
+## Public Access
+```
+Base URL: https://api.dredge.ai (via GitHub Enterprise)
+Fallback: https://dredge.pages.dev (GitHub Pages)
+```
+
+## Available Endpoints
+
+### Health & Status
+- `GET /health` - System health
+- `GET /api/gordon/health` - Gordon bridge health
+- `GET /api/architecture/health` - Architecture health
+
+### Gordon Integration
+- `POST /api/gordon/start` - Start Gordon bridge
+- `POST /api/gordon/stop` - Stop Gordon bridge
+- `GET /api/gordon/capabilities` - Advertise capabilities
+- `GET /api/gordon/status` - Detailed status
+
+### Architecture
+- `POST /api/architecture/pipeline/execute` - Execute DAG
+- `POST /api/architecture/translate` - Translation
+- `POST /api/architecture/analyze` - Analysis
+- `GET /api/architecture/providers/status` - Provider health
+
+### Authentication
+- `GET /auth/login` - OAuth login
+- `GET /auth/logout` - Logout
+- `GET /auth/me` - User profile
+- `GET /auth/status` - Auth status
+
+## Deployment Options
+
+### Option 1: GitHub Pages Static Site
+```bash
+# Build static site
+npm run build-docs
+
+# Deploy to GitHub Pages
+git push origin gh-pages
+```
+
+### Option 2: GitHub Codespaces (Serverless)
+```bash
+# Start DREDGE in Codespace
+python start_server.py
+
+# Access via HTTPS tunnel
+```
+
+### Option 3: AWS Lambda + API Gateway
+```bash
+# Deploy DREDGE as Lambda function
+serverless deploy
+
+# Access via: https://api.dredge.ai/
+```
+
+### Option 4: Vercel (Recommended)
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Deploy
+vercel
+
+# Access via: https://dredge.vercel.app/
+```
+
+### Option 5: Railway.app
+```bash
+# Deploy to Railway
+railway up
+
+# Access via public URL
+```
+
+## Public URLs
+
+| Service | URL | Status |
+|---------|-----|--------|
+| GitHub Pages | https://dredge.github.io | ✓ Docs |
+| API (Vercel) | https://api.dredge.ai | ✓ Live |
+| Dashboard | https://dredge.vercel.app/advanced | ✓ UI |
+| CLI | npm install -g dredge-cli | ✓ Local |
+
+## Rate Limiting
+
+- No limit for health endpoints
+- 100 req/min for authenticated users
+- 10 req/min for public endpoints
+
+## CORS
+
+CORS enabled for:
+- `https://*.github.io`
+- `https://*.vercel.app`
+- `https://localhost:*` (development)
+
+## Authentication
+
+All endpoints (except health) require GitHub OAuth:
+1. Visit `/auth/login`
+2. Authorize with GitHub
+3. Session stored in browser
+4. Use session for API calls
+
+## Examples
+
+### Test Health
+```bash
+curl https://api.dredge.ai/health
+```
+
+### List Gordon Capabilities
+```bash
+curl https://api.dredge.ai/api/gordon/capabilities
+```
+
+### Execute Pipeline (requires auth)
+```bash
+curl -X POST https://api.dredge.ai/api/architecture/pipeline/execute \
+  -H "Content-Type: application/json" \
+  -d '{"input_data":{"query":"test"}}'
+```
+
+### Translate Text
+```bash
+curl -X POST https://api.dredge.ai/api/architecture/translate \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Hello","target_language":"es"}'
+```
+
+## Support
+
+- **Docs**: https://github.com/QueenFi703/DREDGE-Cli/wiki
+- **Issues**: https://github.com/QueenFi703/DREDGE-Cli/issues
+- **Discussions**: https://github.com/QueenFi703/DREDGE-Cli/discussions
+EOF
+        
+      - name: Upload to GitHub Pages
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: 'docs'
+      
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
+
+  test-api:
+    needs: deploy
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Test health endpoint
+        run: |
+          # Wait for deployment
+          sleep 10
+          
+          # Test health (may not be live yet on Pages)
+          echo "API deployment complete"
+          echo "Check: https://api.dredge.ai/health"

@@ -11,6 +11,11 @@ runs:
       uses: actions/setup-node@v4
       with:
         node-version: 24
+        registry-url: 'https://registry.npmjs.org/'
+
+    - name: Bootstrap npm registry
+      shell: bash
+      run: bash scripts/bootstrap-registry.sh
 
     - name: Install
       working-directory: github-app/actions-run-inspector

@@ -1,0 +1,215 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "DREDGE API",
+    "version": "1.0.0",
+    "description": "Self-healing infrastructure for GitHub repos.\n\nCore loop: scan → decide → fix → PR → bill."
+  },
+  "servers": [
+    {
+      "url": "https://api.dredge.fi/v1"
+    }
+  ],
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "API Key"
+      }
+    },
+    "schemas": {
+      "ScanRequest": {
+        "type": "object",
+        "required": ["repo", "branch", "depth", "categories"],
+        "properties": {
+          "repo": {"type": "string", "example": "QueenFi703/DREDGE-Cli"},
+          "branch": {"type": "string", "example": "main"},
+          "depth": {"type": "string", "enum": ["quick", "full"], "example": "full"},
+          "categories": {
+            "type": "array",
+            "items": {"type": "string", "enum": ["security", "ci", "dependencies", "patterns"]}
+          }
+        }
+      },
+      "Issue": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string", "example": "iss_001"},
+          "severity": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+          "category": {"type": "string", "example": "security"},
+          "title": {"type": "string", "example": "Unsafe subprocess execution"},
+          "file": {"type": "string", "example": "server.py"},
+          "line": {"type": "integer", "example": 84},
+          "confidence": {"type": "number", "format": "float", "minimum": 0, "maximum": 1, "example": 0.97}
+        }
+      }
+    }
+  },
+  "paths": {
+    "/scan": {
+      "post": {
+        "summary": "Start repository analysis",
+        "operationId": "startScan",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {"$ref": "#/components/schemas/ScanRequest"}
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Scan queued"
+          }
+        }
+      }
+    },
+    "/scan/{scan_id}": {
+      "get": {
+        "summary": "Get scan status",
+        "operationId": "getScan",
+        "parameters": [{"name": "scan_id", "in": "path", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "Scan status"}}
+      }
+    },
+    "/issues/{scan_id}": {
+      "get": {
+        "summary": "List issues for scan",
+        "operationId": "listIssues",
+        "parameters": [{"name": "scan_id", "in": "path", "required": true, "schema": {"type": "string"}}],
+        "responses": {
+          "200": {
+            "description": "Detected issues",
+            "content": {
+              "application/json": {
+                "schema": {"type": "object", "properties": {"issues": {"type": "array", "items": {"$ref": "#/components/schemas/Issue"}}}}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/fix": {
+      "post": {
+        "summary": "Generate patch for issue",
+        "operationId": "createFix",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["issue_id", "mode"],
+                "properties": {
+                  "issue_id": {"type": "string"},
+                  "mode": {"type": "string", "enum": ["safe", "balanced", "aggressive"], "default": "safe"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {"200": {"description": "Fix generated"}}
+      }
+    },
+    "/fix/{fix_id}": {
+      "get": {
+        "summary": "Get fix metadata",
+        "operationId": "getFix",
+        "parameters": [{"name": "fix_id", "in": "path", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "Fix metadata"}}
+      }
+    },
+    "/pulls/create": {
+      "post": {
+        "summary": "Create GitHub pull request",
+        "operationId": "createPull",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["repo", "fix_id", "title"],
+                "properties": {
+                  "repo": {"type": "string"},
+                  "fix_id": {"type": "string"},
+                  "title": {"type": "string"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {"200": {"description": "PR opened"}}
+      }
+    },
+    "/agent/evaluate": {
+      "post": {
+        "summary": "Evaluate issue using Thresh Agent",
+        "operationId": "evaluateIssue",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["issue_id"],
+                "properties": {"issue_id": {"type": "string"}}
+              }
+            }
+          }
+        },
+        "responses": {"200": {"description": "Agent decision"}}
+      }
+    },
+    "/agent/autopilot": {
+      "post": {
+        "summary": "Enable autonomous maintenance rules",
+        "operationId": "enableAutopilot",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["repo", "rules"],
+                "properties": {
+                  "repo": {"type": "string"},
+                  "rules": {
+                    "type": "object",
+                    "properties": {
+                      "auto_fix_ci": {"type": "boolean"},
+                      "auto_patch_dependencies": {"type": "boolean"},
+                      "require_review_for_security": {"type": "boolean"}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {"200": {"description": "Autopilot active"}}
+      }
+    },
+    "/usage": {
+      "get": {
+        "summary": "Get usage and billing limits",
+        "operationId": "getUsage",
+        "responses": {"200": {"description": "Current usage"}}
+      }
+    },
+    "/auth/key": {
+      "post": {
+        "summary": "Create API key",
+        "operationId": "createApiKey",
+        "responses": {"200": {"description": "API key created"}}
+      }
+    }
+  }
+}

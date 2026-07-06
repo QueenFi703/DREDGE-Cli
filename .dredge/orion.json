@@ -1,0 +1,13 @@
+{
+  "runtime": "orion",
+  "agents": [
+    "forge",
+    "sentinel",
+    "replay",
+    "oracle",
+    "gate"
+  ],
+  "telemetry": true,
+  "memory": true,
+  "autonomy": "partial"
+}
