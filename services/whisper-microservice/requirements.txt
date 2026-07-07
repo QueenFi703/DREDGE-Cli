@@ -1,0 +1,17 @@
+# Whisper Microservice Dependencies
+
+# Framework
+Flask==3.1.3
+Werkzeug==3.1.8
+
+# WSGI Server
+gunicorn==22.0.0
+
+# Audio Processing
+whisper-openai==20231106
+librosa==0.11.0
+numpy==1.26.4
+scipy==1.15.3
+
+# Utilities
+python-dotenv==1.0.1
