@@ -50,6 +50,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add Vercel Web Analytics middleware
+try:
+    from vercel_analytics import VercelAnalyticsMiddleware
+    app.add_middleware(VercelAnalyticsMiddleware)
+    print("✅ Vercel Web Analytics middleware enabled")
+except ImportError as e:
+    print(f"⚠️  Vercel Analytics middleware not available: {e}")
+except Exception as e:
+    print(f"❌ Failed to add Vercel Analytics middleware: {e}")
+
 # Configure static files path
 static_dir = Path(__file__).parent / 'dredge-cli-repo' / 'src' / 'dredge' / 'static'
 if static_dir.exists():

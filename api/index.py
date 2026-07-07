@@ -60,6 +60,16 @@ def create_fallback_app():
         allow_headers=["*"],
     )
     
+    # Add Vercel Web Analytics middleware
+    try:
+        from vercel_analytics import VercelAnalyticsMiddleware
+        app.add_middleware(VercelAnalyticsMiddleware)
+        logger.info("✅ Vercel Web Analytics middleware enabled")
+    except ImportError as e:
+        logger.warning(f"⚠️  Vercel Analytics middleware not available: {e}")
+    except Exception as e:
+        logger.error(f"❌ Failed to add Vercel Analytics middleware: {e}")
+    
     @app.get("/")
     async def root():
         """Root endpoint"""
