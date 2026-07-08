@@ -23,6 +23,7 @@ flask-login>=0.6.3
 #   pip install torch>=2.8.0
 # 
 # Default installation (auto-detects platform):
+gunicorn
 torch>=2.8.0
 
 numpy>=1.24.0
