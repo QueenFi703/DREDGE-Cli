@@ -1,7 +1,7 @@
 # Railway.app optimized DREDGE Production Build
 # Multi-stage build for smaller image size and faster deployment
 
-FROM python:3.10-slim as builder
+FROM python:3.14-slim as builder
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -26,7 +26,7 @@ RUN python -m venv /opt/venv && \
     pip install -r requirements.txt
 
 # Runtime stage
-FROM python:3.10-slim
+FROM python:3.14-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

@@ -78,7 +78,6 @@ def validate_config() -> Tuple[bool, Dict[str, any]]:
     if google_id and google_secret:
         config["google"] = {
             "client_id": google_id[:20] + "...",  # Show partial ID
-            "client_secret": google_secret[:10] + "...",  # Hide secret
             "status": "✅ CONFIGURED"
         }
     else:
@@ -124,7 +123,6 @@ def print_config_report(is_valid: bool, config: Dict) -> None:
     if github.get("status") == "✅ CONFIGURED":
         print(f"   Status:  {github['status']}")
         print(f"   ID:      {github['client_id']}")
-        print(f"   Secret:  {github['client_secret']}")
     else:
         print(f"   Status:  {github.get('status', 'N/A')}")
         if "help" in github:
@@ -137,7 +135,6 @@ def print_config_report(is_valid: bool, config: Dict) -> None:
     if google.get("status") == "✅ CONFIGURED":
         print(f"   Status:  {google['status']}")
         print(f"   ID:      {google['client_id']}")
-        print(f"   Secret:  {google['client_secret']}")
     else:
         print(f"   Status:  {google.get('status', 'N/A')}")
         if "help" in google:
