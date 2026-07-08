@@ -1,11 +1,11 @@
-FROM python:3.14-slim AS base
+  FROM python:3.14-slim AS base
 
 # shared setup
 RUN apt-get update && apt-get install -y curl git && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
-RUN pip instrall --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir -e .
 
 # CPU image
 FROM base AS cpu-build
@@ -34,7 +34,8 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.14 1
     update-alternatives --install /usr/bin/python python /usr/bin/python3.14 1
 
 WORKDIR /app
-COPY . .
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --no-cache-dir -e . && pip install --no-cache-dir torch
 CMD ["dredge-cli", "mcp", "--host", "0.0.0.0", "--port", "3002"]
 
