@@ -19,3 +19,4 @@ RUN--no-cache-dir -e . && pip install --no-cache-dir torch
 CMD ["dredge-cli", "mcp", "--host", "0.0.0.0", "--port", "3002"]
 FROM cpu-build AS dev
 RUN pip install --no-cache-dir pytest black ruff
+CMD ["gunicorn", "wsgi:app"]
