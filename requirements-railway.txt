@@ -27,7 +27,7 @@ pandas==2.3.3
 scipy==1.15.3
 
 # ML/AI Libraries
-torch==2.12.1
+torch==2.13.0
 whisper-openai==20231106
 scikit-learn==1.7.2
 
