@@ -3,9 +3,12 @@ builder = "dockerfile"
 dockerfilePath = "Dockerfile.railway"
 
 [deploy]
-startCommand = "./entrypoint.sh"
+# Start command uses Gunicorn with WSGI entry point
+# Railway automatically sets PORT environment variable
+startCommand = "gunicorn wsgi:app"
 healthCheckPath = "/health"
 
+# Environment configuration
 [env]
 FLASK_ENV = "production"
 PYTHONUNBUFFERED = "1"
