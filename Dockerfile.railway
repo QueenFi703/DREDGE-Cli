@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency files
-COPY requirements.txt pyproject.toml setup.py ./
+COPY requirements.txt ./
 
 # Create virtual environment and install dependencies
 RUN python -m venv /opt/venv && \
@@ -49,7 +49,6 @@ COPY --from=builder /opt/venv /opt/venv
 # Copy application code
 COPY src/ ./src/
 COPY wsgi.py .
-COPY setup.py pyproject.toml ./
 COPY README.md LICENSE ./
 
 # Create non-root user
