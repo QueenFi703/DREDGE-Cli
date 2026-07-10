@@ -15,6 +15,9 @@ httpx>=0.24.0
 # WSGI Server
 gunicorn>=22.0.0
 
+# Environment & Config
+python-dotenv>=1.0.0
+
 # PyTorch - Platform-specific installations:
 # 
 # For CUDA (Linux with NVIDIA GPU):
