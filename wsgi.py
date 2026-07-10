@@ -10,15 +10,12 @@ import os
 import sys
 from pathlib import Path
 
-# Add project root/src directory to Python path if needed
+# Add project root to Python path
 BASE_DIR = Path(__file__).resolve().parent
-SRC_DIR = BASE_DIR / "src"
+sys.path.insert(0, str(BASE_DIR))
 
-if SRC_DIR.exists():
-    sys.path.insert(0, str(SRC_DIR))
-
-# Import your Flask application factory or app
-from dredge.server import create_app
+# Import your Flask application factory
+from src.dredge.server import create_app
 
 # Create the WSGI application
 app = create_app()
