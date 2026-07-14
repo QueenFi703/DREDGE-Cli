@@ -1,6 +1,8 @@
 FROM python:3.14-slim AS base
+WORKDIR /app
+ENV PYTHONUNBUFFERED=1
 RUN apt-get update && apt-get install -y curl git && rm -rf /var/lib/apt/lists/*
-COPY . .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --no-cache-dir -e .
 FROM base AS cpu-build
@@ -16,7 +18,7 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.14 1
 COPY . .
 RUN pip install --no cache-dir -r requirements.txt
 RUN--no-cache-dir -e . && pip install --no-cache-dir torch
-CMD ["dredge-cli", "mcp", "--host", "0.0.0.0", "--port", "3002"]
+CMD ["gunicorn", "--bind", "0.0.0.0:$PORT", "wsgi:app"]
 FROM cpu-build AS dev
 RUN pip install --no-cache-dir pytest black ruff
 CMD ["gunicorn", "wsgi:app"]
