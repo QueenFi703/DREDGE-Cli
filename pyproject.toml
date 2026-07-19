@@ -77,7 +77,7 @@ Issues = "https://github.com/docker/dredge-cli-repo/issues"
 
 [project.scripts]
 dredge = "dredge.cli:main"
-dredge-server = "dredge.server:run"
+dredge-server = "dredge.server:run_server"
 dredge-advanced = "dredge.server:run_advanced"
 
 [tool.setuptools]

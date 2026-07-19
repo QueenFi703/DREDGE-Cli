@@ -11,7 +11,7 @@ services:
       target: cpu-build
     container_name: dredge-flask
     ports:
-      - "3000:3000"
+      - "8001:3000"
     environment:
       - FLASK_ENV=production
       - PYTHONUNBUFFERED=1
@@ -33,23 +33,16 @@ services:
   quasimoto-mcp:
     build:
       context: .
-      target: gpu-build
+      target: cpu-build
     container_name: quasimoto-gpu
     ports:
-      - "3002:3002"
+      - "8000:3002"
     environment:
       - CUDA_VISIBLE_DEVICES=0
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
     networks:
       - dredge-network
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
     healthcheck:
       test: ["CMD", "python3", "-c", "import sys; sys.exit(0)"]
       interval: 60s
