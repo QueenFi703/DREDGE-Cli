@@ -1,44 +1,92 @@
-  FROM python:3.14-slim AS base
+#syntax=docker/dockerfile:1
+#Multi-stage build for smaller image size and faster deployment
 
-# shared setup
-RUN apt-get update && apt-get install -y curl git && rm -rf /var/lib/apt/lists/*
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
+# ---- Builder stage ----
+FROM python:3.14-slim AS builder
 
-# CPU image
-FROM base AS cpu-build
-RUN pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
-CMD ["dredge-cli", "serve", "--host", "0.0.0.0", "--port", "3001"]
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1
 
-# ────────────────────────────────────────────────────────────────[...]
-# Stage 3: GPU Build (Full Dolly + Quasimoto)
-# ────────────────────────────────────────────────────────────────[...]
-FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04 AS gpu-build
+WORKDIR /build
 
-# Layer 1: System dependencies with immediate cleanup
+# Build-time system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3.14 \
-    python3.14-dev \
-    python3-pip \
     gcc \
     g++ \
     git \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \
-    && rm -rf /tmp/* \
-    && rm -rf /var/tmp/*
+    && rm -rf /var/lib/apt/lists/*
 
-RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.14 1 && \
-    update-alternatives --install /usr/bin/python python /usr/bin/python3.14 1
+# Install dependencies into a venv first (better layer caching)
+COPY requirements.txt ./
+RUN python -m venv /opt/venv \
+    && . /opt/venv/bin/activate \
+    && pip install --upgrade pip setuptools wheel \
+    && pip install -r requirements.txt
+
+
+# Now copy the actual source and install the dredge package itself
+COPY . .
+RUN . /opt/venv/bin/activate \
+    && pip install --no-cache-dir -e .
+
+# ---- Runtime stage ----
+FROM python:3.14-slim AS runtime
+
+ENV PYTHONPATH="/app/src:${PYTHONPATH}" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH="/opt/venv/bin:$PATH" \
+    PORT=8001
 
 WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir -e . && pip install --no-cache-dir torch
-CMD ["dredge-cli", "mcp", "--host", "0.0.0.0", "--port", "3002"]
 
-# Development image
-FROM cpu-build AS dev
-RUN pip install --no-cache-dir pytest black ruff
+# Runtime-only system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ffmpeg \
+    libsndfile1 \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Bring in the venv (with all deps + dredge installed) and the source tree
+COPY --from=builder /opt/venv /opt/venv
+COPY --from+builder /build /app
+
+EXPOSE 8001
+
+CMD ["dredge-server", "--host", "0.0.0.0", "--port", "8001"]
+
+# ---- Dev stage (optional: docker build --target dev) ----
+FROM runtime AS dev
+RUN . /opt/venv/bin/activate \
+    && pip install --no-cache-dir pytest black ruff mypy pytest-cov
+CMD ["dredge-server", "--host", "0.0.0.0", "--port", "8001"]
+
+# ---- GPU stage (optional: docker build --target gpu) ----
+FROM nvidia/cuda:11.8.0-runtime-unbuntu22.04 AS gpu
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONPATH="/app/src:${PYTHONPATH}" \
+    PYTHONUNBUFFERED=1 \
+    PATH="/opt/venv/bin:$PATH" \
+    PORT=8001
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    curl \
+    ffmpeg \ 
+    libsndfile1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /build /app
+
+# Swap in the CUDA build of torch for the GPU inference
+RUN . /opt/venv/bin/activate \
+    && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cu118
+
+EXPOSE 8001
+CMD ["dredge-server", "--host", "0.0.0.0", "--port", "8001"]
+
