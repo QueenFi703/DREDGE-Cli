@@ -10,7 +10,8 @@ A FastAPI-based gateway that:
 
 Stack: FastAPI + Pydantic + SQLAlchemy (PostgreSQL/SQLite)
 """
-
+import os
+import httpx
 import time
 import uuid
 import logging
@@ -206,15 +207,86 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# -------------------------------------------------------------------------------
+# Configuration
+# -------------------------------------------------------------------------------
+
+MCP_URL =os.getenv(
+    "MCP_URL",
+    "HTTP://127.0.0.1:3002"
+)
+
+# --------------------------------------------------------------------------------
+# Health
+# --------------------------------------------------------------------------------
 
 @app.get("/health")
-def health():
-    """Health check endpoint."""
+async def health():
     return {
         "status": "ok",
-        "service": "orion-gateway",
+        "service": "dredge-orion-gateway",
         "timestamp": time.time(),
     }
+
+# --------------------------------------------------------------------------------
+# Quasimoto MCP Proxy
+# Public Endpoint
+#
+# https://dredgeoriongateway.com/mcp
+#
+# --------------------------------------------------------------------------------
+@app.get ("/mcp")
+async def mcp_info():
+
+    try:
+        async with httpx.AsyncClient() as client:
+
+             reponse = await client.get(
+                f"{MCP_URL}/"
+             )
+
+             response.raise_for_status()
+
+             return response.json()
+    except Exception as  e:
+
+        raise HTTPException(
+            status_code=503,
+            detail=f"MCP service unavailable: {str(e)}"
+        )
+
+
+class MCPRequest (BaseModel):
+    method: str
+    params: dict | None = None
+
+
+@app.post("/mcp")
+async def mcp_request(
+    payload: MCPRequest
+):
+
+    try:
+
+       async with httpx.AsyncClient() as client
+
+           response = await client.post(
+               f"{MCP_URL}/mcp",
+               json=paypload.model_dump()
+           )
+
+           response.raise_for_status()
+
+           return response.json()
+
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=503,
+            detail=f"MCP request failed: {str(e)}"
+        )
+
 
 
 @app.post("/invoke", response_model=InvokeResponse)
@@ -319,15 +391,15 @@ async def shutdown_event():
     logger.info("🛑 Orion Gateway API shutting down...")
 
 
-def run_orion(host: str = "0.0.0.0", port: int = 3001, debug: bool = False):
+def run_orion(host: str = "0.0.0.0", port: int = 8001, debug: bool = False):
     """Run the Orion Gateway server."""
     import uvicorn
 
     logger.info("Starting Orion Gateway on %s:%d", host, port)
     uvicorn.run(
-        app,
-        host=host,
-        port=port,
+        "dredge.orion_gateway:app",
+        host="0.0.0.0",
+        port=int (os.getenv("PORT", 8080)),
         log_level="info" if debug else "warning",
     )
 

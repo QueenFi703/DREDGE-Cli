@@ -51,7 +51,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Bring in the venv (with all deps + dredge installed) and the source tree
 COPY --from=builder /opt/venv /opt/venv
-COPY --from+builder /build /app
+COPY --from=builder /build /app
 
 EXPOSE 8001
 
@@ -64,7 +64,7 @@ RUN . /opt/venv/bin/activate \
 CMD ["dredge-server", "--host", "0.0.0.0", "--port", "8001"]
 
 # ---- GPU stage (optional: docker build --target gpu) ----
-FROM nvidia/cuda:11.8.0-runtime-unbuntu22.04 AS gpu
+FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04 AS gpu
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONPATH="/app/src:${PYTHONPATH}" \
     PYTHONUNBUFFERED=1 \
