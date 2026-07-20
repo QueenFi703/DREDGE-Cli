@@ -4,7 +4,7 @@
 FROM python:3.14-slim as builder
 
 
-ENV PYTHONPATH="/app/src:${PYTHONPATH}"
+ENV PYTHONPATH="/app/src:${PYTHONPATH}" \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1
 
