@@ -272,7 +272,7 @@ async def mcp_request(
 
            response = await client.post(
                f"{MCP_URL}/mcp",
-               json=paypload.model_dump()
+               json=payload.model_dump()
            )
 
            response.raise_for_status()

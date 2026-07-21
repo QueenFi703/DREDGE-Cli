@@ -51,6 +51,8 @@ COPY --from=builder /opt/venv /opt/venv
 COPY src/ ./src/
 COPY wsgi.py .
 COPY README.md LICENSE ./
+COPY start.sh .
+RUN chmod +x start.sh
 
 # Create non-root user
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
@@ -68,3 +70,5 @@ EXPOSE ${PORT}
 
 # Start with Gunicorn
 CMD gunicorn --bind 0.0.0.0:${PORT} --workers 4 --worker-class sync --timeout 120 --access-logfile - --error-logfile - --log-level info wsgi:app
+# Start both the MCP server and Orion Gateway
+CMD ["./start.sh"]
