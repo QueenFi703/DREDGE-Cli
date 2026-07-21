@@ -213,7 +213,7 @@ app = FastAPI(
 
 MCP_URL =os.getenv(
     "MCP_URL",
-    "HTTP://127.0.0.1:3002"
+    "HTTP://127.0.0.1:8001"
 )
 
 # --------------------------------------------------------------------------------
@@ -259,6 +259,11 @@ async def mcp_info():
 class MCPRequest (BaseModel):
     method: str
     params: dict | None = None
+
+
+@app.get("/mcp")
+async def mcp_info():
+    return {"status": "ok", "message": "MCP endpoint is live. Use POST for requests."}]
 
 
 @app.post("/mcp")
@@ -399,7 +404,7 @@ def run_orion(host: str = "0.0.0.0", port: int = 8001, debug: bool = False):
     uvicorn.run(
         "dredge.orion_gateway:app",
         host="0.0.0.0",
-        port=int (os.getenv("PORT", 8080)),
+        port=int (os.getenv("PORT", 8001)),
         log_level="info" if debug else "warning",
     )
 
