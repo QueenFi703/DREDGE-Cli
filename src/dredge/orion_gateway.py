@@ -268,7 +268,7 @@ async def mcp_request(
 
     try:
 
-       async with httpx.AsyncClient() as client
+       async with httpx.AsyncClient() as client:
 
            response = await client.post(
                f"{MCP_URL}/mcp",
