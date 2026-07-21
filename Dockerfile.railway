@@ -30,7 +30,7 @@ RUN python -m venv /opt/venv && \
 FROM python:3.14-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PORT=8001 \
+    PORT=8000 \
     FLASK_ENV=production \
     PYTHONPATH="/app/src:${PYTHONPATH}"
 

@@ -206,7 +206,7 @@ def create_app():
     return app
 
 
-def run_server(host='0.0.0.0', port=3000, debug=False):
+def run (host='0.0.0.0', port=8001, debug=False):
     """
     Run the DREDGE x Dolly server.
 
@@ -243,4 +243,4 @@ def run_server(host='0.0.0.0', port=3000, debug=False):
 
 
 if __name__ == '__main__':
-    run_server()
+run()
