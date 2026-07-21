@@ -42,4 +42,4 @@ uvicorn
 fastapi
 pydantic
 httpx
-src/dredge/server.py
+
