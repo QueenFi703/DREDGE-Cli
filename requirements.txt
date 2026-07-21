@@ -38,3 +38,4 @@ numpy>=1.24.0
 matplotlib>=3.9.4
 
 PyYAML>=6.0.3
+uvicorn

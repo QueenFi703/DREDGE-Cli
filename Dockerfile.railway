@@ -19,13 +19,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy dependency files
 COPY requirements.txt ./
-
+COPY pyproject.toml ./
+COPY src/ ./src/
 # Create virtual environment and install dependencies
 RUN python -m venv /opt/venv && \
     . /opt/venv/bin/activate && \
     pip install --upgrade pip setuptools wheel && \
-    pip install -r requirements.txt
-
+    pip install -r requirements.txt && \
+    pip install .
 # Runtime stage
 FROM python:3.14-slim
 
