@@ -39,3 +39,7 @@ matplotlib>=3.9.4
 
 PyYAML>=6.0.3
 uvicorn
+fastapi
+pydantic
+httpx
+src/dredge/server.py
