@@ -1,4 +1,32 @@
 # DREDGE Studio v2.0
+AI Development Assistance
+
+DREDGE was developed through a collaborative workflow between human engineering and AI-assisted development.
+
+ChatGPT
+
+ChatGPT served as a technical design and engineering assistant throughout the project by helping to:
+
+* Design the DREDGE architecture and system components.
+* Explain networking, Docker, MCP, OAuth, Railway, and deployment concepts.
+* Troubleshoot build failures, dependency conflicts, and runtime errors.
+* Refine API documentation, technical specifications, and project documentation.
+* Brainstorm features, developer workflows, and user experience improvements.
+* Generate diagrams, examples, and implementation guidance for new capabilities.
+
+Codex
+
+Codex assisted as an implementation-focused coding partner by helping to:
+
+* Generate and refactor production code.
+* Suggest improvements to project structure and maintainability.
+* Implement features based on technical specifications.
+* Assist with debugging and iterative code changes.
+* Accelerate repetitive development tasks while preserving the project’s overall architecture.
+
+All product direction, architectural decisions, system integration, feature prioritization, and final implementation decisions were made by the project author Sophia Cole. AI tools were used to accelerate development, improve documentation, validate implementation approaches, and assist with debugging, while the overall vision and engineering direction of DREDGE remained human-led by myself; Sophia Cole.
+
+This project demonstrates an AI-assisted software engineering workflow in which modern language models function as collaborative development tools rather than autonomous authors.
 
 ## Advanced Security Intelligence & Model Management Platform
 
