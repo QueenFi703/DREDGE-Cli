@@ -1,0 +1,57 @@
+name: Test Orion Gateway Reachability
+
+on:
+  push:
+    branches:
+      - test/orion-gateway-reachability
+  workflow_dispatch:
+
+jobs:
+  reachability:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install DNS tools
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq dnsutils
+
+      - name: Resolve Orion through Cloudflare 1.1.1.1
+        id: dns
+        shell: bash
+        run: |
+          set -euo pipefail
+          DOMAIN="dredgeoriongateway.com"
+          echo "A records from Cloudflare 1.1.1.1:"
+          A_RECORDS="$(dig +short @1.1.1.1 A "$DOMAIN" | grep -E '^[0-9]+(\.[0-9]+){3}$' || true)"
+          printf '%s\n' "$A_RECORDS"
+          test -n "$A_RECORDS"
+          FIRST_IP="$(printf '%s\n' "$A_RECORDS" | head -n1)"
+          echo "first_ip=$FIRST_IP" >> "$GITHUB_OUTPUT"
+
+      - name: Verify HTTPS connection to Orion using the Cloudflare-resolved IP
+        env:
+          ORION_IP: ${{ steps.dns.outputs.first_ip }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          DOMAIN="dredgeoriongateway.com"
+          for PATH_TO_TEST in / /advanced; do
+            echo "=== https://$DOMAIN$PATH_TO_TEST ==="
+            curl --fail-with-body --silent --show-error --location \
+              --max-time 20 \
+              --resolve "$DOMAIN:443:$ORION_IP" \
+              -o /tmp/orion-response \
+              -w 'HTTP=%{http_code} REMOTE_IP=%{remote_ip} TLS=%{ssl_version}\n' \
+              "https://$DOMAIN$PATH_TO_TEST" || STATUS=$?
+            STATUS=${STATUS:-0}
+            echo "curl_exit=$STATUS"
+            if [ "$STATUS" -ne 0 ]; then
+              echo "The TCP/TLS/HTTP path was attempted, but curl reported an error."
+              exit "$STATUS"
+            fi
+            echo "Response received successfully. Body length: $(wc -c < /tmp/orion-response) bytes"
+            unset STATUS
+          done
+
+      - name: Report conclusion
+        run: |
+          echo "SUCCESS: GitHub Actions reached dredgeoriongateway.com using an IP resolved by Cloudflare 1.1.1.1."
+          echo "This test is independent of ChatGPT's DNS/retrieval environment."
