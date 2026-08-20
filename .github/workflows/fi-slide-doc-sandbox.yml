@@ -54,7 +54,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Thresh workflow analysis
-        uses: QueenFi703/QueenFi703-thresh-agent@5f047a931b266eda5648851b3aa0f507b0b048a3
+        uses: QueenFi703/QueenFi703-thresh-agent@51ff51974276e0d8b9488742ab1b5965e0163ead
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           commit-fixes: 'false'
