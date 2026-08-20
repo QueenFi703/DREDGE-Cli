@@ -3,6 +3,8 @@ name: Vendor Fi Sandbox Dependencies
 on:
   push:
     branches: ["chore/vendor-fi-sandbox-deps"]
+  pull_request:
+    branches: ["main"]
 
 jobs:
   vendor:
