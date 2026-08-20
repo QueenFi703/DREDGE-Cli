@@ -1,0 +1,32 @@
+name: Vendor Fi Sandbox Dependencies
+
+on:
+  push:
+    branches: ["chore/vendor-fi-sandbox-deps"]
+
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install sandbox dependencies
+        run: |
+          mkdir -p /tmp/fi-vendor
+          cd /tmp/fi-vendor
+          cat > package.json <<'EOF'
+          {"private":true,"type":"module","dependencies":{"openai":"7.3.0","express":"5.1.0","cors":"2.8.5","pptxgenjs":"4.0.1","docx":"9.5.1"}}
+          EOF
+          npm install --ignore-scripts --no-audit --no-fund
+      - name: Package node_modules
+        run: |
+          cd /tmp/fi-vendor
+          tar -czf "$GITHUB_WORKSPACE/fi-sandbox-node_modules.tgz" node_modules package.json package-lock.json
+      - name: Upload vendored dependencies
+        uses: actions/upload-artifact@v4
+        with:
+          name: fi-sandbox-node-modules
+          path: fi-sandbox-node_modules.tgz
+          retention-days: 7
