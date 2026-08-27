@@ -1,0 +1,8 @@
+{
+  "build": {
+    "builder": "dockerfile"
+  },
+  "deploy": {
+    "startCommand": "python -m uvicorn api.deployment:app --host 0.0.0.0 --port $PORT"
+  }
+}
