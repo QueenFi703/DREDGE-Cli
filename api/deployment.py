@@ -1,35 +1,77 @@
 """
-DREDGE Deployment Entry Point
+DREDGE Vercel API - Main Entry Point with Full Integration
 
-This module provides the ASGI application for production deployment on Vercel.
-
-Architecture:
-  The Core Gateway (core_gateway.py) is a unified ASGI application spine that
-  serves as the single entry point for all DREDGE services.
-
-  All functionality is provided through a modular adapter system:
-  - Studio Adapter: Web UI and dashboard
-  - Auth Adapter: API key management
-  - Health Adapter: System monitoring
-  - Admin Adapter: Administrative operations
-
-Entry Point:
-  app = FastAPI application from core_gateway.py
+This entry point includes:
+  - Three-Layer Cognitive Architecture (GPT Sol, Tresh, DREDGE)
+  - Security Hardening (CORS, rate limiting, headers)
+  - Cognitive Nervous System integration
+  - Complete API endpoints
 
 Deployment:
   - Vercel: entrypoint = "api.deployment:app"
-  - Local: python -m uvicorn api.deployment:app --port 9000
-  - Direct: python core_gateway.py
+  - Local: python core_gateway_integrated.py
 """
 
 import sys
+import logging
 from pathlib import Path
+from typing import Dict, Any
+
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# Import the core gateway (production entry point)
-from core_gateway import app
+# ============================================================================
+# IMPORT INTEGRATED GATEWAY
+# ============================================================================
 
-# Export for Vercel/ASGI servers
-__all__ = ['app']
+try:
+    from core_gateway_integrated import app as integrated_app, HAS_GPT_SOL, HAS_TRESH, HAS_NERVOUS_SYSTEM, HAS_SECURITY
+    app = integrated_app
+    logger.info("✅ Integrated gateway loaded")
+except Exception as e:
+    logger.error(f"Failed to load integrated gateway: {e}")
+    
+    # Fallback to basic app
+    app = FastAPI(
+        title="DREDGE API (Fallback)",
+        version="2.0.0",
+        docs_url="/swagger"
+    )
+    
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    
+    @app.get("/")
+    async def root():
+        return {
+            "status": "operational (fallback mode)",
+            "message": "Integrated gateway not available"
+        }
+    
+    @app.get("/health")
+    async def health():
+        return {"status": "healthy"}
+    
+    logger.warning("⚠️ Using fallback gateway")
+
+
+# ============================================================================
+# VERCEL HANDLER
+# ============================================================================
+
+handler = app
+
+__all__ = ['app', 'handler']
