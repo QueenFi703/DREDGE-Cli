@@ -59,6 +59,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add Vercel Web Analytics middleware
+try:
+    from vercel_analytics import VercelAnalyticsMiddleware
+    app.add_middleware(VercelAnalyticsMiddleware)
+    logger.info("[Analytics] Vercel Web Analytics middleware enabled")
+except ImportError as e:
+    logger.warning(f"[Analytics] Vercel Analytics middleware not available: {e}")
+except Exception as e:
+    logger.error(f"[Analytics] Failed to add Vercel Analytics middleware: {e}")
+
 # ============================================================================
 # ADAPTER REGISTRATION SYSTEM
 # ============================================================================
