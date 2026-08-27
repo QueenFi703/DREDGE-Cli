@@ -11,6 +11,7 @@ Adapters:
   - Auth Adapter: API key management and authentication
   - Health Adapter: System health and monitoring
   - Admin Adapter: Administrative operations
+  - Gordon Adapter: Gordon AI Agent integration (NEW)
 
 Mounting:
   Each adapter is independently mounted on the core gateway via FastAPI
@@ -23,6 +24,7 @@ Benefits:
   4. Easy to enable/disable adapters
   5. Clear dependency injection
   6. Better testing (each adapter isolated)
+  7. Safe mounting with graceful degradation
 """
 
 from fastapi import FastAPI, Request
@@ -330,64 +332,39 @@ def create_admin_adapter():
 
 
 # ============================================================================
-# ADAPTER MOUNTING
+# ADAPTER MOUNTING (Safe with error handling)
 # ============================================================================
 
 def mount_adapters():
-    """Mount all adapters to the core gateway"""
+    """Mount all adapters to the core gateway with safe error handling"""
     
+    adapters_to_mount = [
+        ("Studio", create_studio_adapter, "DREDGE Studio Web UI"),
+        ("Auth", create_auth_adapter, "API Key Management & Authentication"),
+        ("Health", create_health_adapter, "System Health & Monitoring"),
+        ("Admin", create_admin_adapter, "Administrative Operations"),
+    ]
+    
+    # Try to import and mount Gordon adapter (new, optional)
     try:
-        # Try to mount Studio adapter (DREDGE Studio)
-        try:
-            studio_router = create_studio_adapter()
-            app.include_router(studio_router)
-            adapter_registry.register("Studio", enabled=True, 
-                                     description="DREDGE Studio Web UI")
-            logger.info("[Mount] Studio adapter mounted")
-        except Exception as e:
-            logger.warning(f"[Mount] Studio adapter failed: {e}")
-            adapter_registry.register("Studio", enabled=False, 
-                                     description="DREDGE Studio Web UI (failed)")
-        
-        # Mount Auth adapter
-        try:
-            auth_router = create_auth_adapter()
-            app.include_router(auth_router)
-            adapter_registry.register("Auth", enabled=True, 
-                                     description="API Key Management & Authentication")
-            logger.info("[Mount] Auth adapter mounted")
-        except Exception as e:
-            logger.warning(f"[Mount] Auth adapter failed: {e}")
-            adapter_registry.register("Auth", enabled=False, 
-                                     description="API Key Management (failed)")
-        
-        # Mount Health adapter
-        try:
-            health_router = create_health_adapter()
-            app.include_router(health_router)
-            adapter_registry.register("Health", enabled=True, 
-                                     description="System Health & Monitoring")
-            logger.info("[Mount] Health adapter mounted")
-        except Exception as e:
-            logger.warning(f"[Mount] Health adapter failed: {e}")
-            adapter_registry.register("Health", enabled=False, 
-                                     description="System Health (failed)")
-        
-        # Mount Admin adapter
-        try:
-            admin_router = create_admin_adapter()
-            app.include_router(admin_router)
-            adapter_registry.register("Admin", enabled=True, 
-                                     description="Administrative Operations")
-            logger.info("[Mount] Admin adapter mounted")
-        except Exception as e:
-            logger.warning(f"[Mount] Admin adapter failed: {e}")
-            adapter_registry.register("Admin", enabled=False, 
-                                     description="Administrative Operations (failed)")
-    
+        from gordon_adapter import create_gordon_adapter
+        adapters_to_mount.append(
+            ("Gordon", create_gordon_adapter, "Gordon AI Agent Integration")
+        )
     except Exception as e:
-        logger.error(f"[Mount] Critical error mounting adapters: {e}")
-        raise
+        logger.warning(f"[Mount] Gordon adapter not available: {e}")
+    
+    # Mount each adapter safely
+    for adapter_name, adapter_creator, description in adapters_to_mount:
+        try:
+            router = adapter_creator()
+            app.include_router(router)
+            adapter_registry.register(adapter_name, enabled=True, description=description)
+            logger.info(f"[Mount] {adapter_name} adapter mounted successfully")
+        except Exception as e:
+            logger.warning(f"[Mount] {adapter_name} adapter failed (non-critical): {e}")
+            adapter_registry.register(adapter_name, enabled=False, 
+                                     description=f"{description} (failed)")
 
 
 # ============================================================================
@@ -422,6 +399,7 @@ async def startup_event():
     print("  - ReDoc:     http://127.0.0.1:8000/redoc")
     print("  - Status:    http://127.0.0.1:8000/status")
     print("  - Adapters:  http://127.0.0.1:8000/adapters")
+    print("  - Gordon:    http://127.0.0.1:8000/gordon/capabilities")
     print()
     print("=" * 80)
     print()
