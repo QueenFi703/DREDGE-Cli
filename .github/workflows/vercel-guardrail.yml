@@ -1,0 +1,32 @@
+name: Vercel Deployment Guardrail
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Vercel is intentionally NOT a release gate for DREDGE.
+# A Vercel account/project restriction must never block Swift CI,
+# TestFlight packaging, or the core DREDGE release path.
+permissions:
+  contents: read
+
+jobs:
+  vercel-guardrail:
+    name: Vercel (non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Explain deployment boundary
+        run: |
+          echo "DREDGE Vercel guardrail: NON-BLOCKING"
+          echo "Vercel deployment/account restrictions do not gate DREDGE CI or TestFlight."
+          echo "Core release gates remain Swift validation, archive/export, signing, and App Store Connect upload."
+
+      - name: Record Vercel status as informational
+        run: |
+          echo "Vercel integration status is informational only."
+          echo "If Vercel reports an account/project deployment block, resolve it in Vercel separately."
+          echo "No Vercel credentials are required by this guardrail."
