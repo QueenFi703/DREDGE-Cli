@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DREDGE Studio - Dashboard</title>
+    
+    <script>
+        window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+        }
+        
+        .navbar {
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .navbar-brand {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+        
+        .navbar-right {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+        }
+        
+        .navbar-right a {
+            color: #666;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+        
+        .navbar-right a:hover {
+            color: #667eea;
+        }
+        
+        .btn-logout {
+            background: #f0f0f0;
+            color: #666;
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        
+        .btn-logout:hover {
+            background: #e0e0e0;
+        }
+        
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 60px;
+            width: 250px;
+            height: calc(100vh - 60px);
+            background: white;
+            border-right: 1px solid #e0e0e0;
+            padding: 2rem 0;
+            overflow-y: auto;
+        }
+        
+        .sidebar-item {
+            padding: 1rem 1.5rem;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+        
+        .sidebar-item:hover {
+            background: #f5f7fa;
+            color: #667eea;
+        }
+        
+        .sidebar-item.active {
+            background: #f0f0ff;
+            color: #667eea;
+            border-left-color: #667eea;
+            font-weight: 600;
+        }
+        
+        .main-content {
+            margin-left: 250px;
+            margin-top: 60px;
+            padding: 2rem;
+            min-height: calc(100vh - 60px);
+        }
+        
+        .header {
+            margin-bottom: 2rem;
+        }
+        
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            color: #666;
+        }
+        
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+        }
+        
+        .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .card h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .card p {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+        
+        .metric-label {
+            color: #999;
+            font-size: 0.85rem;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .section h2 {
+            font-size: 1.3rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .feature-list {
+            list-style: none;
+        }
+        
+        .feature-list li {
+            padding: 0.8rem 0;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            border-bottom: 1px solid #f5f5f5;
+        }
+        
+        .feature-list li:before {
+            content: '✓';
+            color: #4caf50;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .tab {
+            padding: 0.8rem 0;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+        
+        .tab:hover {
+            color: #667eea;
+        }
+        
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            font-weight: 600;
+        }
+        
+        .btn:hover {
+            background: #764ba2;
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #667eea;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .code-block {
+            background: #f5f5f5;
+            border-left: 4px solid #667eea;
+            padding: 1rem;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <div class="navbar">
+        <div class="navbar-brand">🚀 DREDGE Studio</div>
+        <div class="navbar-right">
+            <a href="/docs">Documentation</a>
+            <a href="/api">API Reference</a>
+            <button class="btn-logout" onclick="logout()">Logout</button>
+        </div>
+    </div>
+    
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-item active" onclick="switchTab('overview')">📊 Overview</div>
+        <div class="sidebar-item" onclick="switchTab('cognitive')">🧠 Cognitive Layers</div>
+        <div class="sidebar-item" onclick="switchTab('models')">🤖 Models</div>
+        <div class="sidebar-item" onclick="switchTab('insights')">💡 Insights</div>
+        <div class="sidebar-item" onclick="switchTab('analytics')">📈 Analytics</div>
+        <div class="sidebar-item" onclick="switchTab('settings')">⚙️ Settings</div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        
+        <!-- Overview Tab -->
+        <div id="overview" class="tab-content active">
+            <div class="header">
+                <h1>Welcome to DREDGE Studio</h1>
+                <p>Your AI-powered API gateway dashboard</p>
+            </div>
+            
+            <div class="cards-grid">
+                <div class="card">
+                    <div class="card-icon">⚡</div>
+                    <h3>API Status</h3>
+                    <div class="metric-value">Healthy</div>
+                    <div class="metric-label">99.9% uptime this month</div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-icon">📊</div>
+                    <h3>Requests Today</h3>
+                    <div class="metric-value">12.5K</div>
+                    <div class="metric-label">+24% from yesterday</div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-icon">⚙️</div>
+                    <h3>Avg Response Time</h3>
+                    <div class="metric-value">48ms</div>
+                    <div class="metric-label">Performance grade: A+</div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>Quick Features</h2>
+                <ul class="feature-list">
+                    <li>Three-layer cognitive architecture</li>
+                    <li>Advanced reasoning engine</li>
+                    <li>Strategic decision making</li>
+                    <li>Real-time monitoring and analytics</li>
+                    <li>API key management</li>
+                    <li>Rate limiting and DDoS protection</li>
+                    <li>Automated scaling</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Cognitive Layers Tab -->
+        <div id="cognitive" class="tab-content">
+            <div class="header">
+                <h1>Cognitive Architecture</h1>
+                <p>Three-layer intelligent system</p>
+            </div>
+            
+            <div class="section">
+                <h2>Architecture Layers</h2>
+                
+                <div style="margin-bottom: 2rem;">
+                    <h3 style="margin-bottom: 1rem;">Layer 1: GPT Sol - Reasoning Engine</h3>
+                    <p style="color: #666; margin-bottom: 1rem;">Multi-modal reasoning with deductive, inductive, abductive, and causal analysis</p>
+                    <div class="code-block">POST /gpt-sol/analyze<br>POST /gpt-sol/strategic-plan<br>POST /gpt-sol/ethical-analysis</div>
+                </div>
+                
+                <div style="margin-bottom: 2rem;">
+                    <h3 style="margin-bottom: 1rem;">Layer 2: Tresh - Decision Layer</h3>
+                    <p style="color: #666; margin-bottom: 1rem;">Strategic decision-making with orchestration and learning</p>
+                    <div class="code-block">POST /tresh/decide<br>POST /tresh/orchestrate<br>POST /tresh/adapt</div>
+                </div>
+                
+                <div>
+                    <h3 style="margin-bottom: 1rem;">Layer 3: DREDGE - Execution Layer</h3>
+                    <p style="color: #666; margin-bottom: 1rem;">Application execution with resource management and telemetry</p>
+                    <div class="code-block">POST /nervous-system/request<br>GET /nervous-system/status<br>GET /nervous-system/telemetry</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Models Tab -->
+        <div id="models" class="tab-content">
+            <div class="header">
+                <h1>Model Management</h1>
+                <p>Deploy and manage AI models</p>
+            </div>
+            
+            <div class="section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                    <h2 style="border: none; margin: 0; padding: 0;">Available Models</h2>
+                    <button class="btn">+ Deploy Model</button>
+                </div>
+                
+                <div class="cards-grid">
+                    <div class="card">
+                        <div class="card-icon">🧠</div>
+                        <h3>GPT Sol Reasoning</h3>
+                        <p>Advanced multi-modal reasoning engine</p>
+                        <div style="color: #4caf50; font-weight: 600;">Active</div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-icon">⚙️</div>
+                        <h3>Tresh Decision</h3>
+                        <p>Strategic decision-making system</p>
+                        <div style="color: #4caf50; font-weight: 600;">Active</div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-icon">🚀</div>
+                        <h3>Custom Model</h3>
+                        <p>Deploy your own models</p>
+                        <div style="color: #999; font-weight: 600;">Coming Soon</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Insights Tab -->
+        <div id="insights" class="tab-content">
+            <div class="header">
+                <h1>Insights & Lifting</h1>
+                <p>Deep analysis and recommendations</p>
+            </div>
+            
+            <div class="section">
+                <h2>Recent Insights</h2>
+                <div class="feature-list" style="list-style: none;">
+                    <li style="display: block; padding: 1rem; border: 1px solid #e0e0e0; margin-bottom: 1rem; border-radius: 6px;">
+                        <strong>Performance Optimization</strong><br>
+                        <span style="color: #666;">Your API response times are 20% slower than yesterday. Consider scaling up.</span>
+                    </li>
+                    <li style="display: block; padding: 1rem; border: 1px solid #e0e0e0; margin-bottom: 1rem; border-radius: 6px;">
+                        <strong>Usage Pattern</strong><br>
+                        <span style="color: #666;">Peak traffic occurs between 2-4 PM. Pre-scale your resources accordingly.</span>
+                    </li>
+                    <li style="display: block; padding: 1rem; border: 1px solid #e0e0e0; margin-bottom: 1rem; border-radius: 6px;">
+                        <strong>Error Detection</strong><br>
+                        <span style="color: #666;">3 endpoints are showing elevated error rates. Review recent deployments.</span>
+                    </li>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Analytics Tab -->
+        <div id="analytics" class="tab-content">
+            <div class="header">
+                <h1>Analytics</h1>
+                <p>Detailed metrics and performance data</p>
+            </div>
+            
+            <div class="section">
+                <h2>Key Metrics (Last 24 Hours)</h2>
+                <div class="cards-grid">
+                    <div class="card">
+                        <div class="metric-label">Total Requests</div>
+                        <div class="metric-value">45.2K</div>
+                    </div>
+                    <div class="card">
+                        <div class="metric-label">Avg Latency</div>
+                        <div class="metric-value">45ms</div>
+                    </div>
+                    <div class="card">
+                        <div class="metric-label">Error Rate</div>
+                        <div class="metric-value">0.08%</div>
+                    </div>
+                    <div class="card">
+                        <div class="metric-label">Success Rate</div>
+                        <div class="metric-value">99.92%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Settings Tab -->
+        <div id="settings" class="tab-content">
+            <div class="header">
+                <h1>Settings</h1>
+                <p>Manage your account and preferences</p>
+            </div>
+            
+            <div class="section">
+                <h2>Account Settings</h2>
+                <div style="margin-bottom: 2rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Email</label>
+                    <input type="email" value="user@example.com" disabled style="width: 100%; max-width: 400px; padding: 0.8rem; border: 1px solid #e0e0e0; border-radius: 6px;">
+                </div>
+                
+                <div style="margin-bottom: 2rem;">
+                    <label style="display: block; margin-bottom: 0.5rem; font-weight: 600;">API Key</label>
+                    <input type="text" value="dg_••••••••••••••••••••" disabled style="width: 100%; max-width: 400px; padding: 0.8rem; border: 1px solid #e0e0e0; border-radius: 6px;">
+                    <button class="btn btn-secondary" style="margin-top: 0.5rem;">Regenerate Key</button>
+                </div>
+                
+                <div>
+                    <button class="btn" onclick="saveSettings()">Save Changes</button>
+                    <button class="btn btn-secondary" style="margin-left: 0.5rem;">Disable Account</button>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+    
+    <script>
+        function switchTab(tabName) {
+            // Hide all tabs
+            const tabs = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            
+            // Update sidebar
+            const items = document.querySelectorAll('.sidebar-item');
+            items.forEach(item => item.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+        
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                fetch('/auth/logout', { method: 'POST' })
+                    .then(() => window.location.href = '/')
+                    .catch(err => alert('Logout failed: ' + err));
+            }
+        }
+        
+        function saveSettings() {
+            alert('Settings saved successfully!');
+        }
+    </script>
+</body>
+</html>
