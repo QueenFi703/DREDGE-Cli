@@ -13,13 +13,10 @@ import NaturalLanguage
 
 @main
 struct DredgeApp: App {
-    #if os(iOS)
-    @Environment(\.scenePhase) private var scenePhase
-    #endif
-
     init() {
         #if os(iOS)
         registerBackgroundTasks()
+        scheduleNextProcessing()
         #endif
     }
 
@@ -27,13 +24,6 @@ struct DredgeApp: App {
         WindowGroup {
             ContentView()
         }
-        #if os(iOS)
-        .onChange(of: scenePhase) { phase in
-            if phase == .background {
-                scheduleNextProcessing()
-            }
-        }
-        #endif
     }
 
     #if os(iOS)
@@ -253,11 +243,6 @@ final class VoiceDredger {
             return
         }
 
-        guard audioEngine.inputNode.inputFormat(forBus: 0).channelCount > 0 else {
-            completion(.failure(.microphoneUnavailable))
-            return
-        }
-
         stop()
         latestTranscription = nil
 
@@ -267,6 +252,24 @@ final class VoiceDredger {
             try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
         } catch {
             completion(.failure(.audioSessionFailed))
+            return
+        }
+
+        guard audioSession.recordPermission == .granted else {
+            audioSession.requestRecordPermission { granted in
+                DispatchQueue.main.async {
+                    guard granted else {
+                        completion(.failure(.microphoneUnavailable))
+                        return
+                    }
+                    self.start(completion: completion)
+                }
+            }
+            return
+        }
+
+        guard audioEngine.inputNode.inputFormat(forBus: 0).channelCount > 0 else {
+            completion(.failure(.microphoneUnavailable))
             return
         }
 
