@@ -1,0 +1,43 @@
+name: DREDGE TestFlight
+
+options:
+  bundleIdPrefix: com.dredge
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+  generateEmptyDirectories: true
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    IPHONEOS_DEPLOYMENT_TARGET: "15.0"
+    PRODUCT_BUNDLE_IDENTIFIER: com.dredge.agent
+    INFOPLIST_FILE: swift/DREDGE-TestFlight/Info.plist
+    CODE_SIGN_STYLE: Manual
+    DEVELOPMENT_TEAM: ${APPLE_TEAM_ID}
+    PROVISIONING_PROFILE_SPECIFIER: ${IOS_PROVISIONING_PROFILE_NAME}
+
+targets:
+  DREDGE:
+    type: application
+    platform: iOS
+    sources:
+      - path: swift/DREDGE_MVP_App
+        excludes:
+          - Setup_Notes.md
+          - AboutStrings.strings
+    resources:
+      - path: swift/DREDGE_MVP_App/AboutStrings.strings
+    settings:
+      base:
+        PRODUCT_NAME: DREDGE
+        PRODUCT_BUNDLE_IDENTIFIER: com.dredge.agent
+        INFOPLIST_FILE: swift/DREDGE-TestFlight/Info.plist
+        CODE_SIGN_ENTITLEMENTS: swift/DREDGE-TestFlight/DREDGE.entitlements
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SUPPORTS_MACCATALYST: NO
+        CODE_SIGN_STYLE: Manual
+        DEVELOPMENT_TEAM: ${APPLE_TEAM_ID}
+        PROVISIONING_PROFILE_SPECIFIER: ${IOS_PROVISIONING_PROFILE_NAME}
+    scheme:
+      testTargets: []
+      gatherCoverageData: false
