@@ -1,8 +1,8 @@
-# Railway.app optimized DREDGE production build
-# Keep the runtime process model explicit: start.sh owns the MCP child and
-# the foreground Orion Gateway process. Do not define a second CMD here.
+# Railway.app optimized DREDGE Production Build
+# Multi-stage build for smaller image size and faster deployment
 
-FROM python:3.12-slim AS builder
+FROM python:3.14-slim as builder
+
 
 ENV PYTHONPATH="/app/src:${PYTHONPATH}" \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -10,33 +10,34 @@ ENV PYTHONPATH="/app/src:${PYTHONPATH}" \
 
 WORKDIR /build
 
+# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     git \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy dependency files
 COPY requirements.txt ./
 COPY pyproject.toml ./
 COPY src/ ./src/
-
+# Create virtual environment and install dependencies
 RUN python -m venv /opt/venv && \
     . /opt/venv/bin/activate && \
     pip install --upgrade pip setuptools wheel && \
     pip install -r requirements.txt && \
     pip install .
-
-FROM python:3.12-slim
+# Runtime stage
+FROM python:3.14-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PORT=8000 \
     FLASK_ENV=production \
-    PYTHONPATH="/app/src:${PYTHONPATH}" \
-    PATH="/opt/venv/bin:$PATH" \
-    VIRTUAL_ENV="/opt/venv"
+    PYTHONPATH="/app/src:${PYTHONPATH}"
 
 WORKDIR /app
 
+# Install only runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     libsndfile1 \
@@ -44,23 +45,29 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv
+
+# Copy application code
 COPY src/ ./src/
 COPY wsgi.py .
 COPY README.md LICENSE ./
 COPY start.sh .
+RUN chmod +x start.sh
 
-RUN chmod +x start.sh && \
-    useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
-
+# Create non-root user
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD curl -fsS "http://127.0.0.1:${PORT}/health" || exit 1
+# Activate virtual environment
+ENV PATH="/opt/venv/bin:$PATH" \
+    VIRTUAL_ENV="/opt/venv"
 
-EXPOSE 8000
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/health || exit 1
 
-# Single process supervisor. start.sh launches the MCP child and keeps the
-# Orion Gateway as the sole foreground process for Railway health/restarts.
+EXPOSE ${PORT}
+
+# Start both the MCP server and Orion Gateway
 CMD ["./start.sh"]
