@@ -1,21 +1,22 @@
 // DREDGE – Distill, Recall, Emerge, Detect, Guide, Evolve
 // MVP iOS Dredge Agent
-// SwiftUI + Background Tasks + Voice + Lock Screen Widget
+// SwiftUI + Background Tasks + Voice + Shared Storage
 
 #if canImport(SwiftUI)
 import SwiftUI
 #if os(iOS)
 import BackgroundTasks
+import AVFoundation
+import Speech
 #endif
 import NaturalLanguage
-import Speech
-import AVFoundation
 
 @main
 struct DredgeApp: App {
     init() {
         #if os(iOS)
         registerBackgroundTasks()
+        scheduleNextProcessing()
         #endif
     }
 
@@ -31,26 +32,28 @@ struct DredgeApp: App {
             forTaskWithIdentifier: "com.dredge.agent.process",
             using: nil
         ) { task in
-            handleProcessingTask(task: task as! BGProcessingTask)
+            guard let processingTask = task as? BGProcessingTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            handleProcessingTask(task: processingTask)
         }
     }
 
     private func handleProcessingTask(task: BGProcessingTask) {
         scheduleNextProcessing()
 
-        let queue = OperationQueue()
-        queue.maxConcurrentOperationCount = 1
-
         let operation = DredgeOperation()
-
         task.expirationHandler = {
-            queue.cancelAllOperations()
+            operation.cancel()
         }
 
         operation.completionBlock = {
             task.setTaskCompleted(success: !operation.isCancelled)
         }
 
+        let queue = OperationQueue()
+        queue.maxConcurrentOperationCount = 1
         queue.addOperation(operation)
     }
 
@@ -58,8 +61,13 @@ struct DredgeApp: App {
         let request = BGProcessingTaskRequest(identifier: "com.dredge.agent.process")
         request.requiresNetworkConnectivity = false
         request.requiresExternalPower = false
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
 
-        try? BGTaskScheduler.shared.submit(request)
+        do {
+            try BGTaskScheduler.shared.submit(request)
+        } catch {
+            // Scheduling is best-effort; iOS controls the actual execution time.
+        }
     }
     #endif
 }
@@ -67,11 +75,13 @@ struct DredgeApp: App {
 // MARK: - Core UI
 
 struct ContentView: View {
-    @State private var thoughts: [String] = []
-    @State private var surfacedInsight: String = "Nothing surfaced yet."
+    @State private var thoughts: [String] = SharedStore.loadThoughts()
+    @State private var surfacedInsight: String = SharedStore.loadSurfaced()
     @State private var isRecording = false
-
-    private let voiceDredger = VoiceDredger()
+    @State private var voiceError: String?
+    #if os(iOS)
+    @State private var voiceDredger = VoiceDredger()
+    #endif
 
     var body: some View {
         NavigationView {
@@ -80,17 +90,30 @@ struct ContentView: View {
                     .font(.largeTitle)
                     .fontWeight(.semibold)
 
+                #if os(iOS)
                 Button(isRecording ? "Stop Listening" : "Voice Dredge") {
                     toggleRecording()
                 }
+                #else
+                Text("Voice Dredge is available on iOS.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                #endif
 
                 Button("Process") {
-                    surfacedInsight = DredgeEngine.process(thoughts: thoughts)
+                    processThoughts()
                 }
 
                 Text(surfacedInsight)
                     .italic()
                     .padding()
+
+                if let voiceError {
+                    Text(voiceError)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
 
                 List(thoughts, id: \.self) { thought in
                     Text(thought)
@@ -101,34 +124,56 @@ struct ContentView: View {
         }
     }
 
+    private func processThoughts() {
+        surfacedInsight = DredgeEngine.process(thoughts: thoughts)
+        SharedStore.saveSurfaced(surfacedInsight)
+    }
+
+    #if os(iOS)
     private func toggleRecording() {
+        voiceError = nil
+
         if isRecording {
             voiceDredger.stop()
             if let result = voiceDredger.latestTranscription {
-                thoughts.append(result)
+                let trimmed = result.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmed.isEmpty {
+                    thoughts.append(trimmed)
+                    SharedStore.appendThought(trimmed)
+                }
             }
-        } else {
-            voiceDredger.start()
+            isRecording = false
+            return
         }
-        isRecording.toggle()
+
+        voiceDredger.start { result in
+            switch result {
+            case .success:
+                isRecording = true
+            case .failure(let error):
+                voiceError = error.localizedDescription
+                isRecording = false
+            }
+        }
     }
+    #endif
 }
 
 // MARK: - Dredge Engine
 
 struct DredgeEngine {
-    // Cache NLTagger instance to avoid repeated initialization overhead
     private static let sentimentTagger: NLTagger = {
-        let tagger = NLTagger(tagSchemes: [.sentimentScore])
-        return tagger
+        NLTagger(tagSchemes: [.sentimentScore])
     }()
-    
-    static func process(thoughts: [String]) -> String {
-        guard !thoughts.isEmpty else { return "Still waters." }
 
-        // Efficient string joining - joined() is optimized internally
-        let text = thoughts.joined(separator: ". ")
-        
+    static func process(thoughts: [String]) -> String {
+        let cleaned = thoughts
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        guard !cleaned.isEmpty else { return "Still waters." }
+
+        let text = cleaned.joined(separator: ". ")
         sentimentTagger.string = text
 
         let sentiment = sentimentTagger.tag(
@@ -150,73 +195,157 @@ struct DredgeEngine {
     }
 }
 
+#if os(iOS)
 // MARK: - Voice Dredger
 
 final class VoiceDredger {
+    enum VoiceError: LocalizedError {
+        case speechNotAuthorized
+        case recognizerUnavailable
+        case microphoneUnavailable
+        case audioSessionFailed
+        case recordingFailed
+
+        var errorDescription: String? {
+            switch self {
+            case .speechNotAuthorized:
+                return "Speech recognition permission is required for Voice Dredge."
+            case .recognizerUnavailable:
+                return "Speech recognition is currently unavailable."
+            case .microphoneUnavailable:
+                return "Microphone input is unavailable on this device."
+            case .audioSessionFailed:
+                return "DREDGE could not configure the microphone."
+            case .recordingFailed:
+                return "DREDGE could not start voice capture."
+            }
+        }
+    }
+
     private let audioEngine = AVAudioEngine()
-    private let recognizer = SFSpeechRecognizer()
+    private let recognizer = SFSpeechRecognizer(locale: Locale.current)
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
-    
-    // Configurable buffer size for performance tuning (default: 1024)
-    // Larger buffers reduce CPU overhead but increase latency
     private let bufferSize: AVAudioFrameCount
 
     var latestTranscription: String?
 
     init(bufferSize: AVAudioFrameCount = 1024) {
         self.bufferSize = bufferSize
-        SFSpeechRecognizer.requestAuthorization { _ in }
     }
 
-    func start() {
+    func start(completion: @escaping (Result<Void, VoiceError>) -> Void) {
+        guard SFSpeechRecognizer.authorizationStatus() == .authorized else {
+            SFSpeechRecognizer.requestAuthorization { status in
+                DispatchQueue.main.async {
+                    guard status == .authorized else {
+                        completion(.failure(.speechNotAuthorized))
+                        return
+                    }
+                    self.start(completion: completion)
+                }
+            }
+            return
+        }
+
+        guard let recognizer, recognizer.isAvailable else {
+            completion(.failure(.recognizerUnavailable))
+            return
+        }
+
+        stop()
         latestTranscription = nil
-        request = SFSpeechAudioBufferRecognitionRequest()
-        guard let request = request else { return }
+
+        let audioSession = AVAudioSession.sharedInstance()
+        do {
+            try audioSession.setCategory(.record, mode: .measurement, options: [.duckOthers])
+            try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+        } catch {
+            completion(.failure(.audioSessionFailed))
+            return
+        }
+
+        guard audioSession.recordPermission == .granted else {
+            audioSession.requestRecordPermission { granted in
+                DispatchQueue.main.async {
+                    guard granted else {
+                        completion(.failure(.microphoneUnavailable))
+                        return
+                    }
+                    self.start(completion: completion)
+                }
+            }
+            return
+        }
+
+        guard audioEngine.inputNode.inputFormat(forBus: 0).channelCount > 0 else {
+            completion(.failure(.microphoneUnavailable))
+            return
+        }
+
+        let request = SFSpeechAudioBufferRecognitionRequest()
+        request.shouldReportPartialResults = true
+        self.request = request
 
         let inputNode = audioEngine.inputNode
         let format = inputNode.outputFormat(forBus: 0)
-
-        inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: format) {
-            buffer, _ in request.append(buffer)
+        inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: format) { buffer, _ in
+            request.append(buffer)
         }
 
         audioEngine.prepare()
-        try? audioEngine.start()
 
-        task = recognizer?.recognitionTask(with: request) { result, _ in
-            if let result = result {
-                self.latestTranscription = result.bestTranscription.formattedString
+        do {
+            try audioEngine.start()
+        } catch {
+            inputNode.removeTap(onBus: 0)
+            self.request = nil
+            try? audioSession.setActive(false, options: .notifyOthersOnDeactivation)
+            completion(.failure(.recordingFailed))
+            return
+        }
+
+        task = recognizer.recognitionTask(with: request) { [weak self] result, _ in
+            guard let result else { return }
+            let transcription = result.bestTranscription.formattedString
+            DispatchQueue.main.async {
+                self?.latestTranscription = transcription
             }
         }
+
+        completion(.success(()))
     }
 
     func stop() {
-        audioEngine.stop()
+        if audioEngine.isRunning {
+            audioEngine.stop()
+        }
         audioEngine.inputNode.removeTap(onBus: 0)
         request?.endAudio()
+        request = nil
         task?.cancel()
+        task = nil
+        try? AVAudioSession.sharedInstance().setActive(
+            false,
+            options: .notifyOthersOnDeactivation
+        )
     }
 }
 
 // MARK: - Background Operation
 
-class DredgeOperation: Operation {
+final class DredgeOperation: Operation {
     override func main() {
-        if isCancelled { return }
-        
-        // ⚠️ PERFORMANCE NOTE: This is placeholder code
-        // Thread.sleep() is used here only to simulate processing time for demonstration
-        // In production, this entire operation should be replaced with actual work:
-        //   - Process cached thoughts: DredgeEngine.process(thoughts: loadCachedThoughts())
-        //   - Sync data to SharedStore or cloud services
-        //   - Perform maintenance tasks (cleanup, optimization)
-        //   - Pre-load or cache resources
-        // The actual work will determine the appropriate threading model
-        
-        Thread.sleep(forTimeInterval: 2.0)  // Placeholder - replace entire implementation
-        
-        if isCancelled { return }
+        guard !isCancelled else { return }
+
+        let thoughts = SharedStore.loadThoughts()
+        guard !thoughts.isEmpty else { return }
+
+        let insight = DredgeEngine.process(thoughts: thoughts)
+        guard !isCancelled else { return }
+
+        SharedStore.saveSurfaced(insight)
     }
 }
+#endif
 #endif
