@@ -79,7 +79,9 @@ struct ContentView: View {
     @State private var surfacedInsight: String = SharedStore.loadSurfaced()
     @State private var isRecording = false
     @State private var voiceError: String?
+    #if os(iOS)
     @State private var voiceDredger = VoiceDredger()
+    #endif
 
     var body: some View {
         NavigationView {
@@ -88,9 +90,15 @@ struct ContentView: View {
                     .font(.largeTitle)
                     .fontWeight(.semibold)
 
+                #if os(iOS)
                 Button(isRecording ? "Stop Listening" : "Voice Dredge") {
                     toggleRecording()
                 }
+                #else
+                Text("Voice Dredge is available on iOS.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                #endif
 
                 Button("Process") {
                     processThoughts()
@@ -121,6 +129,7 @@ struct ContentView: View {
         SharedStore.saveSurfaced(surfacedInsight)
     }
 
+    #if os(iOS)
     private func toggleRecording() {
         voiceError = nil
 
@@ -147,6 +156,7 @@ struct ContentView: View {
             }
         }
     }
+    #endif
 }
 
 // MARK: - Dredge Engine
