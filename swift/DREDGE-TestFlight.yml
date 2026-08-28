@@ -10,34 +10,35 @@ settings:
   base:
     SWIFT_VERSION: "5.9"
     IPHONEOS_DEPLOYMENT_TARGET: "15.0"
-    PRODUCT_BUNDLE_IDENTIFIER: com.dredge.agent
-    INFOPLIST_FILE: swift/DREDGE-TestFlight/Info.plist
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
     CODE_SIGN_STYLE: Manual
-    DEVELOPMENT_TEAM: ${APPLE_TEAM_ID}
-    PROVISIONING_PROFILE_SPECIFIER: ${IOS_PROVISIONING_PROFILE_NAME}
+    DEVELOPMENT_TEAM: "$(APPLE_TEAM_ID)"
+    PROVISIONING_PROFILE_SPECIFIER: "$(IOS_PROVISIONING_PROFILE_NAME)"
 
 targets:
   DREDGE:
     type: application
     platform: iOS
     sources:
-      - path: swift/DREDGE_MVP_App
+      - path: DREDGE_MVP_App
         excludes:
           - Setup_Notes.md
-          - AboutStrings.strings
     resources:
-      - path: swift/DREDGE_MVP_App/AboutStrings.strings
+      - path: DREDGE_MVP_App/AboutStrings.strings
     settings:
       base:
         PRODUCT_NAME: DREDGE
         PRODUCT_BUNDLE_IDENTIFIER: com.dredge.agent
-        INFOPLIST_FILE: swift/DREDGE-TestFlight/Info.plist
-        CODE_SIGN_ENTITLEMENTS: swift/DREDGE-TestFlight/DREDGE.entitlements
+        INFOPLIST_FILE: DREDGE-TestFlight/Info.plist
+        CODE_SIGN_ENTITLEMENTS: DREDGE-TestFlight/DREDGE.entitlements
         TARGETED_DEVICE_FAMILY: "1,2"
         SUPPORTS_MACCATALYST: NO
         CODE_SIGN_STYLE: Manual
-        DEVELOPMENT_TEAM: ${APPLE_TEAM_ID}
-        PROVISIONING_PROFILE_SPECIFIER: ${IOS_PROVISIONING_PROFILE_NAME}
+        DEVELOPMENT_TEAM: "$(APPLE_TEAM_ID)"
+        PROVISIONING_PROFILE_SPECIFIER: "$(IOS_PROVISIONING_PROFILE_NAME)"
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
     scheme:
       testTargets: []
       gatherCoverageData: false
