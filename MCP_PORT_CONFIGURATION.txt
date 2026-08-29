@@ -1,0 +1,450 @@
+DREDGE MCP INTEGRATION - PORT CONFIGURATION & MCP CAPABILITIES
+==============================================================
+
+VERSION: 2.5.0
+DEPLOYMENT: Ready for Production
+STATUS: All ports configured and MCP endpoint live
+
+============================================================================
+PORT CONFIGURATION
+============================================================================
+
+Port 3002: MCP Server (Model Context Protocol)
+  - Role: Provides tool definitions and capabilities
+  - URL: http://127.0.0.1:3002
+  - Access: All MCP tools and capabilities
+  - Docs: http://127.0.0.1:3002/docs
+
+Port 8001: DREDGE Server (Execution Layer)
+  - Role: Plan execution and resource management
+  - URL: http://127.0.0.1:8001
+  - Features: Execute plans, manage resources, telemetry
+  - Docs: http://127.0.0.1:8001/docs
+
+Port 8080: Gateway (Fallback / Primary)
+  - Role: API Gateway and frontend
+  - URL: http://127.0.0.1:8080
+  - MCP Endpoint: http://127.0.0.1:8080/mcp
+  - Dashboard: http://127.0.0.1:8080/dashboard
+  - API Docs: http://127.0.0.1:8080/swagger
+
+============================================================================
+MCP ENDPOINT - http://127.0.0.1:8080/mcp
+============================================================================
+
+Main Endpoint:
+  GET http://127.0.0.1:8080/mcp
+  
+  Returns:
+  - Aggregated MCP capabilities
+  - All tools available
+  - Integration status (MCP, Gateway, DREDGE)
+  - Port configuration
+  - Documentation links
+
+Sub-endpoints:
+
+1. /mcp/tools
+   GET http://127.0.0.1:8080/mcp/tools
+   Returns: All available MCP tools
+
+2. /mcp/capabilities/cognitive
+   GET http://127.0.0.1:8080/mcp/capabilities/cognitive
+   Returns: Cognitive layers capabilities
+
+3. /mcp/capabilities/security
+   GET http://127.0.0.1:8080/mcp/capabilities/security
+   Returns: Security capabilities
+
+4. /mcp/capabilities/features
+   GET http://127.0.0.1:8080/mcp/capabilities/features
+   Returns: Feature capabilities
+
+5. /mcp/capabilities/integration
+   GET http://127.0.0.1:8080/mcp/capabilities/integration
+   Returns: Integration capabilities
+
+============================================================================
+MCP TOOLS AVAILABLE (8 total)
+============================================================================
+
+1. analyze_request
+   Description: Multi-modal reasoning analysis
+   Inputs: problem, context, reasoning_types
+   Endpoint: POST /gpt-sol/analyze
+
+2. make_decision
+   Description: Strategic decision making
+   Inputs: type, problem, options, constraints
+   Endpoint: POST /tresh/decide
+
+3. execute_plan
+   Description: Execute a plan
+   Inputs: plan_id, steps, resources
+   Endpoint: POST /execute/plan
+
+4. cognitive_pipeline
+   Description: Full cognitive pipeline (reasoning → decision → execution)
+   Inputs: request_type, problem, context, include_reasoning, include_telemetry
+   Endpoint: POST /nervous-system/request
+
+5. get_system_status
+   Description: Get system status and health metrics
+   Inputs: include_metrics, include_adapters
+   Endpoint: GET /status
+
+6. manage_api_keys
+   Description: Manage API keys
+   Inputs: action, key_name, tier
+   Endpoint: POST /auth/keys
+
+7. monitor_performance
+   Description: Monitor API performance
+   Inputs: metric, time_window, include_forecast
+   Endpoint: GET /analytics/performance
+
+8. query_documentation
+   Description: Query API documentation
+   Inputs: query, section
+   Endpoint: GET /docs/search
+
+============================================================================
+COGNITIVE LAYERS (Via MCP)
+============================================================================
+
+Layer 1: GPT Sol - Reasoning Engine (Port 8080)
+  Capabilities:
+    - Deductive reasoning
+    - Inductive reasoning
+    - Abductive reasoning
+    - Causal analysis
+    - Ethical assessment
+    - Confidence scoring
+  
+  Endpoints:
+    POST /gpt-sol/analyze
+    POST /gpt-sol/strategic-plan
+    POST /gpt-sol/ethical-analysis
+    GET /gpt-sol/state
+
+Layer 2: Tresh - Decision Layer (Port 8080)
+  Capabilities:
+    - Strategic decisions
+    - Tactical decisions
+    - Adaptive decisions
+    - Emergency decisions
+    - Agent orchestration
+    - Performance learning
+    - Strategy adaptation
+  
+  Endpoints:
+    POST /tresh/decide
+    POST /tresh/orchestrate
+    POST /tresh/adapt
+    GET /tresh/metrics
+
+Layer 3: DREDGE - Execution Layer (Port 8001)
+  Capabilities:
+    - Plan execution
+    - Resource management
+    - Performance telemetry
+    - Error handling
+    - Graceful degradation
+    - Rollback support
+  
+  Endpoints:
+    POST /execute/plan
+    GET /execute/status
+    GET /execute/telemetry
+    POST /execute/rollback
+
+============================================================================
+SECURITY CAPABILITIES (Via MCP)
+============================================================================
+
+Authentication:
+  ✓ Email/password login
+  ✓ OAuth (GitHub, Google)
+  ✓ API key management
+  ✓ Session management
+  ✓ 2FA support (planned)
+
+Protection:
+  ✓ CORS restrictions
+  ✓ Rate limiting
+  ✓ Input validation
+  ✓ SQL injection prevention
+  ✓ XSS protection
+  ✓ CSRF protection
+  ✓ Security headers
+
+Audit:
+  ✓ Request logging
+  ✓ Performance tracking
+  ✓ Error monitoring
+  ✓ Access control
+  ✓ Compliance reporting
+
+============================================================================
+FEATURE CAPABILITIES (Via MCP)
+============================================================================
+
+Dashboard:
+  - Metrics and status
+  - Cognitive architecture info
+  - Model management
+  - Insights and recommendations
+  - Analytics display
+  - Settings management
+
+API Documentation:
+  - Interactive API explorer
+  - Endpoint documentation
+  - Request/response examples
+  - Authentication details
+  - Rate limit information
+  - Error codes reference
+
+Analytics:
+  - Request tracking
+  - Latency monitoring
+  - Error rate analysis
+  - Performance forecasting
+  - Usage patterns
+  - Cost estimation
+
+Monitoring:
+  - Health checks
+  - Detailed status
+  - Kubernetes readiness/liveness
+  - Gateway status
+  - Performance metrics
+
+============================================================================
+INTEGRATION CAPABILITIES (Via MCP)
+============================================================================
+
+MCP Server (Port 3002):
+  - Tool invocation
+  - Resource access
+  - Sampling support
+  - Logging support
+  - Async operations
+  - 8 tools total
+
+Gateway (Port 8080):
+  - Request routing
+  - Load balancing
+  - Rate limiting
+  - Caching
+  - Compression
+
+DREDGE Server (Port 8001):
+  - Execution engine
+  - Resource manager
+  - Telemetry collector
+  - Performance optimizer
+
+============================================================================
+HOW TO START ALL SERVERS
+============================================================================
+
+Option 1: Multi-Server Launcher (Recommended)
+  python start_servers.py
+  
+  This starts all three servers in sequence:
+    1. MCP Server (3002)
+    2. DREDGE Server (8001)
+    3. Gateway (8080)
+
+Option 2: Individual Servers
+  Terminal 1: python mcp_server.py
+  Terminal 2: python dredge_server.py
+  Terminal 3: python core_gateway.py
+
+Option 3: Docker Deployment
+  docker build -f Dockerfile.railway -t dredge:latest .
+  
+  Configure ports:
+    - EXPOSE 3002 8001 8080
+    - MCP_PORT=3002
+    - DREDGE_PORT=8001
+    - GATEWAY_PORT=8080
+
+============================================================================
+TEST THE MCP ENDPOINT
+============================================================================
+
+1. Start all servers:
+   python start_servers.py
+
+2. Access MCP capabilities:
+   curl http://127.0.0.1:8080/mcp
+
+3. List all tools:
+   curl http://127.0.0.1:8080/mcp/tools
+
+4. Get cognitive capabilities:
+   curl http://127.0.0.1:8080/mcp/capabilities/cognitive
+
+5. Get security capabilities:
+   curl http://127.0.0.1:8080/mcp/capabilities/security
+
+6. Get feature capabilities:
+   curl http://127.0.0.1:8080/mcp/capabilities/features
+
+7. Get integration capabilities:
+   curl http://127.0.0.1:8080/mcp/capabilities/integration
+
+8. Access UI:
+   Browser: http://127.0.0.1:8080/
+   Dashboard: http://127.0.0.1:8080/dashboard
+   MCP Info: http://127.0.0.1:8080/mcp
+
+============================================================================
+DEPLOYMENT CONFIGURATION
+============================================================================
+
+For Railway/Vercel Deployment:
+
+Environment Variables:
+  MCP_PORT=3002
+  DREDGE_PORT=8001
+  GATEWAY_PORT=8080
+  MCP_URL=http://127.0.0.1:3002
+  DREDGE_URL=http://127.0.0.1:8001
+  GATEWAY_URL=http://127.0.0.1:8080
+
+Dockerfile Configuration:
+  EXPOSE 3002 8001 8080
+  
+  Start Command:
+    CMD python start_servers.py
+
+vercel.json Configuration:
+  {
+    "buildCommand": "pip install -r requirements.txt",
+    "devCommand": "python start_servers.py",
+    "functions": {
+      "mcp_server.py": {"memory": 1024},
+      "dredge_server.py": {"memory": 512},
+      "core_gateway.py": {"memory": 512}
+    }
+  }
+
+railway.toml Configuration:
+  [build]
+  builder = "dockerfile"
+  dockerfile = "Dockerfile.railway"
+  
+  [deploy]
+  startCommand = "python start_servers.py"
+  
+  [[services]]
+  name = "mcp"
+  port = 3002
+  
+  [[services]]
+  name = "dredge"
+  port = 8001
+  
+  [[services]]
+  name = "gateway"
+  port = 8080
+
+============================================================================
+MONITORING & HEALTH CHECKS
+============================================================================
+
+Health Endpoints:
+
+Gateway Health (Port 8080):
+  GET http://127.0.0.1:8080/health
+  GET http://127.0.0.1:8080/health/detailed
+
+MCP Server Health (Port 3002):
+  GET http://127.0.0.1:3002/health
+  GET http://127.0.0.1:3002/status
+
+DREDGE Server Health (Port 8001):
+  GET http://127.0.0.1:8001/health
+  GET http://127.0.0.1:8001/health/detailed
+  GET http://127.0.0.1:8001/execute/status
+  GET http://127.0.0.1:8001/execute/telemetry
+
+Kubernetes Probes:
+
+Readiness:
+  GET http://127.0.0.1:8080/health/readiness
+
+Liveness:
+  GET http://127.0.0.1:8080/health/liveness
+
+============================================================================
+API DOCUMENTATION
+============================================================================
+
+Interactive API Docs:
+  Gateway: http://127.0.0.1:8080/swagger
+  MCP: http://127.0.0.1:3002/docs
+  DREDGE: http://127.0.0.1:8001/docs
+
+ReDoc Alternative:
+  http://127.0.0.1:8080/redoc
+
+OpenAPI Schema:
+  http://127.0.0.1:8080/openapi.json
+
+============================================================================
+QUICK REFERENCE
+============================================================================
+
+Main Entry Point:
+  http://127.0.0.1:8080/
+
+MCP Capabilities:
+  http://127.0.0.1:8080/mcp
+
+All Tools:
+  http://127.0.0.1:8080/mcp/tools
+
+Dashboard:
+  http://127.0.0.1:8080/dashboard
+
+API Docs (Swagger):
+  http://127.0.0.1:8080/swagger
+
+System Status:
+  http://127.0.0.1:8080/status
+
+MCP Server Direct:
+  http://127.0.0.1:3002/
+
+DREDGE Server Direct:
+  http://127.0.0.1:8001/
+
+============================================================================
+SUMMARY
+============================================================================
+
+✓ Port 3002: MCP Server (Model Context Protocol)
+✓ Port 8001: DREDGE Execution Server
+✓ Port 8080: Gateway (Fallback/Primary)
+
+✓ /mcp endpoint at http://127.0.0.1:8080/mcp
+
+✓ 8 MCP Tools available
+✓ 3 Cognitive Layers
+✓ Security capabilities documented
+✓ Features elaborated
+✓ Integration points configured
+
+✓ Multi-server launcher ready
+✓ Docker/Railway/Vercel configs ready
+✓ All endpoints documented
+✓ Health checks configured
+
+Status: Production Ready ✓
+
+Start: python start_servers.py
+Access: http://127.0.0.1:8080/mcp

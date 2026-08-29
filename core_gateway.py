@@ -1,13 +1,15 @@
 """
-DREDGE CORE GATEWAY - Fixed with Authentication and Login
+DREDGE CORE GATEWAY - Port 8080 (Fallback)
 Architecture: Unified ASGI Spine with Modular Adapters
+Integrated with MCP Server (3002) and DREDGE Server (8001)
 """
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from pathlib import Path
 import logging
+import httpx
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -83,7 +85,13 @@ async def root():
 @app.get("/health", tags=["Core"])
 async def health():
     """Health check"""
-    return {"status": "healthy", "service": "dredge-studio", "version": "2.5.0"}
+    return {
+        "status": "healthy",
+        "service": "dredge-studio",
+        "version": "2.5.0",
+        "port": 8080,
+        "gateway": "primary"
+    }
 
 @app.get("/status", tags=["Core"])
 async def status():
@@ -93,7 +101,13 @@ async def status():
         "status": "operational",
         "service": "DREDGE Studio",
         "version": "2.5.0",
-        "adapters": {"enabled": enabled, "total": len(adapter_registry.list_adapters())}
+        "port": 8080,
+        "adapters": {"enabled": enabled, "total": len(adapter_registry.list_adapters())},
+        "ports": {
+            "gateway": 8080,
+            "mcp": 3002,
+            "dredge": 8001
+        }
     }
 
 @app.get("/dashboard", tags=["Pages"], response_class=HTMLResponse)
@@ -105,6 +119,108 @@ async def dashboard():
         return dashboard_html.read_text()
     
     return "<h1>Dashboard</h1><p>Coming soon</p>"
+
+# ============================================================================
+# MCP INTEGRATION ENDPOINT
+# ============================================================================
+
+@app.get("/mcp", tags=["MCP"], response_class=JSONResponse)
+async def mcp_capabilities():
+    """
+    Main MCP capabilities endpoint
+    Aggregates all MCP tools and DREDGE capabilities
+    Access: http://127.0.0.1:8080/mcp
+    """
+    
+    try:
+        # Fetch MCP tools and capabilities from MCP server
+        async with httpx.AsyncClient() as client:
+            mcp_response = await client.get("http://127.0.0.1:3002/capabilities", timeout=2.0)
+            mcp_data = mcp_response.json() if mcp_response.status_code == 200 else None
+    except Exception as e:
+        logger.warning(f"[MCP] Could not reach MCP server: {e}")
+        mcp_data = None
+    
+    try:
+        # Fetch DREDGE server status
+        async with httpx.AsyncClient() as client:
+            dredge_response = await client.get("http://127.0.0.1:8001/", timeout=2.0)
+            dredge_data = dredge_response.json() if dredge_response.status_code == 200 else None
+    except Exception as e:
+        logger.warning(f"[DREDGE] Could not reach DREDGE server: {e}")
+        dredge_data = None
+    
+    return {
+        "status": "success",
+        "endpoint": "/mcp",
+        "description": "DREDGE MCP Capabilities and Tools Elaboration",
+        "gateway_port": 8080,
+        "mcp_port": 3002,
+        "dredge_port": 8001,
+        "mcp_data": mcp_data or {
+            "status": "offline",
+            "message": "MCP server not reachable at 127.0.0.1:3002"
+        },
+        "dredge_data": dredge_data or {
+            "status": "offline",
+            "message": "DREDGE server not reachable at 127.0.0.1:8001"
+        },
+        "documentation": {
+            "mcp": "http://127.0.0.1:3002/docs",
+            "gateway": "http://127.0.0.1:8080/swagger",
+            "dredge": "http://127.0.0.1:8001/docs"
+        }
+    }
+
+@app.get("/mcp/tools", tags=["MCP"])
+async def mcp_tools():
+    """List all MCP tools"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get("http://127.0.0.1:3002/tools", timeout=2.0)
+            return response.json() if response.status_code == 200 else {"status": "offline"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/mcp/capabilities/cognitive", tags=["MCP"])
+async def mcp_cognitive():
+    """Get cognitive layers capabilities"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get("http://127.0.0.1:3002/capabilities/cognitive", timeout=2.0)
+            return response.json() if response.status_code == 200 else {"status": "offline"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/mcp/capabilities/security", tags=["MCP"])
+async def mcp_security():
+    """Get security capabilities"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get("http://127.0.0.1:3002/capabilities/security", timeout=2.0)
+            return response.json() if response.status_code == 200 else {"status": "offline"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/mcp/capabilities/features", tags=["MCP"])
+async def mcp_features():
+    """Get feature capabilities"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get("http://127.0.0.1:3002/capabilities/features", timeout=2.0)
+            return response.json() if response.status_code == 200 else {"status": "offline"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.get("/mcp/capabilities/integration", tags=["MCP"])
+async def mcp_integration():
+    """Get integration capabilities"""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get("http://127.0.0.1:3002/capabilities/integration", timeout=2.0)
+            return response.json() if response.status_code == 200 else {"status": "offline"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 # ============================================================================
 # STUDIO ADAPTER
@@ -125,7 +241,8 @@ def create_studio_adapter():
                 "Advanced Features",
                 "Model Management",
                 "Pipeline Visualization",
-                "Analytics & Insights"
+                "Analytics & Insights",
+                "MCP Integration"
             ]
         }
     
@@ -147,7 +264,13 @@ def create_health_adapter():
             "status": "healthy",
             "service": "dredge-studio",
             "version": "2.5.0",
-            "adapters": {n: a["enabled"] for n, a in adapter_registry.list_adapters().items()}
+            "port": 8080,
+            "adapters": {n: a["enabled"] for n, a in adapter_registry.list_adapters().items()},
+            "ports": {
+                "gateway": 8080,
+                "mcp": 3002,
+                "dredge": 8001
+            }
         }
     
     @router.get("/readiness")
@@ -214,7 +337,7 @@ def mount_auth():
 async def startup_event():
     """Startup initialization"""
     logger.info("=" * 80)
-    logger.info("DREDGE STUDIO - Starting up")
+    logger.info("DREDGE STUDIO - Starting up on Port 8080")
     logger.info("=" * 80)
     
     logger.info("Mounting authentication system...")
@@ -230,7 +353,17 @@ async def startup_event():
         logger.info(f"  {status_icon} {name}: {adapter['description']}")
     
     logger.info("")
-    logger.info("Ready at http://localhost:8000")
+    logger.info("Port Configuration:")
+    logger.info("  - Gateway:   http://127.0.0.1:8080/")
+    logger.info("  - MCP Server: http://127.0.0.1:3002/")
+    logger.info("  - DREDGE Server: http://127.0.0.1:8001/")
+    logger.info("")
+    logger.info("Access Points:")
+    logger.info("  - Home:      http://127.0.0.1:8080/")
+    logger.info("  - MCP Info:  http://127.0.0.1:8080/mcp")
+    logger.info("  - MCP Tools: http://127.0.0.1:8080/mcp/tools")
+    logger.info("  - Dashboard: http://127.0.0.1:8080/dashboard")
+    logger.info("  - Swagger:   http://127.0.0.1:8080/swagger")
     logger.info("=" * 80)
 
 # ============================================================================
@@ -239,4 +372,4 @@ async def startup_event():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000, reload=True, log_level="info")
+    uvicorn.run(app, host="127.0.0.1", port=8080, reload=True, log_level="info")
