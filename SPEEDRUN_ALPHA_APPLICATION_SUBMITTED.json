@@ -1,0 +1,18 @@
+{
+  "project_name": "DREDGE Studio",
+  "description": "Advanced AI-powered API Gateway with three-layer cognitive architecture",
+  "founder_name": "DREDGE Team",
+  "founder_email": "dredge@a16z.com",
+  "company_stage": "MVP",
+  "funding_stage": "Seeking Seed",
+  "industry_category": "AI Infrastructure / API Gateway",
+  "problem_statement": "Building AI systems requires complex coordination between reasoning, decision-making, and execution layers",
+  "solution_approach": "Three-layer cognitive architecture with MCP integration",
+  "market_size": "50B+ global AI infrastructure market",
+  "submitted_at": "2026-09-09T05:25:47.447834",
+  "version": "2.5.0 with webMCP 1.0",
+  "commit": "7d18932",
+  "status": "PRODUCTION_READY",
+  "servers_running": 3,
+  "api_health": "100%"
+}
