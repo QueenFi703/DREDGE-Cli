@@ -1,0 +1,66 @@
+{
+  "submission_id": "9c56c32e954a98f2",
+  "intake_token": "intake_2155a108777a2f9824118d58",
+  "timestamp": "2026-09-09T05:43:53.594336",
+  "applicant": {
+    "name": "DREDGE Team",
+    "email": "sophacola86@gmail.com",
+    "verified": true
+  },
+  "project": {
+    "name": "DREDGE Studio",
+    "description": "Advanced AI-powered API Gateway with three-layer cognitive architecture",
+    "stage": "MVP",
+    "funding_sought": "Seed",
+    "industry": "AI Infrastructure / API Gateway"
+  },
+  "application": {
+    "project_name": "DREDGE Studio",
+    "description": "Advanced AI-powered API Gateway with three-layer cognitive architecture",
+    "founder_name": "DREDGE Team",
+    "founder_email": "sophacola86@gmail.com",
+    "company_stage": "MVP",
+    "funding_stage": "Seed",
+    "industry_category": "AI Infrastructure / API Gateway",
+    "problem_statement": "Building AI systems requires complex coordination between reasoning, decision-making, and execution layers. Existing solutions lack integrated cognitive architecture, comprehensive orchestration, and production-grade security.",
+    "solution_approach": "Three-layer cognitive architecture with MCP integration, webMCP orchestration, real-time streaming, and comprehensive security hardening.",
+    "market_size": "50B+ global AI infrastructure market with 20% annual growth",
+    "traction_metrics": {
+      "development_stage": "Production-ready MVP",
+      "features_complete": 50,
+      "servers_running": 3,
+      "api_endpoints": 25,
+      "security_score": "8.5/10"
+    },
+    "team_composition": {
+      "ai_engineers": "Experienced in reasoning and decision systems",
+      "infrastructure": "Production deployment specialists",
+      "security": "Comprehensive hardening experts"
+    },
+    "financial_projections": {
+      "year_1": "$500K",
+      "year_2": "$2.5M",
+      "year_3": "$10M",
+      "gross_margin": "70%"
+    },
+    "use_of_funds": {
+      "product_development": "40%",
+      "go_to_market": "35%",
+      "infrastructure": "15%",
+      "operations": "10%"
+    },
+    "tos_accepted": true,
+    "email_verified": true
+  },
+  "schema": {
+    "version": "1.0",
+    "hash": "cb20286a1d96a55cd4924146022075e17b742fbf8abac7a3f674147e35df54bf",
+    "fields_validated": 16
+  },
+  "validation": {
+    "server_side": true,
+    "tos_accepted": true,
+    "email_verified": true
+  },
+  "status": "SUBMITTED"
+}
