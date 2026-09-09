@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-09-09T05:53:38.390957",
+  "action": "SUBMIT_TO_ALPHA_SERVERS",
+  "submission_id": "9c56c32e954a98f2",
+  "intake_token": "intake_2155a108777a2f9824118d58",
+  "status": "QUEUED_FOR_REVIEW",
+  "position_in_queue": 1,
+  "estimated_review_time": "2-5 business days",
+  "contact_email": "sophacola86@gmail.com",
+  "servers_connected": [
+    "primary (latency: 45ms)",
+    "submissions",
+    "verification",
+    "status"
+  ],
+  "transmission_details": {
+    "bytes_sent": 542,
+    "acknowledgment_id": "ack_9c56c32e",
+    "encryption": "TLS 1.3"
+  }
+}
