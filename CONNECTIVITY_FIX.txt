@@ -1,0 +1,455 @@
+CONNECTIVITY TROUBLESHOOTING GUIDE
+===================================
+
+Issue: 127.0.0.1 is refusing to connect
+Solution: Follow this guide to diagnose and fix
+
+============================================================================
+QUICK FIX (DO THIS FIRST)
+============================================================================
+
+1. Kill any existing processes on the ports:
+
+   Windows (PowerShell as Admin):
+     Get-NetTCPConnection -State Listen | Where-Object {$_.LocalPort -in 3000,3002,8001,8002,8080} | Stop-Process -Force
+   
+   Or simpler - just restart your computer
+
+2. Run the fixed startup script:
+   
+   python startup_fixed.py
+
+   This will:
+   - Run diagnostics
+   - Clear any stuck ports
+   - Start all services
+   - Test connectivity
+   - Display access points
+
+3. Open browser:
+   
+   http://127.0.0.1:3000/
+
+Done! Services should now be accessible.
+
+============================================================================
+STEP-BY-STEP DIAGNOSTICS
+============================================================================
+
+Step 1: Check if Ports Are Available
+
+   Windows (PowerShell):
+   ```
+   Get-NetTCPConnection -State Listen | Select-Object LocalPort
+   ```
+   
+   Should NOT show: 3000, 3002, 8001, 8002, 8080
+   
+   If they appear, something is already using them.
+
+Step 2: Check Python Installation
+
+   ```
+   python --version
+   python -m pip list | findstr "fastapi uvicorn httpx"
+   ```
+   
+   Should show:
+   - fastapi (version 0.100+)
+   - uvicorn (version 0.20+)
+   - httpx (version 0.24+)
+   
+   If missing, install:
+   ```
+   pip install fastapi uvicorn httpx
+   ```
+
+Step 3: Verify Required Files Exist
+
+   Required files in current directory:
+   ```
+   webmcp.py
+   mcp_server.py
+   dredge_server.py
+   core_gateway.py
+   speedrun_alpha_mcp.py
+   ```
+   
+   If missing, check git:
+   ```
+   git status
+   git pull origin master
+   ```
+
+Step 4: Check Firewall Settings
+
+   Windows Firewall may block localhost connections:
+   
+   Option A: Allow Python through firewall
+     - Windows Security
+     - Firewall & Network Protection
+     - Allow an app through firewall
+     - Find Python (python.exe)
+     - Check Private networks
+   
+   Option B: Disable Windows Firewall (for testing only)
+     ```
+     netsh advfirewall set allprofiles state off
+     ```
+   
+   Option C: Add firewall rule
+     ```
+     netsh advfirewall firewall add rule name="DREDGE Localhost" dir=in action=allow protocol=tcp localport=3000,3002,8001,8002,8080
+     ```
+
+Step 5: Check Localhost Resolution
+
+   ```
+   ping 127.0.0.1
+   ping localhost
+   ```
+   
+   Both should respond with your machine's IP
+   
+   If not, check hosts file:
+   ```
+   cat C:\Windows\System32\drivers\etc\hosts
+   ```
+   
+   Should contain:
+   ```
+   127.0.0.1       localhost
+   ::1             localhost
+   ```
+
+============================================================================
+COMMON ISSUES & FIXES
+============================================================================
+
+Issue: "Connection refused"
+Fix: Servers not running
+  - Run: python startup_fixed.py
+  - Check error output
+  - Verify all required files exist
+
+Issue: "Connection timed out"
+Fix: Firewall blocking connections
+  - Disable Windows Firewall temporarily
+  - Or add Python to firewall exceptions
+  - Or use 0.0.0.0 instead of 127.0.0.1 (bind to all interfaces)
+
+Issue: "Port already in use"
+Fix: Another process using the port
+  - Kill existing processes:
+    Get-Process python | Stop-Process -Force
+  - Or restart computer
+  - Or use different ports in configuration
+
+Issue: "Module not found (fastapi, uvicorn, etc.)"
+Fix: Dependencies not installed
+  - Run: pip install -r requirements.txt
+  - Or: pip install fastapi uvicorn httpx slowapi
+
+Issue: "Python: No module named 'webmcp'"
+Fix: Script not found or working directory wrong
+  - Check: ls -la *.py (or dir *.py on Windows)
+  - Verify you're in the right directory: pwd (or cd on Windows)
+  - Check: git status (ensure files are committed)
+
+Issue: "Cannot connect after firewall disabled"
+Fix: Localhost resolution issue
+  - Verify hosts file has 127.0.0.1 localhost
+  - Try: curl http://localhost:3000 (instead of 127.0.0.1)
+  - Check DNS: ipconfig /all (Windows)
+
+Issue: "Services start but immediately exit"
+Fix: Script errors or missing dependencies
+  - Run script directly: python webmcp.py
+  - Check error output for specific errors
+  - Ensure all imports are satisfied: python -c "import fastapi; import uvicorn"
+
+============================================================================
+ADVANCED DIAGNOSTICS
+============================================================================
+
+Check if Server Process is Running:
+
+  ```
+  Get-Process python | Where-Object {$_.ProcessName -eq 'python'} | Select-Object Name, Id, CPU, Memory
+  ```
+
+Check Network Listening Ports:
+
+  ```
+  Get-NetTCPConnection -State Listen | Where-Object {$_.LocalAddress -eq '127.0.0.1'}
+  ```
+
+Check DNS/Hosts:
+
+  ```
+  nslookup localhost
+  nslookup 127.0.0.1
+  ```
+
+Test Connectivity Directly:
+
+  ```
+  python -c "import socket; s=socket.socket(); s.connect(('127.0.0.1', 3000)); print('Connected'); s.close()"
+  ```
+
+Test HTTP Endpoint:
+
+  ```
+  python -c "import requests; print(requests.get('http://127.0.0.1:3000/api/health').status_code)"
+  ```
+
+Stream Server Logs:
+
+  ```
+  Get-Content server.log -Tail 100 -Wait
+  ```
+
+============================================================================
+USING FIXED STARTUP SCRIPT
+============================================================================
+
+The startup_fixed.py script provides:
+
+✓ Automatic Diagnostics
+  - Checks Python version
+  - Verifies required files
+  - Tests port availability
+  - Validates required packages
+
+✓ Port Management
+  - Checks if ports are available
+  - Kills existing processes
+  - Waits for ports to open
+  - Retries if needed
+
+✓ Error Handling
+  - Graceful error recovery
+  - Continues if one service fails
+  - Comprehensive error messages
+
+✓ Connectivity Testing
+  - Tests each service after startup
+  - Confirms server is responding
+  - Reports status
+
+✓ User Feedback
+  - Clear progress indicators
+  - Access point display
+  - Status summary
+  - Quick links
+
+Usage:
+
+  1. Run: python startup_fixed.py
+  2. Press Enter when prompted
+  3. Wait for all services to start
+  4. Open: http://127.0.0.1:3000/
+  5. Press CTRL+C to stop all services
+
+============================================================================
+MANUAL STARTUP (If Script Fails)
+============================================================================
+
+Terminal 1 - Start webMCP:
+  python webmcp.py
+
+Terminal 2 - Start MCP Server:
+  python mcp_server.py
+
+Terminal 3 - Start DREDGE Server:
+  python dredge_server.py
+
+Terminal 4 - Start Gateway:
+  python core_gateway.py
+
+Terminal 5 - Test Connection:
+  python -m http.client 127.0.0.1 3000
+  GET / HTTP/1.1
+
+Access in Browser:
+  http://127.0.0.1:3000/
+  http://127.0.0.1:3002/docs
+  http://127.0.0.1:8001/docs
+  http://127.0.0.1:8080/swagger
+
+============================================================================
+ALTERNATIVE: USE DIFFERENT LOCALHOST ADDRESS
+============================================================================
+
+If 127.0.0.1 continues to have issues, try:
+
+Option 1: Use "localhost" instead
+  http://localhost:3000/
+
+Option 2: Use Machine IP Address
+  ipconfig getifaddr en0  (Mac/Linux)
+  ipconfig (Windows)
+  Look for IPv4 Address, e.g., 192.168.1.100
+  http://192.168.1.100:3000/
+
+Option 3: Bind to All Interfaces (0.0.0.0)
+  Edit each server script:
+  uvicorn.run(app, host="0.0.0.0", port=3000)
+  
+  Then access via:
+  http://localhost:3000/
+  http://127.0.0.1:3000/
+  http://<your-ip>:3000/
+
+============================================================================
+WINDOWS-SPECIFIC FIXES
+============================================================================
+
+Fix 1: Run Python as Administrator
+  - Right-click PowerShell
+  - Choose "Run as administrator"
+  - Run: python startup_fixed.py
+
+Fix 2: Disable IPv6 (if localhost resolution fails)
+  - Settings
+  - Network & Internet
+  - IPv6
+  - Disable
+
+Fix 3: Clear DNS Cache
+  ```
+  ipconfig /flushdns
+  ```
+
+Fix 4: Reset Network Stack
+  ```
+  netsh int ip reset
+  netsh winsock reset
+  ```
+  (Requires admin, restart needed)
+
+Fix 5: Check for Port Forwarding
+  ```
+  netsh interface portproxy show all
+  ```
+  
+  Delete if needed:
+  ```
+  netsh interface portproxy delete v4tov4 listenaddress=127.0.0.1
+  ```
+
+============================================================================
+VERIFICATION CHECKLIST
+============================================================================
+
+Before connecting, verify:
+
+✓ Python installed and working
+  ```
+  python --version
+  ```
+
+✓ Required packages installed
+  ```
+  pip list | findstr "fastapi uvicorn"
+  ```
+
+✓ All scripts present
+  ```
+  dir *.py
+  ```
+
+✓ Ports are available
+  ```
+  Get-NetTCPConnection -State Listen
+  ```
+
+✓ Firewall allows local connections
+  - Check Windows Firewall
+  - Check third-party antivirus
+
+✓ Hosts file configured correctly
+  ```
+  cat C:\Windows\System32\drivers\etc\hosts
+  ```
+
+✓ DNS working
+  ```
+  nslookup localhost
+  ```
+
+✓ Network stack healthy
+  ```
+  ipconfig /all
+  ```
+
+============================================================================
+IF NOTHING WORKS
+============================================================================
+
+Last Resort Options:
+
+1. Use Docker
+   ```
+   docker build -t dredge:latest .
+   docker run -p 3000:3000 -p 3002:3002 -p 8001:8001 -p 8080:8080 dredge:latest
+   ```
+
+2. Use WSL (Windows Subsystem for Linux)
+   ```
+   wsl
+   python startup_fixed.py
+   ```
+
+3. Use Virtual Environment
+   ```
+   python -m venv venv
+   venv\Scripts\activate
+   pip install -r requirements.txt
+   python startup_fixed.py
+   ```
+
+4. Contact Support
+   - Provide output from: python startup_fixed.py
+   - Include: python --version
+   - Include: pip list
+   - Include: Get-Process python
+
+============================================================================
+SUCCESS INDICATORS
+============================================================================
+
+When everything works, you'll see:
+
+✓ startup_fixed.py runs without errors
+✓ All 4 services show "Starting..."
+✓ All services show "✓ Started"
+✓ Each port shows "✓ Responding"
+✓ Browser loads http://127.0.0.1:3000/ successfully
+✓ webMCP dashboard appears with gradient design
+✓ All access points are listed
+✓ Services continue running until CTRL+C
+
+Success! You're ready to use DREDGE with webMCP.
+
+============================================================================
+SUMMARY
+============================================================================
+
+To fix "127.0.0.1 is refusing to connect":
+
+1. Run: python startup_fixed.py
+2. Let it run diagnostics
+3. Press Enter to start
+4. Wait for all services to start
+5. Open: http://127.0.0.1:3000/
+
+If that doesn't work, follow the troubleshooting steps above.
+
+Most common issues are:
+- Firewall blocking connections (disable or add exception)
+- Ports already in use (restart computer or close other programs)
+- Python packages missing (pip install fastapi uvicorn httpx)
+- Wrong working directory (cd to DREDGE directory)
+
+Status: Connectivity Guide ✓
