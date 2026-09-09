@@ -1,0 +1,12 @@
+interface:
+  display_name: "Apply to alpha"
+  short_description: "Guide an applicant through the official alpha intake"
+  default_prompt: "Use $apply-to-alpha to help me apply through the official a16z speedrun intake API."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "speedrun-alpha-apply"
+      description: "Official a16z speedrun alpha application intake"
+      transport: "streamable_http"
+      url: "https://speedrun.a16z.com/alpha/api/intake/mcp"
