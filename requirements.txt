@@ -16,7 +16,7 @@ httpx>=0.24.0
 gunicorn>=22.0.0
 
 # Environment & Config
-python-dotenv>=1.0.0
+python-dotenv>=1.2.3
 
 # PyTorch - Platform-specific installations:
 # 
