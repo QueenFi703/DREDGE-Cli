@@ -241,7 +241,7 @@ async def mcp_info():
     try:
         async with httpx.AsyncClient() as client:
 
-             reponse = await client.get(
+             response = await client.get(
                 f"{MCP_URL}/"
              )
 
@@ -259,11 +259,6 @@ async def mcp_info():
 class MCPRequest (BaseModel):
     method: str
     params: dict | None = None
-
-
-@app.get("/mcp")
-async def mcp_info():
-    return {"status": "ok", "message": "MCP endpoint is live. Use POST for requests."}]
 
 
 @app.post("/mcp")
@@ -409,5 +404,14 @@ def run_orion(host: str = "0.0.0.0", port: int = 8001, debug: bool = False):
     )
 
 
+# Studio routes share the gateway's public origin while retaining Flask's
+# OAuth/session and role enforcement. Register the fallback after API routes.
+from starlette.middleware.wsgi import WSGIMiddleware
+from .server import create_app
+
+studio_application = create_app()
+app.mount('/', WSGIMiddleware(studio_application))
+
 if __name__ == "__main__":
     run_orion(debug=True)
+

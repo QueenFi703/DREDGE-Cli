@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DREDGE Studio — {% if page == 'login' %}Sign in{% else %}Architecture{% endif %}</title><link rel="stylesheet" href="/static/studio.css"></head>
+<body class="public-page">
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="public-header"><a class="brand" href="/auth/login">✦ DREDGE Studio</a><nav aria-label="Public navigation"><a href="/architecture" {% if page == 'architecture' %}aria-current="page"{% endif %}>Architecture</a><a href="/preview">Guided preview</a><a href="/auth/login">Sign in</a></nav></header>
+<main id="main" class="public-main">
+<section class="public-intro"><p class="eyebrow">ColeWorld inc. / Orion Gateway</p><h1>Intelligence,<br><em>with a visible structure.</em></h1><p class="lead">DREDGE Studio is a workspace for organizing pipeline execution, inspecting source records, and keeping human review visible.</p><p class="muted">This release runs a local DAG with recorded traces. Model and translation demonstrations are labeled. External AI inference, web retrieval, and provider billing are not connected.</p><a class="button secondary" href="/preview">Explore the guided preview ↗</a></section>
+{% if page == 'login' %}
+<section class="glass signin" aria-labelledby="signin-heading"><p class="eyebrow">Your workspace</p><h2 id="signin-heading">Sign in to continue</h2><p>Use an enabled account provider. Your workspace permissions are assigned by its administrator.</p>
+{% if error %}<div class="notice error" role="alert" tabindex="0">{{ error }}</div>{% endif %}
+<div class="signin-methods">{% if github_enabled %}<a class="button" href="/auth/github">Continue with GitHub</a>{% else %}<button disabled type="button" aria-describedby="github-state">GitHub unavailable</button><small id="github-state">This sign-in method is not configured.</small>{% endif %}
+{% if google_enabled %}<a class="button secondary" href="/auth/google">Continue with Google</a>{% else %}<button disabled type="button" aria-describedby="google-state">Google unavailable</button><small id="google-state">This sign-in method is not configured.</small>{% endif %}</div>
+<p class="muted small">Saved runs remain in the Studio store when your session expires. Sign in with the same account to return to them.</p></section>
+{% else %}
+<section class="glass" aria-labelledby="architecture-title"><p class="eyebrow">Public architecture</p><h2 id="architecture-title">From question to reviewed execution</h2>
+<ol class="architecture-list"><li><strong>Identity and roles</strong><p>GitHub or Google establishes identity. Server-assigned viewer, operator, reviewer, and admin roles control access.</p></li><li><strong>Run proposal</strong><p>An operator frames the question and attaches source records. A separate reviewer approves or rejects the immutable proposal.</p></li><li><strong>Local DAG execution</strong><p>Approved requests execute the standard or iOS pipeline. Each actual node transition records its dependencies, timing, status, and execution mode.</p></li><li><strong>Trace and evidence</strong><p>The graph is built from stored node events. Source records link to their original URLs and disclose that they were supplied by a user and have not been independently verified.</p></li><li><strong>Audit and reporting</strong><p>SQLite retains runs and hash-linked review events. Reliability uses completed and failed local runs; unmetered cost and tokens remain unavailable.</p></li></ol>
+<div class="notice">Persistent deployment storage requires a mounted volume. External provider adapters and verified retrieval are later integrations, not capabilities claimed by this release.</div></section>
+{% endif %}
+</main><footer class="public-footer">DREDGE Studio by ColeWorld inc. <span>Legal entity: Cultivating Faith</span></footer>
+</body></html>
