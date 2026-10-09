@@ -8,7 +8,7 @@ from functools import wraps
 from urllib.parse import urlsplit
 
 import stripe
-from flask import Blueprint, current_app, jsonify, request, send_file, session
+from flask import Blueprint, current_app, jsonify, request, Response, session
 from flask_login import current_user, login_required
 
 from .studio import STATIC, store
@@ -65,7 +65,12 @@ def require_subscription():
 
 @billing_bp.route('/billing')
 def billing_page():
-    return send_file(STATIC / 'studio_billing.html')
+    html = (STATIC / 'studio_billing.html').read_text()
+    if mode() == 'live':
+        html = html.replace('Sandbox preparation — no real payments enabled.', 'Live billing — real monthly payments.')
+        html = html.replace('Test monthly checkout', 'Subscribe for $19/month')
+        html = html.replace('Sandbox subscriptions are test records, not paid access. The current workspace remains available according to its assigned roles.', 'Subscription payments are real. Workspace permissions are assigned separately; contact the workspace administrator for operator access before subscribing.')
+    return Response(html, mimetype='text/html')
 
 
 @billing_bp.route('/api/billing/status')

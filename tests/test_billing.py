@@ -89,3 +89,15 @@ def test_checkout_reuses_session_and_rejects_displayed_price_mismatch(billing):
     assert params['success_url'].startswith('https://dredgeoriongateway.com/')
     price.unit_amount = 9900
     assert customer.post('/api/billing/checkout', headers=headers).status_code == 503
+
+
+def test_live_public_offer_labels_real_payments_without_signin(app):
+    app.config['STRIPE_BILLING_MODE'] = 'live'
+    response = app.test_client().get('/billing')
+    assert response.status_code == 200
+    text = response.get_data(as_text=True)
+    assert 'Live billing — real monthly payments.' in text
+    assert 'Sandbox subscriptions are test records' not in text
+    assert 'Subscribe for $19/month' in text
+    assert 'operator access before subscribing' in text
+    assert response.headers['Cache-Control'] == 'no-store'
