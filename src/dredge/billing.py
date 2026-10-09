@@ -193,6 +193,8 @@ def webhook():
             db.execute('INSERT INTO billing_subscriptions(id,owner,mode,status,period_end,cancel_at_period_end) VALUES(?,?,?,?,?,?) '
                        'ON CONFLICT(id,mode) DO UPDATE SET status=excluded.status,period_end=excluded.period_end,cancel_at_period_end=excluded.cancel_at_period_end',
                        (sub['id'], owner, mode(), state, end, int(sub.get('cancel_at_period_end', False))))
+            if state in {'canceled', 'incomplete_expired'}:
+                db.execute('UPDATE billing_customers SET checkout_id=NULL WHERE owner=? AND mode=?', (owner, mode()))
             db.execute('INSERT INTO billing_events(id,mode,kind,received) VALUES(?,?,?,?)', (event['id'], mode(), event['type'], time.time()))
             store().audit(db, 'stripe', 'subscription_updated', detail={'mode': mode(), 'owner': owner, 'status': state})
     except stripe.StripeError:

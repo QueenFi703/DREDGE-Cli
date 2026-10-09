@@ -9,7 +9,7 @@
     $('billing-mode').textContent=data.mode==='sandbox'?'Sandbox · test payments only. No real charges.':'Live billing · real monthly charges.';
     $('billing-state').textContent=data.configured?(data.subscribed?'Subscription active.':data.subscriptions.length?'Subscription status: '+data.subscriptions.map(s=>s.status.replaceAll('_',' ')).join(', '):'No subscription yet.'):'Checkout is awaiting secure Stripe configuration. No payment will be taken.';
     $('subscribe').textContent=data.mode==='sandbox'?'Test $19/month checkout':'Subscribe for $19/month';
-    $('subscribe').disabled=!data.configured||data.subscribed||data.can_manage;
+    $('subscribe').disabled=!data.configured||data.subscribed||data.subscriptions.some(s=>!['canceled','incomplete_expired'].includes(s.status));
     $('manage').hidden=!data.can_manage;$('manage').disabled=!data.configured;
     if(new URLSearchParams(location.search).get('checkout')==='returned')$('billing-message').textContent='Checkout returned. Payment status is confirmed by Stripe notifications; this page does not activate access.';
   }
