@@ -3,6 +3,31 @@
   let csrf = '', selected = null, config = null;
   const el = id => document.getElementById(id);
   const message = text => { el('message').textContent = text; };
+  function selectSection(enterprise, focus = false) {
+    for (const name of ['casework', 'enterprise']) {
+      const active = (name === 'enterprise') === enterprise;
+      el(name+'-panel').hidden = !active;
+      el(name+'-tab').setAttribute('aria-selected', String(active));
+      el(name+'-tab').tabIndex = active ? 0 : -1;
+      if (active && focus) el(name+'-tab').focus();
+    }
+  }
+  for (const name of ['casework', 'enterprise']) {
+    el(name+'-tab').addEventListener('click', () => {
+      location.hash = name;
+      selectSection(name === 'enterprise');
+    });
+    el(name+'-tab').addEventListener('keydown', event => {
+      if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+      event.preventDefault();
+      const enterprise = event.key === 'End' || (event.key !== 'Home' && name === 'casework');
+      location.hash = enterprise ? 'enterprise' : 'casework';
+      selectSection(enterprise, true);
+    });
+  }
+  window.addEventListener('hashchange', () => selectSection(location.hash === '#enterprise'));
+  selectSection(location.hash === '#enterprise');
+
   async function api(path, body) {
     const options = body === undefined ? {} : {method:'POST',headers:{'X-CSRF-Token':csrf},body:body instanceof FormData ? body : JSON.stringify(body)};
     if (body !== undefined && !(body instanceof FormData)) options.headers['Content-Type']='application/json';
