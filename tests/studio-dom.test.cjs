@@ -79,6 +79,11 @@ test('viewer navigation hides privileged actions and displays honest empty repor
 test('operator navigation exposes proposal, but not audit or unapproved execution',async()=>{
   const dom=harness('https://studio.example/advanced',signedReplies('operator'));
   try{const d=dom.window.document;await until(()=>d.getElementById('identity').textContent.includes('operator'));
+    await until(()=>d.getElementById('workspace-start').hidden===false);
+    assert.equal(d.getElementById('start-proposal').hidden,false);
+    d.getElementById('start-proposal').click();
+    assert.equal(d.getElementById('proposal-details').open,true);
+    assert.equal(d.activeElement.id,'run-query');
     assert.equal(d.getElementById('proposal-details').hidden,false);
     assert.equal(d.getElementById('tab-audit').hidden,true);
     assert.equal(d.getElementById('execute-run').hidden,true);
@@ -88,6 +93,7 @@ test('session expiration displays reauthentication and locks mutations',async()=
   const dom=harness('https://studio.example/advanced',()=>({status:401,data:{code:'session_expired',error:'Session expired'}}));
   try{const d=dom.window.document;await until(()=>d.getElementById('session-notice').hidden===false);
     assert.equal(d.getElementById('propose-run').disabled,true);
+    assert.equal(d.getElementById('start-proposal').disabled,true);
     assert.match(d.getElementById('feedback').textContent,/expired/);
     assert.match(d.getElementById('session-notice').textContent,/Saved runs are retained/);
   }finally{dom.window.close();}
@@ -112,5 +118,15 @@ test('reviewer decisions require a reason and send the session CSRF token',async
     assert.deepEqual(JSON.parse(posted[0].body),{decision:'approve',note:'Ready for local execution.'});
     await until(()=>d.getElementById('review-list').textContent.includes('No requests are awaiting approval.'));
     await new Promise(resolve=>setTimeout(resolve,0));
+  }finally{dom.window.close();}
+});
+
+test('disconnected providers are never labeled live in status badges',async()=>{
+  const base=signedReplies('viewer');
+  const dom=harness('https://studio.example/advanced',(route,options)=>route==='/api/studio/status'?{status:200,data:{models:[{name:'External AI',status:'not_connected',mode:'live'}],tools:[],scope:'Local review',persistence:'configured_path'}}:base(route,options));
+  try{const d=dom.window.document;await until(()=>d.querySelector('#status-list .badge'));
+    assert.equal(d.querySelector('#status-list .badge').textContent,'Disconnected');
+    assert.equal(d.getElementById('start-proposal').hidden,true);
+    assert.match(d.getElementById('start-description').textContent,/viewer role/);
   }finally{dom.window.close();}
 });

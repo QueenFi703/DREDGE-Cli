@@ -11,7 +11,7 @@
   function lockSession() {
     expired = true; $('session-notice').hidden = false;
     $('session-notice').scrollIntoView({block:'nearest'});
-    document.querySelectorAll('form button, #execute-run, .review-decision').forEach(node => { node.disabled = true; });
+    document.querySelectorAll('form button, #execute-run, #start-proposal, .review-decision').forEach(node => { node.disabled = true; });
     say('Your session expired. Sign in again to continue.');
   }
   async function api(path, options = {}) {
@@ -118,7 +118,7 @@
     });
   }
   function renderRun(run) {
-    selected = run; $('run-heading').textContent=run.query; $('run-state').textContent=labels[run.status]||run.status; $('run-state').className='badge '+run.status;
+    selected = run; $('workspace-start').hidden=true; $('graph').hidden=false; $('run-heading').textContent=run.query; $('run-state').textContent=labels[run.status]||run.status; $('run-state').className='badge '+run.status;
     $('trace-context').textContent=preview ? 'Public demonstration graph. No measured timings or live execution.' : `Run ${run.id} · Actual stored local DAG events; simulated steps retain their own labels.`;
     drawGraph(run.nodes||[]); renderEvidence(run.evidence||[]);
     $('run-result').textContent=run.result ? JSON.stringify(run.result,null,2) : 'No result recorded.';
@@ -127,12 +127,24 @@
   }
   function renderRunList() {
     $('run-list').replaceChildren();
-    if (!runs.length) $('run-list').append(el('p','No saved runs are visible for this account.','muted'));
+    if (!runs.length) $('run-list').append(el('p','No saved runs yet.','muted'));
+    if (!preview) {
+      $('workspace-start').hidden=!!runs.length;
+      if (!runs.length) {
+        $('graph').hidden=true;
+        $('run-heading').textContent='Your first run starts here';
+        $('trace-context').textContent='No recorded execution yet.';
+        $('start-proposal').hidden=!identity?.can_run;
+        $('start-heading').textContent=identity?.can_run?'Frame a question. Propose the work.':'Explore how DREDGE works';
+        $('start-description').textContent=identity?.can_run?'Create a local pipeline proposal with optional source records. A different reviewer must approve it before you can execute.':'Your viewer role lets you inspect your saved work. Try the public preview now; to create runs, the administrator must assign your OAuth account an operator role and arrange a separate reviewer.';
+      }
+    }
     runs.forEach(run=>{
       const button=el('button',`${run.query} — ${labels[run.status]||run.status}`,'secondary'); button.setAttribute('aria-pressed',String(selected?.id===run.id));
       button.addEventListener('click',()=>action(button,async()=>{renderRun(await api('/api/studio/runs/'+encodeURIComponent(run.id)));})); $('run-list').append(button);
     });
   }
+  $('start-proposal').addEventListener('click',()=>{if(!identity?.can_run||expired)return;selectTab('execution');$('proposal-details').open=true;$('run-query').focus();});
   async function refreshRuns() { const data=await api('/api/studio/runs'); runs=data.runs; renderRunList(); renderReviews(); }
   function renderReviews() {
     $('review-list').replaceChildren();
@@ -152,7 +164,7 @@
   }
   function renderStatus(data) {
     $('status-list').replaceChildren();
-    [...data.models,...data.tools].forEach(item=>{const row=el('div',undefined,'status-record');row.append(el('strong',item.name),el('p',item.status.replaceAll('_',' '),'muted'),badge(item.mode,item.mode));if(item.last_observed)row.append(el('p','Observed: '+new Date(item.last_observed*1000).toLocaleString(),'small'));$('status-list').append(row);});
+    [...data.models,...data.tools].forEach(item=>{const row=el('div',undefined,'status-record');row.append(el('strong',item.name),el('p',item.status.replaceAll('_',' '),'muted'),badge(item.status==='not_connected'?'Disconnected':item.mode,item.status==='not_connected'?'disconnected':item.mode));if(item.last_observed)row.append(el('p','Observed: '+new Date(item.last_observed*1000).toLocaleString(),'small'));$('status-list').append(row);});
     $('status-scope').textContent=`${data.scope} Storage: ${data.persistence.replaceAll('_',' ')}.`;
   }
   async function refreshStatus(){renderStatus(await api('/api/studio/status'));}
