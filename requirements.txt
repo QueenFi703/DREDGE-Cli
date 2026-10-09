@@ -43,3 +43,7 @@ fastapi
 pydantic
 httpx
 
+
+
+# Account-bound Stripe subscription integration
+stripe==15.6.0

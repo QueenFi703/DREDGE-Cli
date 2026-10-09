@@ -228,6 +228,10 @@ def runs():
     if request.method == 'POST':
         if role() not in {'operator', 'admin'}:
             return jsonify(error='An operator role is required to propose a run.'), 403
+        from .billing import require_subscription
+        payment_guard = require_subscription()
+        if payment_guard is not None:
+            return payment_guard
         try:
             payload = validate_payload(request.get_json(silent=True))
         except ValueError as exc:
@@ -284,6 +288,10 @@ def review_run(run_id):
 @studio_bp.route('/api/studio/runs/<run_id>/execute', methods=['POST'])
 @allowed('operator','admin')
 def execute_run(run_id):
+    from .billing import require_subscription
+    payment_guard = require_subscription()
+    if payment_guard is not None:
+        return payment_guard
     with store().connect() as db:
         db.execute('BEGIN IMMEDIATE')
         run = db.execute('SELECT * FROM runs WHERE id=?', (run_id,)).fetchone()
