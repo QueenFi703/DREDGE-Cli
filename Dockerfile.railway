@@ -41,6 +41,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     libsndfile1 \
     curl \
+    gosu \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -49,12 +50,15 @@ COPY src/ ./src/
 COPY wsgi.py .
 COPY README.md LICENSE ./
 COPY start.sh .
+COPY docker-entrypoint.sh .
 
-RUN chmod +x start.sh && \
+RUN chmod +x start.sh docker-entrypoint.sh && \
     useradd -m -u 1000 appuser && \
     chown -R appuser:appuser /app
 
-USER appuser
+# Initialize only the mounted Studio directory, then drop privileges before
+# running any application command (including Railway start-command overrides).
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD curl -fsS "http://127.0.0.1:${PORT}/health" || exit 1
@@ -64,3 +68,4 @@ EXPOSE 8000
 # Single process supervisor. start.sh launches the MCP child and keeps the
 # Orion Gateway as the sole foreground process for Railway health/restarts.
 CMD ["./start.sh"]
+
