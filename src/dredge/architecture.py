@@ -77,6 +77,7 @@ class PipelineContext:
     node_results: Dict[str, Any] = None
     cache_enabled: bool = True
     async_mode: bool = True
+    trace_callback: Optional[Callable] = None
 
     def __post_init__(self):
         if self.execution_log is None:
@@ -338,11 +339,22 @@ class DAGExecutionEngine:
         visit(node_id)
         return order
 
-    async def execute(self, context: PipelineContext, start_node_id: str = "ingest") -> Dict[str, Any]:
+    async def execute(self, context: PipelineContext, start_node_id: Optional[str] = None) -> Dict[str, Any]:
         """Execute DAG starting from node"""
         self.telemetry.log_event("pipeline_start", {"pipeline_id": context.pipeline_id})
 
-        execution_order = self._topological_sort(start_node_id)
+        if start_node_id is not None and start_node_id not in self.nodes:
+            raise ValueError("Unknown start node")
+        execution_order = []
+        for target in ([start_node_id] if start_node_id else self.nodes):
+            for node_id in self._topological_sort(target):
+                if node_id not in execution_order:
+                    execution_order.append(node_id)
+        trace_nodes = []
+
+        def emit(event):
+            if context.trace_callback:
+                context.trace_callback(event)
         logger.info(f"Execution order: {execution_order}")
 
         try:
@@ -353,7 +365,27 @@ class DAGExecutionEngine:
                     continue
 
                 logger.info(f"Executing node: {node_id}")
-                result = await node.execute(context, self.redis)
+                mode = 'simulated' if node_id in {'translate', 'normalize', 'async_translation', 'redis_cache'} else 'local'
+                started = time.time()
+                monotonic_started = time.perf_counter()
+                node_trace = {'id': node_id, 'type': node.node_type.value, 'dependencies': list(node.dependencies),
+                              'mode': mode, 'status': 'running', 'started_at': started, 'ended_at': None, 'duration_ms': None}
+                emit(dict(node_trace))
+                try:
+                    result = await node.execute(context, self.redis)
+                    node_trace['status'] = 'cached' if node.metadata.cache_hit else 'completed'
+                    node.metadata.status = NodeStatus.CACHED if node.metadata.cache_hit else NodeStatus.COMPLETED
+                except Exception:
+                    node_trace['status'] = 'failed'
+                    raise
+                finally:
+                    node_trace['ended_at'] = time.time()
+                    node_trace['duration_ms'] = round((time.perf_counter() - monotonic_started) * 1000, 3)
+                    node.metadata.start_time = started
+                    node.metadata.end_time = node_trace['ended_at']
+                    node.metadata.duration = node_trace['duration_ms'] / 1000
+                    trace_nodes.append(node_trace)
+                    emit(dict(node_trace))
                 context.node_results[node_id] = result
 
                 self.telemetry.log_event(
@@ -371,6 +403,7 @@ class DAGExecutionEngine:
             return {
                 "pipeline_id": context.pipeline_id,
                 "status": "completed",
+                "trace_nodes": trace_nodes,
                 "results": context.node_results,
                 "execution_log": context.execution_log,
                 "telemetry": self.telemetry.get_summary()
@@ -517,7 +550,8 @@ async def dredge_run_pipeline(
     input_data: Dict[str, Any],
     pipeline_type: str = "standard",
     redis_client: Optional[Any] = None,
-    pipeline_id: Optional[str] = None
+    pipeline_id: Optional[str] = None,
+    trace_callback: Optional[Callable] = None
 ) -> Dict[str, Any]:
     """
     Main entry point: dredge_run_pipeline()
@@ -542,7 +576,8 @@ async def dredge_run_pipeline(
         pipeline_id=pipeline_id,
         input_data=input_data,
         cache_enabled=True,
-        async_mode=True
+        async_mode=True,
+        trace_callback=trace_callback
     )
 
     return await engine.execute(context)
@@ -563,3 +598,4 @@ if __name__ == "__main__":
         print(json.dumps(result, indent=2))
 
     asyncio.run(demo())
+

@@ -6,10 +6,11 @@ import hashlib
 import os
 import sys
 import logging
+import time
 from functools import lru_cache
 from pathlib import Path
-from flask import Flask, jsonify, request, send_file, redirect, url_for
-from flask_login import login_required, current_user
+from flask import Flask, jsonify, request, send_file, redirect, url_for, session
+from flask_login import login_required, current_user, logout_user
 
 # Load .env file if it exists
 try:
@@ -76,12 +77,74 @@ def create_app():
 
     @login_manager.user_loader
     def load_user(user_id):
-        from .auth import _users
+        from .auth import _users, User
+        profile = session.get('studio_profile', {})
+        if profile.get('id') == user_id:
+            return User(user_id, profile['name'], profile['email'], profile['provider'], profile.get('avatar', ''))
         return _users.get(user_id)
 
     # -- OAuth / login
     from .auth import init_auth
     init_auth(app)
+
+    from .studio import register_studio, role
+    register_studio(app)
+    app.config['MAX_CONTENT_LENGTH'] = 65536
+    app.config['SESSION_COOKIE_HTTPONLY'] = True
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+    if os.environ.get('OAUTH_REDIRECT_BASE', '').startswith('https://'):
+        app.config['SESSION_COOKIE_SECURE'] = True
+
+    @login_manager.unauthorized_handler
+    def unauthorized():
+        if request.path.startswith('/api/') or request.is_json:
+            return jsonify(error='Your session has expired. Sign in again.', code='session_expired',
+                           login_url='/auth/login?reason=session_expired'), 401
+        return redirect('/auth/login?reason=session_expired')
+
+    @app.before_request
+    def studio_session_guard():
+        if current_user.is_authenticated:
+            now = time.time()
+            started = session.setdefault('studio_started', now)
+            last = session.setdefault('studio_last_activity', now)
+            if now-started > app.config['STUDIO_SESSION_SECONDS'] or now-last > app.config['STUDIO_IDLE_SECONDS']:
+                logout_user()
+                for key in ('studio_profile','studio_started','studio_last_activity','studio_csrf'):
+                    session.pop(key, None)
+                if request.path.startswith('/api/') or request.path in {'/advanced','/advanced/toolkit','/lift'}:
+                    return unauthorized()
+            else:
+                session['studio_last_activity'] = now
+        if request.path.startswith(('/api/advanced/', '/api/architecture/', '/api/gordon/', '/api/dependabot/')):
+            if request.path == '/api/architecture/health':
+                return None
+            if not current_user.is_authenticated:
+                return unauthorized()
+            if request.method not in {'GET','HEAD','OPTIONS'}:
+                if role() not in {'operator','admin'}:
+                    return jsonify(error='An operator role is required.'), 403
+                import hmac
+                token = session.get('studio_csrf', '')
+                if not token or not hmac.compare_digest(token, request.headers.get('X-CSRF-Token','')):
+                    return jsonify(error='Refresh the workspace before submitting.', code='csrf_failed'), 403
+                if request.path == '/api/architecture/pipeline/execute':
+                    return jsonify(error='Use the Studio proposal and review workflow before pipeline execution.'), 409
+
+    @app.after_request
+    def studio_headers(response):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+        if request.path.startswith(('/api/studio/', '/auth/')) or request.path.startswith('/advanced'):
+            response.headers['Cache-Control'] = 'no-store'
+        if request.path.startswith(('/api/advanced/', '/api/dependabot/')) and response.is_json:
+            data = response.get_json()
+            if isinstance(data, dict) and 'error' not in data:
+                data['operation_mode'] = 'simulated'
+                data['disclosure'] = 'Prototype demonstration response; not verified live execution.'
+                response.set_data(app.json.dumps(data))
+        return response
 
     # -- Advanced Features
     try:
@@ -179,8 +242,8 @@ def create_app():
     def advanced_dashboard():
         """Serve the advanced features dashboard."""
         static_dir = Path(__file__).parent / 'static'
-        # Try complete Swift frontend first, then simple, then advanced
-        html_file = static_dir / 'frontend_complete_swift.html'
+        # Prefer the governed workspace; retain older dashboards as a fallback.
+        html_file = static_dir / 'studio_workspace.html'
         if not html_file.exists():
             html_file = static_dir / 'dashboard_simple.html'
         if not html_file.exists():
@@ -190,6 +253,11 @@ def create_app():
             return jsonify({"error": "Dashboard file not found"}), 404
         
         return send_file(html_file, mimetype='text/html')
+
+    @app.route('/advanced/toolkit')
+    @login_required
+    def demonstration_toolkit():
+        return send_file(Path(__file__).parent / 'static' / 'frontend_complete_swift.html', mimetype='text/html')
 
     @app.route('/quasimoto-gpu')
     @login_required
@@ -244,3 +312,4 @@ def run (host='0.0.0.0', port=8001, debug=False):
 
 if __name__ == '__main__':
    run()
+

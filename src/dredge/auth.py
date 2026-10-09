@@ -4,6 +4,8 @@ OAuth2 authentication for DREDGE — Google and GitHub login.
 from __future__ import annotations
 import os
 import logging
+import time
+from pathlib import Path
 
 from flask import (
     Blueprint,
@@ -12,6 +14,7 @@ from flask import (
     request,
     jsonify,
     render_template_string,
+    session,
 )
 from authlib.integrations.flask_client import OAuth
 from flask_login import (
@@ -134,140 +137,34 @@ def init_auth(app) -> None:
     print(f"[Auth Module] Initialization complete\n")
 
 
-# Login page HTML template
-LOGIN_HTML = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DREDGE Studio - Sign In</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .container {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            padding: 60px 40px;
-            max-width: 400px;
-            width: 90%;
-        }
-        h1 {
-            text-align: center;
-            margin-bottom: 10px;
-            color: #333;
-            font-size: 28px;
-        }
-        .subtitle {
-            text-align: center;
-            color: #666;
-            margin-bottom: 40px;
-            font-size: 14px;
-        }
-        .login-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .btn {
-            padding: 14px 20px;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            transition: all 0.3s ease;
-            text-decoration: none;
-        }
-        .btn-github {
-            background: #333;
-            color: white;
-        }
-        .btn-github:hover {
-            background: #222;
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
-        }
-        .btn-google {
-            background: white;
-            color: #333;
-            border: 2px solid #ddd;
-        }
-        .btn-google:hover {
-            background: #f9f9f9;
-            border-color: #999;
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-        }
-        .error {
-            background: #fee;
-            color: #c00;
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            font-size: 14px;
-        }
-        .status {
-            text-align: center;
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid #eee;
-            font-size: 14px;
-            color: #666;
-        }
-        .status-item {
-            padding: 8px 0;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>DREDGE Studio</h1>
-        <p class="subtitle">Sign in to continue</p>
-        
-        {% if error %}
-        <div class="error">
-            Error: {{error}}
-        </div>
-        {% endif %}
-        
-        <div class="login-buttons">
-            <a href="/auth/github" class="btn btn-github">
-                Sign in with GitHub
-            </a>
-            <a href="/auth/google" class="btn btn-google">
-                Sign in with Google
-            </a>
-        </div>
-        
-        <div class="status">
-            <div class="status-item">[OK] OAuth is configured</div>
-            <div class="status-item">[OK] Secure authentication</div>
-            <div class="status-item" style="font-size: 12px; margin-top: 10px; color: #999;">Version: 2.0.0</div>
-        </div>
-    </div>
-</body>
-</html>
-"""
+# Login and public architecture use the shared, responsive Studio template.
 
 
 @auth_bp.route("/login")
 def login():
     """Render the login page with OAuth options."""
-    error = request.args.get('error', '')
-    return render_template_string(LOGIN_HTML, error=error)
+    messages = {
+        'github_not_configured': 'GitHub sign-in is unavailable. Try another enabled method.',
+        'google_not_configured': 'Google sign-in is unavailable. Try another enabled method.',
+        'github_auth_failed': 'GitHub could not complete sign-in. Try again; your workspace has not been changed.',
+        'google_auth_failed': 'Google could not complete sign-in. Try again; your workspace has not been changed.',
+        'session_expired': 'Your session expired. Sign in again to return to your saved workspace.'
+    }
+    code = request.args.get('error') or request.args.get('reason')
+    error = messages.get(code, 'Sign-in could not be completed. Try again.') if code else None
+    oauth = get_oauth()
+    template = (Path(__file__).parent / 'static' / 'studio_public.html').read_text()
+    return render_template_string(template, page='login', error=error,
+                                  github_enabled=bool(oauth and oauth.create_client('github')),
+                                  google_enabled=bool(oauth and oauth.create_client('google')))
+
+
+def remember_studio_session(user):
+    # Only the signed session stores this profile. Never accept profile or role from a request body.
+    session['studio_profile'] = dict(id=user.id, name=user.name, email=user.email,
+                                    provider=user.provider, avatar=user.avatar)
+    session['studio_started'] = session['studio_last_activity'] = time.time()
+    session.pop('studio_csrf', None)
 
 
 @auth_bp.route("/github")
@@ -280,13 +177,14 @@ def github_login():
         
         if not oauth:
             print("[GitHub Login] ERROR: oauth is None")
-            return jsonify({"error": "OAuth not initialized"}), 500
+            return redirect(url_for('auth.login', error='github_auth_failed'))
         
         if not hasattr(oauth, "github"):
             print("[GitHub Login] ERROR: oauth has no github attribute")
-            return jsonify({"error": "GitHub OAuth not configured"}), 503
+            return redirect(url_for('auth.login', error='github_not_configured'))
         
-        redirect_uri = url_for("auth.github_callback", _external=True)
+        base = os.environ.get('OAUTH_REDIRECT_BASE', '').rstrip('/')
+        redirect_uri = base + '/auth/github/callback' if base else url_for("auth.github_callback", _external=True)
         print(f"[GitHub Login] Redirect URI: {redirect_uri}\n")
         
         return oauth.github.authorize_redirect(redirect_uri)
@@ -295,7 +193,7 @@ def github_login():
         print(f"[GitHub Login] Exception: {e}\n")
         import traceback
         traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+        return redirect(url_for('auth.login', error='github_auth_failed'))
 
 
 @auth_bp.route("/github/callback")
@@ -335,7 +233,8 @@ def github_callback():
             avatar=user_info.get("avatar_url", ""),
         )
         _users[user_id] = user
-        login_user(user, remember=True)
+        login_user(user, remember=False)
+        remember_studio_session(user)
         
         print(f"[GitHub Callback] User logged in: {user.name}")
         print(f"[GitHub Callback] Redirecting to /advanced\n")
@@ -356,9 +255,10 @@ def google_login():
     """Redirect to Google OAuth."""
     oauth = get_oauth()
     if not oauth or not hasattr(oauth, "google"):
-        return jsonify({"error": "Google OAuth is not configured."}), 503
+        return redirect(url_for('auth.login', error='google_not_configured'))
     
-    redirect_uri = url_for("auth.google_callback", _external=True)
+    base = os.environ.get('OAUTH_REDIRECT_BASE', '').rstrip('/')
+    redirect_uri = base + '/auth/google/callback' if base else url_for("auth.google_callback", _external=True)
     return oauth.google.authorize_redirect(redirect_uri)
 
 
@@ -385,7 +285,8 @@ def google_callback():
             avatar=user_info.get("picture", ""),
         )
         _users[user_id] = user
-        login_user(user, remember=True)
+        login_user(user, remember=False)
+        remember_studio_session(user)
         
         # Redirect to advanced dashboard
         return redirect("/advanced")
@@ -401,6 +302,8 @@ def logout():
     """Log out the current user."""
     user_id = current_user.id
     logout_user()
+    for key in ('studio_profile','studio_started','studio_last_activity','studio_csrf'):
+        session.pop(key, None)
     _users.pop(user_id, None)
     return redirect(url_for("auth.login"))
 
@@ -430,3 +333,4 @@ def status():
             "avatar": current_user.avatar,
         })
     return jsonify({"authenticated": False})
+

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DREDGE Studio Pro - Swift Toolkit</title>
+    <title>DREDGE Studio — Intelligence Workspace</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -26,7 +26,7 @@
             color: var(--text);
         }
         html, body { width: 100%; height: 100%; }
-        .app-container { display: flex; height: 100vh; }
+        .app-container { display: flex; min-height: 100vh; }
         
         /* SIDEBAR */
         .sidebar {
@@ -407,18 +407,83 @@
             .grid { grid-template-columns: 1fr; }
         }
     </style>
+    <style>
+        :root { --primary:#5369da; --secondary:#b7c9ff; --dark:#111827; --darker:#0b1220; --border:#29354c; --text:#e8edf7; --success:#74d7b4; }
+        body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:radial-gradient(ellipse at 80% 0%,#202b4a 0%,#0b1220 65%); line-height:1.6; }
+        .sidebar { width:260px; flex-shrink:0; background:rgba(11,18,32,.86); border-right:1px solid var(--border); }
+        .sidebar-header { border-bottom:1px solid var(--border); color:var(--text); font-size:19px; letter-spacing:-.6px; padding:26px 20px; }
+        .sidebar-section-title,.sidebar-divider { font-size:10px; letter-spacing:1.4px; }
+        .sidebar-item { width:100%; text-align:left; color:var(--text); background:transparent; border:0; border-left:3px solid transparent; font-family:inherit; font-size:13px; border-radius:8px; }
+        .sidebar-item:hover { padding-left:12px; background:rgba(183,201,255,.08); }
+        .sidebar-item.active { background:rgba(83,105,218,.18); }
+        .main-content { min-width:0; }
+        .topbar { border-bottom:1px solid var(--border); background:rgba(11,18,32,.65); padding:18px 30px; flex-wrap:wrap; gap:12px; }
+        .topbar-title { color:var(--text); font-size:17px; }
+        .user-badge { border:1px solid var(--border); background:rgba(183,201,255,.04); font-size:13px; }
+        .content { padding:36px; }
+        .grid { grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr)); }
+        .card { border:1px solid var(--border); background:rgba(21,31,49,.72); border-radius:18px; padding:26px; }
+        .card:hover { border-color:#52617b; box-shadow:0 12px 35px rgba(0,0,0,.12); }
+        .card-title { font-size:16px; }
+        .form-control { padding:12px; border-radius:10px; font-size:14px; background:rgba(7,14,26,.7); }
+        .form-label { color:#c3cce0; letter-spacing:.7px; font-size:11px; }
+        .btn { min-height:44px; border-radius:10px; padding:12px 18px; font-size:13px; font-weight:600; }
+        .btn:hover { transform:none; background:#7187ef; color:white; }
+        .btn-quiet { border:1px solid #3d4c69; background:rgba(183,201,255,.05); color:var(--text); }
+        .btn-quiet:hover { background:rgba(183,201,255,.14); }
+        :is(button,a,input,select,textarea,[role="button"]):focus-visible { outline:2px solid #c8d7ff; outline-offset:4px; }
+        .output { background:rgba(7,14,26,.75); border-radius:12px; padding:20px; font-size:12px; line-height:1.7; }
+        .output-line { overflow-wrap:anywhere; word-break:normal; }
+        .studio-hero { max-width:850px; padding:16px 0 40px; }
+        .eyebrow { color:#b7c9ff; font-size:10px; letter-spacing:2px; text-transform:uppercase; margin-bottom:16px; }
+        .studio-hero h1 { font-family:Georgia,"Times New Roman",serif; font-size:clamp(38px,4.3vw,68px); line-height:1.12; font-weight:400; letter-spacing:-2px; margin-bottom:24px; }
+        .studio-hero em { color:#b7c9ff; font-weight:400; }
+        .hero-description { max-width:640px; color:#b4bfd4; font-size:16px; line-height:1.85; }
+        .hero-actions { display:flex; flex-wrap:wrap; gap:12px; margin-top:26px; }
+        .overview-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+        .overview-grid h2 { font-family:Georgia,"Times New Roman",serif; font-weight:400; font-size:24px; margin-bottom:12px; }
+        .overview-grid p:not(.eyebrow) { color:#b4bfd4; font-size:14px; margin-bottom:22px; }
+        .workspace-note,.demo-note { border:1px solid #3d4c69; border-radius:12px; padding:18px 22px; color:#bcc8dd; font-size:13px; margin-bottom:24px; background:rgba(183,201,255,.035); }
+        .workspace-note strong { color:var(--text); }
+        .workspace-note p { margin-top:6px; max-width:900px; }
+        .studio-signature { font-size:12px; color:#a5b2cb; margin:28px 0; }
+        .studio-signature span { display:block; color:#8999b4; }
+        @supports(backdrop-filter:blur(16px)) { .card,.topbar { backdrop-filter:blur(16px); } }
+        @media(min-width:901px) { .sidebar { position:sticky; top:0; height:100vh; } }
+        @media(max-width:1100px) { .overview-grid { grid-template-columns:1fr; } }
+        @media(max-width:900px) {
+            .app-container { display:block; }
+            .sidebar { width:100%; overflow:visible; border-right:0; border-bottom:1px solid var(--border); }
+            .sidebar-header { padding:18px 20px; }
+            .sidebar-section { padding:10px 16px; }
+            .sidebar-item { display:inline-flex; width:auto; margin-right:6px; }
+            .sidebar-section-title { margin-bottom:6px; }
+            .sidebar-footer { display:none; }
+            .sidebar-divider { margin:0; }
+            .sidebar-section:not(.core-section),.sidebar-divider { display:none; }
+            .sidebar.show-tools .sidebar-section,.sidebar.show-tools .sidebar-divider { display:block; }
+            .content { padding:24px 18px; overflow:visible; }
+            .topbar { padding:16px 18px; }
+            .topbar-right { flex-wrap:wrap; gap:8px; }
+            .studio-hero h1 { letter-spacing:-1px; }
+        }
+        .mobile-tools-toggle { display:none; }
+        @media(max-width:900px) { .mobile-tools-toggle { display:block; margin:8px 16px 16px; } }
+        @media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none!important; transition:none!important; } }
+    </style>
 </head>
 <body>
     <div class="app-container">
         <!-- SIDEBAR -->
         <div class="sidebar">
             <div class="sidebar-header">
-                <i class="fas fa-rocket"></i> DREDGE Studio Pro
+                <i class="fas fa-asterisk" aria-hidden="true"></i> DREDGE Studio
             </div>
 
-            <div class="sidebar-section">
-                <div class="sidebar-section-title">DREDGE AI Core</div>
-                <div class="sidebar-item active" onclick="switchPanel('models')">
+            <div class="sidebar-section core-section">
+                <div class="sidebar-section-title">Intelligence Workspace</div>
+                <button type="button" class="sidebar-item active" onclick="switchPanel('overview')">Studio Overview</button>
+                <div class="sidebar-item" onclick="switchPanel('models')">
                     <i class="fas fa-cube"></i> Model Management
                 </div>
                 <div class="sidebar-item" onclick="switchPanel('mcp')">
@@ -476,9 +541,10 @@
                 </div>
             </div>
 
+            <button type="button" class="btn btn-quiet mobile-tools-toggle" aria-expanded="false" onclick="toggleTools(this)">Show development tools</button>
             <div class="sidebar-footer">
                 <div class="badge badge-success">
-                    <span class="status-indicator"></span> Online
+                    <span class="status-indicator"></span> Signed-in workspace
                 </div>
             </div>
         </div>
@@ -487,7 +553,7 @@
         <div class="main-content">
             <!-- TOPBAR -->
             <div class="topbar">
-                <div class="topbar-title" id="panel-title">Model Management</div>
+                <div class="topbar-title" id="panel-title" tabindex="-1">Studio Overview</div>
                 <div class="topbar-right">
                     <div class="user-badge" id="user-badge">
                         <i class="fas fa-user"></i>
@@ -502,7 +568,25 @@
             <!-- CONTENT -->
             <div class="content">
                 <!-- MODELS PANEL -->
-                <div class="content-panel active" id="panel-models">
+                <section class="content-panel active" id="panel-overview" aria-labelledby="overview-heading">
+                    <div class="studio-hero">
+                        <p class="eyebrow">ColeWorld inc. / Orion Gateway</p>
+                        <h1 id="overview-heading">Give your ideas<br><em>a place to take shape.</em></h1>
+                        <p class="hero-description">DREDGE Studio brings model exploration, insight workflows, and development tools into one workspace. Frame the question, explore the tools, and review what they return.</p>
+                        <div class="hero-actions">
+                            <button type="button" class="btn" onclick="switchPanel('lift')">Explore an insight <span aria-hidden="true">↗</span></button>
+                            <button type="button" class="btn btn-quiet" onclick="switchPanel('models')">Browse model tools</button>
+                        </div>
+                    </div>
+                    <div class="grid overview-grid">
+                        <article class="card"><p class="eyebrow">01 / Frame</p><h2>Begin with the question.</h2><p>Define the idea you want to explore, its context, and what a useful result would look like.</p><button type="button" class="btn btn-quiet" onclick="switchPanel('lift')">Open Insight Lifting</button></article>
+                        <article class="card"><p class="eyebrow">02 / Explore</p><h2>Choose your tools.</h2><p>Explore model and MCP interfaces, then move into the Swift toolkit when you are ready to build.</p><button type="button" class="btn btn-quiet" onclick="switchPanel('mcp')">Open MCP Operations</button></article>
+                        <article class="card"><p class="eyebrow">03 / Review</p><h2>Read the result closely.</h2><p>Use the output panels to inspect responses. Demonstration values are examples, not measured performance or verified conclusions.</p><button type="button" class="btn btn-quiet" onclick="switchPanel('api')">Open API Tester</button></article>
+                    </div>
+                    <aside class="workspace-note"><strong>About this prototype</strong><p>Model, MCP, insight, and Swift controls currently demonstrate workflows with scripted results. API Tester and Security Alerts request server responses. Demonstration controls do not create compiled apps, verify evidence, or measure model performance.</p></aside>
+                    <p class="studio-signature">DREDGE Studio by ColeWorld inc. <span>Legal entity: Cultivating Faith</span></p>
+                </section>
+                <div class="content-panel" id="panel-models">
                     <div class="grid">
                         <div class="card">
                             <div class="card-title">
@@ -926,16 +1010,22 @@ let bridge = DREDGESwiftBridge(
     </div>
 
     <script>
-        let currentPanel = 'models';
+        let currentPanel = 'overview';
 
         function switchPanel(panelName) {
             document.querySelectorAll('.content-panel').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
             
             document.getElementById(`panel-${panelName}`).classList.add('active');
-            event.target.closest('.sidebar-item').classList.add('active');
+            document.querySelectorAll('.sidebar-item').forEach(item => {
+                const selected = item.dataset.panel === panelName;
+                item.classList.toggle('active', selected);
+                if (selected) item.setAttribute('aria-current', 'page');
+                else item.removeAttribute('aria-current');
+            });
             
             const titles = {
+                overview: 'Studio Overview',
                 models: 'Model Management',
                 mcp: 'MCP Operations',
                 lift: 'Insight Lifting',
@@ -960,6 +1050,8 @@ let bridge = DREDGESwiftBridge(
             }
             
             currentPanel = panelName;
+            document.querySelector('.content').scrollTop = 0;
+            titleEl.focus();
         }
 
         async function loadUserProfile() {
@@ -1095,10 +1187,41 @@ let bridge = DREDGESwiftBridge(
             const className = type === 'error' ? 'output-error' : type === 'success' ? 'output-success' : type === 'warning' ? 'output-warning' : type === 'swift' ? 'output-swift' : '';
             const line = document.createElement('div');
             line.className = className ? `output-line ${className}` : 'output-line';
-            line.textContent = `[${timestamp}] ${message}`;
+            const mode = demonstrationPanels.has(panel) ? 'DEMO · ' : '';
+            line.textContent = `[${timestamp}] ${mode}${message}`;
             output.appendChild(line);
             output.scrollTop = output.scrollHeight;
         }
+
+        function toggleTools(button) {
+            const expanded = document.querySelector('.sidebar').classList.toggle('show-tools');
+            button.setAttribute('aria-expanded', String(expanded));
+            button.textContent = expanded ? 'Hide development tools' : 'Show development tools';
+        }
+
+        const demonstrationPanels = new Set(['models','mcp','lift','swift-build','swift-package','swift-test','swift-ios','swift-xcode','swift-dredge','swift-models']);
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+            item.dataset.panel = item.getAttribute('onclick').match(/switchPanel\('([^']+)'\)/)[1];
+            if (item.tagName !== 'BUTTON') {
+                item.setAttribute('role', 'button');
+                item.tabIndex = 0;
+                item.addEventListener('keydown', event => {
+                    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); switchPanel(item.dataset.panel); }
+                });
+            }
+            if (item.dataset.panel === 'overview') item.setAttribute('aria-current', 'page');
+        });
+        demonstrationPanels.forEach(name => {
+            const note = document.createElement('p');
+            note.className = 'demo-note';
+            note.textContent = 'Demonstration workflow · Results here are scripted examples. They do not represent live execution, measured performance, or verified analysis.';
+            document.getElementById(`panel-${name}`).prepend(note);
+        });
+        document.querySelectorAll('.form-group').forEach(group => {
+            const label = group.querySelector('label');
+            const input = group.querySelector('input,select,textarea');
+            if (label && input && input.id) label.htmlFor = input.id;
+        });
 
         window.addEventListener('load', () => {
             loadUserProfile();
@@ -1107,3 +1230,4 @@ let bridge = DREDGESwiftBridge(
     </script>
 </body>
 </html>
+
