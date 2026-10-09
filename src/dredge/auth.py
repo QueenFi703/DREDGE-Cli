@@ -146,29 +146,32 @@ LOGIN_HTML = """
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: radial-gradient(ellipse at top right, #283858 0%, #0b1220 65%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
         }
         .container {
-            background: white;
-            border-radius: 12px;
+            background: rgba(21, 31, 49, 0.92);
+            border: 1px solid #3d4c69;
+            border-radius: 24px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             padding: 60px 40px;
-            max-width: 400px;
+            max-width: 480px;
             width: 90%;
         }
         h1 {
             text-align: center;
             margin-bottom: 10px;
-            color: #333;
-            font-size: 28px;
+            color: #e8edf7;
+            font-family: Georgia, "Times New Roman", serif;
+            font-weight: 400;
+            font-size: 36px;
         }
         .subtitle {
             text-align: center;
-            color: #666;
+            color: #b4bfd4;
             margin-bottom: 40px;
             font-size: 14px;
         }
@@ -192,21 +195,21 @@ LOGIN_HTML = """
             text-decoration: none;
         }
         .btn-github {
-            background: #333;
+            background: #5369da;
             color: white;
         }
         .btn-github:hover {
-            background: #222;
+            background: #7187ef;
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
         }
         .btn-google {
-            background: white;
-            color: #333;
-            border: 2px solid #ddd;
+            background: #172238;
+            color: #e8edf7;
+            border: 1px solid #52617b;
         }
         .btn-google:hover {
-            background: #f9f9f9;
+            background: #263551;
             border-color: #999;
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
@@ -223,10 +226,14 @@ LOGIN_HTML = """
             text-align: center;
             margin-top: 20px;
             padding-top: 20px;
-            border-top: 1px solid #eee;
+            border-top: 1px solid #3d4c69;
             font-size: 14px;
-            color: #666;
+            color: #b4bfd4;
         }
+        a:focus-visible { outline: 2px solid #c8d7ff; outline-offset: 4px; }
+        .brand { text-align: center; color: #b7c9ff; font-size: 11px; letter-spacing: 2px; margin-bottom: 20px; }
+        @media (max-width: 480px) { .container { padding: 40px 24px; } }
+        @media (prefers-reduced-motion: reduce) { .btn { transition: none; } }
         .status-item {
             padding: 8px 0;
         }
@@ -234,8 +241,9 @@ LOGIN_HTML = """
 </head>
 <body>
     <div class="container">
+        <p class="brand">COLEWORLD INC. / ORION GATEWAY</p>
         <h1>DREDGE Studio</h1>
-        <p class="subtitle">Sign in to continue</p>
+        <p class="subtitle">Your workspace for model exploration, insight workflows, and development. Sign in to begin.</p>
         
         {% if error %}
         <div class="error">
@@ -253,8 +261,8 @@ LOGIN_HTML = """
         </div>
         
         <div class="status">
-            <div class="status-item">[OK] OAuth is configured</div>
-            <div class="status-item">[OK] Secure authentication</div>
+            <div class="status-item">Continue with your GitHub or Google account.</div>
+            <div class="status-item">ColeWorld inc. · Legal entity: Cultivating Faith</div>
             <div class="status-item" style="font-size: 12px; margin-top: 10px; color: #999;">Version: 2.0.0</div>
         </div>
     </div>
@@ -430,3 +438,4 @@ def status():
             "avatar": current_user.avatar,
         })
     return jsonify({"authenticated": False})
+
