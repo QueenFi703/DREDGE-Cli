@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import io
 import json
+import re
 import secrets
 import time
 import uuid
@@ -99,7 +100,29 @@ def assign(case_id):
     return jsonify(assigned=True)
 
 
-from .document_text import read_document
+from .document_text import read_document, MAX_TEXT
+
+
+def redact_text(text, terms):
+    """Replace literal matches in the original text, including overlapping spans.
+
+    Matching never runs against generated markers. Merge overlapping matches so
+    one phrase cannot leave part of another requested phrase in the output.
+    """
+    pattern = '|'.join(re.escape(term) for term in sorted(set(terms), key=len, reverse=True))
+    spans = []
+    for match in re.finditer('(?=(' + pattern + '))', text):
+        start, end = match.start(), match.start() + len(match.group(1))
+        if spans and start < spans[-1][1]:
+            spans[-1] = (spans[-1][0], max(spans[-1][1], end))
+        else:
+            spans.append((start, end))
+    parts, cursor = [], 0
+    for start, end in spans:
+        parts.extend((text[cursor:start], '[REDACTED]'))
+        cursor = end
+    parts.append(text[cursor:])
+    return ''.join(parts)
 
 
 @bp.route('/api/client/cases/<case_id>/documents',methods=['GET','POST'])
@@ -142,13 +165,19 @@ def redact(case_id,document_id):
     body=json_body();terms=body.get('terms')
     if not isinstance(terms,list) or not 1<=len(terms)<=30 or any(not isinstance(t,str) or not 1<=len(t)<=200 for t in terms):return jsonify(error='Enter 1–30 exact phrases to remove.'),400
     with store().connect() as db:
+        db.execute('BEGIN IMMEDIATE')
         if not assigned(db,case_id):return jsonify(error='Document not found.'),404
         row=db.execute('SELECT data FROM client_documents WHERE id=? AND case_id=? AND owner=?',(document_id,case_id,current_user.get_id())).fetchone()
         if not row:return jsonify(error='Document not found.'),404
         original=decrypt(row['data'])
         if not original['text'].strip():return jsonify(error='Redaction supports extracted text only. Scans and photos need specialist redaction.'),409
-        text=original['text']
-        for term in sorted(terms,key=len,reverse=True):text=text.replace(term,'[REDACTED]')
+        if len(original['text']) > MAX_TEXT:
+            return jsonify(error='Redaction supports source text up to 100,000 characters.'),400
+        if db.execute('SELECT COUNT(*) FROM client_documents WHERE case_id=? AND owner=?',(case_id,current_user.get_id())).fetchone()[0]>=50:
+            return jsonify(error='Document limit reached.'),409
+        text=redact_text(original['text'], terms)
+        if len(text) > MAX_TEXT:
+            return jsonify(error='Redacted text exceeds 100,000 characters. Use longer phrases or a smaller document.'),400
         content=text.encode();new_id=str(uuid.uuid4())
         data=dict(name='redacted-text.txt',mime='text/plain',text=text,content=base64.b64encode(content).decode(),sha256=hashlib.sha256(content).hexdigest(),kind='redacted_text_copy',source_id=document_id)
         db.execute('INSERT INTO client_documents VALUES(?,?,?,?,?)',(new_id,case_id,current_user.get_id(),encrypt(data),time.time()))

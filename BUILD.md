@@ -6,7 +6,7 @@
 
 | Environment | Use Case | Prerequisites | Command |
 |-------------|----------|---------------|---------|
-| **Local Native (Python)** | Fast iteration on Python code, API servers | Python 3.9-3.11, pip | `make install-python && make serve` |
+| **Local Native (Python)** | Fast iteration on Python code, API servers | Python 3.10+, pip | `make install-python && make serve` |
 | **Local Native (Swift)** | Swift CLI development, MCP client | Swift 5.9+, macOS/Linux | `make build-swift && make run-swift` |
 | **Containerized (CPU)** | Production Flask server, no GPU | Docker, Docker Compose | `make docker-up-cpu` |
 | **Containerized (GPU)** | MCP server with PyTorch/CUDA | Docker + nvidia-docker, NVIDIA GPU | `make docker-up-gpu` |
@@ -266,7 +266,7 @@ Located in `.github/workflows/`:
 
 **Python CI (`ci-python.yml`):**
 - **Triggers:** Push to any branch, pull requests to any branch
-- **Matrix:** Python 3.9, 3.10, 3.11 on `ubuntu-latest`
+- **Matrix:** Python 3.10, 3.11, 3.12 and 3.14 on `ubuntu-latest`
 - **Steps:**
   1. Checkout code
   2. Setup Python
@@ -298,7 +298,7 @@ Located in `.github/workflows/`:
 
 | Tool | Purpose | Install |
 |------|---------|---------|
-| **Python 3.9-3.11** | Python runtime | [python.org](https://python.org) |
+| **Python 3.10+** | Python runtime | [python.org](https://python.org) |
 | **pip** | Python package manager | Included with Python |
 | **Swift 5.9+** | Swift compiler | [swift.org](https://swift.org) or Xcode |
 | **Docker** | Container runtime | [docker.com](https://docker.com) |

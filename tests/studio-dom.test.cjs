@@ -40,7 +40,7 @@ function signedReplies(role){
     else if(route==='/api/studio/runs')data={runs:[]};
     else if(route==='/api/studio/status')data=status;
     else if(route==='/api/studio/report')data=report;
-    else if(route==='/api/studio/audit')data={events:[],integrity:'Test chain'};
+    else if(route==='/api/studio/audit')data={events:[],integrity:'Test chain',chain_verified:true};
     else throw new Error('Unexpected route: '+route);
     return {status:200,data};
   };
@@ -128,5 +128,24 @@ test('disconnected providers are never labeled live in status badges',async()=>{
     assert.equal(d.querySelector('#status-list .badge').textContent,'Disconnected');
     assert.equal(d.getElementById('start-proposal').hidden,true);
     assert.match(d.getElementById('start-description').textContent,/viewer role/);
+  }finally{dom.window.close();}
+});
+
+test('audit integrity distinguishes failed, unknown and verified chains on refresh',async()=>{
+  const base=signedReplies('reviewer');let verified=false;
+  const dom=harness('https://studio.example/advanced',(route,options)=>route==='/api/studio/audit'?{status:200,data:{events:[],integrity:'Hash-linked records.',chain_verified:verified}}:base(route,options));
+  try{
+    const d=dom.window.document;await until(()=>d.getElementById('audit-integrity').textContent.includes('verification failed'));
+    const notice=d.getElementById('audit-integrity');
+    assert.equal(notice.getAttribute('role'),'alert');
+    assert.equal(notice.classList.contains('error'),true);
+    assert.match(notice.textContent,/Do not rely/);
+    verified=undefined;d.getElementById('refresh-audit').click();
+    await until(()=>notice.textContent.includes('unavailable'));
+    assert.equal(notice.classList.contains('error'),true);
+    verified=true;d.getElementById('refresh-audit').click();
+    await until(()=>notice.textContent.includes('verified'));
+    assert.equal(notice.getAttribute('role'),'status');
+    assert.equal(notice.classList.contains('error'),false);
   }finally{dom.window.close();}
 });

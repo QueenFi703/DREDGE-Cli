@@ -21,6 +21,9 @@ from pathlib import Path
 import click
 from datetime import datetime
 
+from . import __version__
+from .runtime_cli import _detect_mobile_context, main as runtime_main
+
 logger = logging.getLogger(__name__)
 
 
@@ -217,13 +220,16 @@ class DREDGECLI:
 # ============================================================================
 
 @click.group(invoke_without_command=True)
+@click.version_option(__version__, prog_name="DREDGE")
+@click.option("--version-info", is_flag=True, help="Print version and system information")
+@click.option("--no-spinner", is_flag=True, help="Disable spinners/progress for CI and pipes")
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output")
 @click.option("--json", "-j", "json_output", is_flag=True, help="JSON output")
 @click.option("--config-file", "-c", type=click.Path(), help="Config file")
 @click.pass_context
-def cli(ctx, verbose, json_output, config_file):
+def cli(ctx, verbose, json_output, config_file, version_info, no_spinner):
     """
-    DREDGE CLI - Advanced AI Pipeline System
+    DREDGE x Dolly - Advanced AI Pipeline System
     
     Unified interface for:
     - Pipeline execution
@@ -231,6 +237,12 @@ def cli(ctx, verbose, json_output, config_file):
     - Provider management
     - System monitoring
     """
+    if version_info:
+        ctx.exit(runtime_main(["--version-info"]))
+    if ctx.invoked_subcommand is None:
+        click.echo(ctx.get_help())
+        return
+
     config = CLIConfig(
         verbose=verbose,
         json_output=json_output,
@@ -366,7 +378,7 @@ def status(ctx):
     cli_instance.print_output({"providers_status": status})
 
 
-@cli.command()
+@cli.group(invoke_without_command=True)
 @click.option("--cache/--no-cache", default=True, help="Enable caching")
 @click.option("--pipeline-type", "-p", default="standard", help="Default pipeline type")
 @click.option("--log-level", "-l", default="INFO", help="Log level")
@@ -380,6 +392,9 @@ def config(ctx, cache, pipeline_type, log_level):
         dredge config --pipeline-type ios_swift
         dredge config --log-level DEBUG
     """
+    if ctx.invoked_subcommand is not None:
+        return
+
     cli_instance = ctx.obj["cli"]
     cli_instance.config.cache_enabled = cache
     cli_instance.config.pipeline_type = pipeline_type
@@ -589,5 +604,57 @@ def print_usage():
     click.echo(USAGE_GUIDE)
 
 
+def _runtime_command(name, help_text, prefix=None):
+    """Expose the established runtime parser without changing its option contract."""
+    @click.command(
+        name,
+        help=help_text,
+        add_help_option=False,
+        context_settings={"ignore_unknown_options": True, "allow_extra_args": True},
+    )
+    @click.pass_context
+    def command(ctx):
+        return runtime_main([*(prefix or []), name, *ctx.args])
+
+    return command
+
+
+for _name, _help in (
+    ("serve", "Start the DREDGE x Dolly web server."),
+    ("mcp", "Start the DREDGE MCP server (Quasimoto models)."),
+    ("health", "Check system health and dependencies."),
+    ("info", "Show system information."),
+    ("print", "Print project playbooks and ready-to-share content."),
+    ("github-event", "Process GitHub events in streaming batch mode."),
+    ("sync", "Compile the orchestration manifest into generated surfaces."),
+):
+    cli.add_command(_runtime_command(_name, _help))
+
+for _name, _help in (
+    ("show", "Show current runtime configuration."),
+    ("init", "Initialize a default runtime configuration file."),
+    ("path", "Show the runtime configuration file path."),
+):
+    config.add_command(_runtime_command(_name, _help, prefix=["config"]))
+
+
+def main(argv=None):
+    """Run either the pipeline or runtime commands through all supported entrypoints."""
+    try:
+        result = cli.main(
+            args=argv,
+            prog_name="dredge",
+            standalone_mode=False,
+            terminal_width=_detect_mobile_context()["term_width"],
+        )
+        return result if isinstance(result, int) else 0
+    except click.ClickException as exc:
+        exc.show()
+        return exc.exit_code
+    except click.Abort:
+        click.echo("Aborted!", err=True)
+        return 1
+
+
 if __name__ == "__main__":
-    cli()
+    raise SystemExit(main())

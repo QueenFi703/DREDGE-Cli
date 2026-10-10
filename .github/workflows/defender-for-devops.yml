@@ -46,61 +46,46 @@ jobs:
           elif [ -n "${HTTP_PROXY}" ]; then
             python -m pip config set global.proxy "${HTTP_PROXY}"
           fi
-          pip install bandit checkov
+          pip install 'bandit[sarif]' checkov
 
-      # -----------------------------
-      # Bandit (Python SAST)
-      # -----------------------------
-      - name: 🔍 Run Bandit (SARIF)
-        run: |
-          bandit -r . \
-            -f sarif \
-            -o bandit.sarif || true
-          if [ ! -s bandit.sarif ]; then
-            printf '%s\n' '{"version":"2.1.0","runs":[]}' > bandit.sarif
-          fi
-
-      # -----------------------------
-      # Checkov (IaC scanning)
-      # -----------------------------
-      - name: 🔍 Run Checkov (SARIF)
-        run: |
-          checkov -d . \
-            -o sarif \
-            --output-file-path checkov.sarif || true
-          if [ ! -s checkov.sarif ]; then
-            printf '%s\n' '{"version":"2.1.0","runs":[]}' > checkov.sarif
-          fi
-
-      - name: 🛠 Normalize Checkov SARIF path
-        run: |
-          if [ -d checkov.sarif ] && [ -f checkov.sarif/results_sarif.sarif ]; then
-            mv checkov.sarif/results_sarif.sarif checkov-results.sarif
-            rmdir checkov.sarif
-            mv checkov-results.sarif checkov.sarif
-          fi
-
-      # -----------------------------
-      # Ensure SARIF exists
-      # -----------------------------
-      - name: 🧪 Verify SARIF files
+      - name: Run Bandit (SARIF)
         run: |
           set -euo pipefail
-          ls -lah *.sarif
-          test -s bandit.sarif
-          test -s checkov.sarif
-          jq -e . bandit.sarif > /dev/null
-          jq -e . checkov.sarif > /dev/null
+          bandit -r . -f sarif -o bandit.sarif --exit-zero
 
-      # -----------------------------
-      # Upload results to GitHub Security tab
-      # -----------------------------
-      - name: 📤 Upload Bandit SARIF
+      - name: Run Checkov (SARIF)
+        run: |
+          set -euo pipefail
+          mkdir -p checkov-output
+          checkov -d . -o sarif --output-file-path checkov-output --soft-fail
+          cp checkov-output/results_sarif.sarif checkov.sarif
+
+      - name: Verify SARIF files
+        id: verify_sarif
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for filename, tool in [('bandit.sarif', 'bandit'), ('checkov.sarif', 'checkov')]:
+              report = json.loads(Path(filename).read_text())
+              assert report.get('version') == '2.1.0', f'Invalid SARIF version: {filename}'
+              runs = report.get('runs')
+              assert isinstance(runs, list) and runs, f'No scanner runs: {filename}'
+              assert all(run.get('tool', {}).get('driver', {}).get('name', '').lower() == tool
+                         for run in runs), f'Unexpected scanner: {filename}'
+              print(f'Validated {filename}')
+          PY
+
+      - name: Upload Bandit SARIF
+        if: always() && steps.verify_sarif.outcome == 'success'
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: bandit.sarif
 
-      - name: 📤 Upload Checkov SARIF
+      - name: Upload Checkov SARIF
+        if: always() && steps.verify_sarif.outcome == 'success'
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: checkov.sarif
+

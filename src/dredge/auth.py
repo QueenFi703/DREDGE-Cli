@@ -53,7 +53,6 @@ class User(UserMixin):
 
 def get_oauth():
     """Get the OAuth instance. Must call init_auth first."""
-    global _oauth_instance
     return _oauth_instance
 
 

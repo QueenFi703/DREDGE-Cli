@@ -30,7 +30,7 @@ This project demonstrates an AI-assisted software engineering workflow in which 
 
 ## Advanced Security Intelligence & Model Management Platform
 
-[![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)](https://www.python.org/downloads/)
+[![Python Version](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/downloads/)
 [![Flask](https://img.shields.io/badge/flask-2.0%2B-green)](https://flask.palletsprojects.com/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 [![Status](https://img.shields.io/badge/status-production%20ready-brightgreen)]()
@@ -104,7 +104,7 @@ pip install -e ".[gpu]"
 ```
 
 ### Requirements
-- Python 3.8 or higher
+- Python 3.10 or higher
 - Flask 2.0+
 - PyTorch 2.0+
 - NumPy 1.19+

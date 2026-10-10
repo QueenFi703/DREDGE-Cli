@@ -9,7 +9,7 @@ import logging
 import time
 from functools import lru_cache
 from pathlib import Path
-from flask import Flask, jsonify, request, send_file, redirect, url_for, session
+from flask import Flask, Request, jsonify, request, send_file, redirect, url_for, session
 from flask_login import login_required, current_user, logout_user
 
 # Load .env file if it exists
@@ -53,9 +53,25 @@ def _compute_insight_hash(insight_text: str) -> str:
     return hashlib.sha256(insight_text.encode()).hexdigest()
 
 
+class BoundedRequest(Request):
+    """Support endpoint-specific limits on Flask releases before 3.1 too."""
+    _route_max_content_length = None
+
+    @property
+    def max_content_length(self):
+        if self._route_max_content_length is not None:
+            return self._route_max_content_length
+        return super().max_content_length
+
+    @max_content_length.setter
+    def max_content_length(self, value):
+        self._route_max_content_length = value
+
+
 def create_app():
     """Create and configure the Flask application."""
     app = Flask(__name__)
+    app.request_class = BoundedRequest
 
     # -- Session secret key
     secret_key = os.environ.get("SECRET_KEY", "")

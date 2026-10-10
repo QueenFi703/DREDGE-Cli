@@ -35,46 +35,45 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip
-          pip install bandit checkov
+          pip install 'bandit[sarif]' checkov
 
       - name: Run Bandit (SARIF)
         run: |
           set -euo pipefail
-          bandit -r . -f sarif -o bandit.sarif || true
+          bandit -r . -f sarif -o bandit.sarif --exit-zero
 
       - name: Run Checkov (SARIF)
         run: |
           set -euo pipefail
-          checkov -d . -o sarif > checkov.sarif || true
+          mkdir -p checkov-output
+          checkov -d . -o sarif --output-file-path checkov-output --soft-fail
+          cp checkov-output/results_sarif.sarif checkov.sarif
 
       - name: Verify SARIF files
+        id: verify_sarif
         run: |
           set -euo pipefail
-          shopt -s nullglob
-          sarif_files=( *.sarif )
-
-          if [ ${#sarif_files[@]} -eq 0 ]; then
-            echo "No SARIF files were generated"
-            exit 1
-          fi
-
-          ls -lah *.sarif
-
-          for sarif in "${sarif_files[@]}"; do
-            if [ ! -s "$sarif" ]; then
-              echo "SARIF file is empty: $sarif"
-              exit 1
-            fi
-          done
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for filename, tool in [('bandit.sarif', 'bandit'), ('checkov.sarif', 'checkov')]:
+              report = json.loads(Path(filename).read_text())
+              assert report.get('version') == '2.1.0', f'Invalid SARIF version: {filename}'
+              runs = report.get('runs')
+              assert isinstance(runs, list) and runs, f'No scanner runs: {filename}'
+              assert all(run.get('tool', {}).get('driver', {}).get('name', '').lower() == tool
+                         for run in runs), f'Unexpected scanner: {filename}'
+              print(f'Validated {filename}')
+          PY
 
       - name: Upload Bandit SARIF
-        if: always()
+        if: always() && steps.verify_sarif.outcome == 'success'
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: bandit.sarif
 
       - name: Upload Checkov SARIF
-        if: always()
+        if: always() && steps.verify_sarif.outcome == 'success'
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: checkov.sarif

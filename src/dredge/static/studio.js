@@ -186,7 +186,19 @@
     metrics.forEach(([name,value])=>{const row=el('div');row.append(el('dt',name),el('dd',String(value)));$('report-values').append(row);}); $('cost-note').textContent=data.cost_note;
   }
   async function refreshReport(){renderReport(await api('/api/studio/report'));}
-  async function refreshAudit(){const data=await api('/api/studio/audit');$('audit-integrity').textContent=data.integrity;$('audit-list').replaceChildren();if(!data.events.length)$('audit-list').append(el('p','No audit events recorded.','muted'));data.events.forEach(event=>{const row=el('article',undefined,'audit-record');row.append(el('strong',event.action.replaceAll('_',' ')),el('p',`${new Date(event.recorded*1000).toLocaleString()} · ${event.actor}`,'muted small'),el('p','Run: '+(event.run_id||'—'),'small'));const details=el('details');details.append(el('summary','Integrity record'),el('pre',JSON.stringify({seq:event.seq,detail:JSON.parse(event.detail),hash:event.hash,previous_hash:event.previous_hash},null,2)));row.append(details);$('audit-list').append(row);});}
+  async function refreshAudit(){
+    const data=await api('/api/studio/audit');
+    const integrity=$('audit-integrity'), verified=data.chain_verified===true;
+    const summary=verified?'Audit chain verified.':data.chain_verified===false?'Audit chain verification failed. Do not rely on these records until an administrator investigates.':'Audit chain verification unavailable. Integrity has not been established.';
+    integrity.textContent=summary+' '+data.integrity;
+    integrity.classList.toggle('error',!verified);
+    integrity.classList.toggle('notice',!verified);
+    integrity.classList.toggle('muted',verified);
+    integrity.setAttribute('role',verified?'status':'alert');
+    $('audit-list').replaceChildren();
+    if(!data.events.length)$('audit-list').append(el('p','No audit events recorded.','muted'));
+    data.events.forEach(event=>{const row=el('article',undefined,'audit-record');row.append(el('strong',event.action.replaceAll('_',' ')),el('p',`${new Date(event.recorded*1000).toLocaleString()} · ${event.actor}`,'muted small'),el('p','Run: '+(event.run_id||'—'),'small'));const details=el('details');details.append(el('summary','Integrity record'),el('pre',JSON.stringify({seq:event.seq,detail:JSON.parse(event.detail),hash:event.hash,previous_hash:event.previous_hash},null,2)));row.append(details);$('audit-list').append(row);});
+  }
   $('proposal-form').addEventListener('submit',event=>{event.preventDefault();action($('propose-run'),async()=>{
     const evidence=[];const url=$('source-url').value.trim(),title=$('source-title').value.trim(),excerpt=$('source-excerpt').value;
     if(url||title||excerpt){if(!url||!title)throw new Error('Provide both a source title and URL, or leave the source blank.');evidence.push({url,title,excerpt});}
