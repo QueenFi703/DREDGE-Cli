@@ -50,3 +50,5 @@ stripe==15.6.0
 
 cryptography>=44.0.0
 pypdf>=5.0.0,<7
+
+Pillow>=12.0.0

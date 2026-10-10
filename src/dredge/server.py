@@ -93,6 +93,8 @@ def create_app():
     register_billing(app)
     from .casework import register_casework
     register_casework(app)
+    from .client_portal import register_clients
+    register_clients(app)
     app.config['MAX_CONTENT_LENGTH'] = 65536
     app.config['SESSION_COOKIE_HTTPONLY'] = True
     app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
@@ -140,7 +142,7 @@ def create_app():
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
-        if request.path.startswith(('/api/studio/', '/api/billing/', '/api/casework/', '/casework', '/billing', '/auth/')) or request.path.startswith('/advanced'):
+        if request.path.startswith(('/api/studio/', '/api/billing/', '/api/casework/', '/api/client/', '/client', '/casework', '/billing', '/auth/')) or request.path.startswith('/advanced'):
             response.headers['Cache-Control'] = 'no-store'
         if request.path.startswith(('/api/advanced/', '/api/dependabot/')) and response.is_json:
             data = response.get_json()
