@@ -112,7 +112,7 @@
     if (!sources.length) { $('evidence-list').append(el('p','No source records attached to this run.','muted')); return; }
     sources.forEach(source => {
       const article = el('article',undefined,'source-record'); article.append(el('h3',source.title));
-      try { const url = new URL(source.url); if (url.protocol === 'https:' && !url.username && !url.password) { const link = el('a',url.hostname + ' ↗'); link.href=url.href; link.target='_blank'; link.rel='noopener noreferrer'; article.append(link); } } catch (_) {}
+      try { const url = new URL(source.url, location.origin); if (url.protocol === 'https:' && !url.username && !url.password) { const link = el('a',url.hostname + ' ↗'); link.href=url.href; link.target='_blank'; link.rel='noopener noreferrer'; article.append(link); } } catch (_) {}
       const meta=el('div',undefined,'source-meta'); meta.append(badge(source.provenance),badge(source.verification)); article.append(meta);
       article.append(el('blockquote',source.excerpt || 'No excerpt was supplied.')); $('evidence-list').append(article);
     });
