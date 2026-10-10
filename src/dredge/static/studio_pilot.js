@@ -71,14 +71,21 @@
   const element = (tag,text,cls) => {const node=document.createElement(tag);node.textContent=text;if(cls)node.className=cls;return node;};
   // A relaxed reading rate plus the requested inspection pauses; no audio assumed.
   const duration = text => Math.max(5000,text.trim().split(/\s+/).length*60000/145);
-  const segments=scenes.map(scene=>[...scene.paragraphs.map(duration),scene.pause*1000]);
+  // Keep captions short enough for a phone, without changing narration or timing.
+  const captionBlocks=scenes.map(s=>s.paragraphs.flatMap(text=>{
+    const words=text.trim().split(/\s+/);const blocks=[];
+    const size=Math.ceil(words.length/Math.ceil(words.length/36));
+    for(let i=0;i<words.length;i+=size){const chunk=words.slice(i,i+size);blocks.push({text:chunk.join(' '),ms:duration(text)*chunk.length/words.length});}
+    return blocks;
+  }));
+  const segments=scenes.map((s,i)=>[...captionBlocks[i].map(b=>b.ms),s.pause*1000]);
   const total=segments.flat().reduce((a,b)=>a+b,0);
   let scene=0,part=0,elapsed=0,playing=false,timer=null,last=0,speed=1,finished=false;
   function stop(){playing=false;if(timer!==null){clearInterval(timer);timer=null;}}
   function setText(id,text){if($(id).textContent!==text)$(id).textContent=text;}
   function controls(message){setText('play',playing?'Pause':finished?'Replay demo':'Play demo');$('previous').disabled=scene===0;$('next').disabled=scene===scenes.length-1;setText('play-state',message||(playing?'Playing · captions only':finished?'Finished · replay any scene':'Paused · captions only'));const past=segments.slice(0,scene).flat().reduce((a,b)=>a+b,0)+segments[scene].slice(0,part).reduce((a,b)=>a+b,0)+elapsed;$('progress').value=Math.min(100,past/total*100);setText('duration',`About ${Math.round(total/60000/speed)} minutes at this pace`);}
-  function caption(){const s=scenes[scene];$('caption').textContent=s.paragraphs[Math.min(part,s.paragraphs.length-1)];$('cue').textContent=part===s.paragraphs.length?`Pause and inspect the screen · ${s.pause} seconds`:`Narration ${part+1} of ${s.paragraphs.length}`;}
-  function render(){const s=scenes[scene];$('scene-title').textContent=s.title;$('scene-number').textContent=`Scene ${scene+1} of ${scenes.length}`;document.querySelectorAll('#scene-list button').forEach((b,i)=>{if(i===scene)b.setAttribute('aria-current','step');else b.removeAttribute('aria-current');});const cards=element('div','','evidence-cards');for(const c of s.cards){const card=element('article','','evidence-card');card.append(element('h3',c[0]));if(c.length===3){card.append(element('strong',c[1],'amount'),element('p',c[2]));}else card.append(element('p',c[1]));if(s.tour)card.classList.add('tour-example');cards.append(card);}$('stage').replaceChildren(cards);if(s.graph){const graph=element('div','','graph-steps');graph.setAttribute('aria-label','Simulated graph');for(const label of ['Frame →','Sources →','Clarify →','Human review'])graph.append(element('span',label));$('stage').append(element('p','Simulated public graph','stage-note'),graph);}if(s.note)$('stage').append(element('p',s.note,'stage-note'));if(s.tour){const link=element('a','Open the interactive preview and select Take a tour ↗');link.href='/preview';$('stage').append(link);}caption();controls();}
+  function caption(){const s=scenes[scene],blocks=captionBlocks[scene];$('caption').textContent=blocks[Math.min(part,blocks.length-1)].text;$('caption').scrollTop=0;$('cue').textContent=part===blocks.length?`Pause and inspect the screen · ${s.pause} seconds`:`Caption ${part+1} of ${blocks.length}`;}
+  function render(){const s=scenes[scene];$('scene-title').textContent=s.title;$('scene-number').textContent=`Scene ${scene+1} of ${scenes.length}`;document.querySelectorAll('#scene-list button').forEach((b,i)=>{if(i===scene)b.setAttribute('aria-current','step');else b.removeAttribute('aria-current');});const cards=element('div','','evidence-cards');for(const c of s.cards){const card=element('article','','evidence-card');card.append(element('h3',c[0]));if(c.length===3){card.append(element('strong',c[1],'amount'),element('p',c[2]));}else card.append(element('p',c[1]));if(s.tour)card.classList.add('tour-example');cards.append(card);}$('stage').replaceChildren(cards);if(s.graph){const graph=element('div','','graph-steps');graph.setAttribute('aria-label','Simulated graph');for(const label of ['Frame →','Sources →','Clarify →','Human review'])graph.append(element('span',label));$('stage').append(element('p','Simulated public graph','stage-note'),graph);}if(s.note)$('stage').append(element('p',s.note,'stage-note'));if(s.tour){const link=element('a','Open the interactive preview and select Take a tour ↗');link.href='/preview';$('stage').append(link);}$('stage').scrollTop=0;caption();controls();}
   function navigate(index){stop();scene=Math.max(0,Math.min(scenes.length-1,index));part=0;elapsed=0;finished=false;render();$('scene-title').focus();}
   function tick(){const now=performance.now();elapsed+=(now-last)*speed;last=now;while(playing&&elapsed>=segments[scene][part]){elapsed-=segments[scene][part];part++;if(part>=segments[scene].length){if(scene===scenes.length-1){elapsed=segments[scene][segments[scene].length-1];part=segments[scene].length-1;finished=true;stop();controls();$('progress').value=100;return;}scene++;part=0;render();}else caption();}controls();}
   function begin(focus=false){if(playing)return;if(finished)navigate(0);playing=true;last=performance.now();timer=setInterval(tick,250);controls();if(focus)$('scene-title').focus();}
@@ -87,11 +94,13 @@
   $('pace').addEventListener('change',()=>{if(playing)tick();stop();const value=Number($('pace').value);speed=[0.8,1,1.25].includes(value)?value:1;controls();});
   $('scene-list').replaceChildren();
   scenes.forEach((s,i)=>{const button=element('button',`${String(i+1).padStart(2,'0')}  ${s.title}`);button.type='button';button.addEventListener('click',()=>navigate(i));$('scene-list').append(button);const section=element('section','');section.append(element('h3',`${i+1}. ${s.title}`));for(const p of s.paragraphs)section.append(element('p',p));section.append(element('p',`[Pause ${s.pause} seconds.]`,'muted'));$('transcript').append(section);});
+  ['stage','caption'].forEach(id=>$(id).addEventListener('focusin',()=>{if(playing){stop();controls('Paused for inspection. Select Play demo to continue.');}}));
   document.addEventListener('visibilitychange',()=>{if(document.hidden&&playing){stop();controls('Paused while this tab is hidden. Select Play demo to continue.');}});
   window.addEventListener('pagehide',()=>{stop();controls();});
   document.addEventListener('keydown',event=>{if(event.key==='Escape'&&playing){stop();controls();}});
   ['play','previous','next','restart','pace'].forEach(id=>{$(id).disabled=false;});
   render();$('demo-readiness').hidden=true;
   if(document.hidden)controls('Paused while this tab is hidden. Select Play demo to continue.');else begin();
+  document.querySelector('.demo-intro').addEventListener('toggle',()=>{if(document.querySelector('.demo-intro').open&&playing){stop();controls('Paused for the introduction. Select Play demo to continue.');}});
   document.querySelector('.transcript').addEventListener('toggle',()=>{if(document.querySelector('.transcript').open&&playing){stop();controls('Paused for the full narration. Select Play demo to continue.');}});
 })();
