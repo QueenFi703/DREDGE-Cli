@@ -23,4 +23,12 @@ button.secondary:hover,.button.secondary:hover{background-color:#7fefd714}
 .crafted pre{border-left-color:#7fefd7}
 button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,summary:focus-visible,[tabindex]:focus-visible{outline-color:#7fefd7}
 button:disabled,.button[aria-disabled=true]{background-image:none;background-color:#343c4c;border-color:#626b7d;color:#c6cedb;opacity:1}
+.tour-bubble{--heading-gradient:var(--action-gradient);font-family:'Dredge DejaVu',sans-serif;border-color:#579b9c}
+.tour-bubble h2{font-family:inherit;font-weight:700;color:#0f7268}
+.tour-bubble p{font-family:inherit}
+.tour-spot{border-color:#7fefd7}
+.tour-actions button{background-image:none;background-color:transparent;color:#20232c;border-color:#579b9c}
+.tour-actions button[data-tour=next]{background-image:var(--action-gradient);background-color:#0f7268;color:#fff}
+.tour-actions button:focus-visible{outline-color:#294ca1}
+.tour-actions button:disabled{background-image:none;background-color:#d5d8de;color:#4c5462;opacity:1}
 @media(forced-colors:active){h1,h2,h3,.brand,h1 em,.crafted h1 em,h2 small,.crafted h2 small,.brand span,.crafted .brand span{background-image:none;-webkit-text-fill-color:CanvasText;color:CanvasText}button,.button,.crafted button,.crafted .button{background-image:none;background-color:ButtonFace;color:ButtonText;border-color:ButtonText}}
