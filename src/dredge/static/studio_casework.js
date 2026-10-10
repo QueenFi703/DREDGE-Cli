@@ -3,30 +3,30 @@
   let csrf = '', selected = null, config = null;
   const el = id => document.getElementById(id);
   const message = text => { el('message').textContent = text; };
-  function selectSection(enterprise, focus = false) {
-    for (const name of ['casework', 'enterprise']) {
-      const active = (name === 'enterprise') === enterprise;
-      el(name+'-panel').hidden = !active;
-      el(name+'-tab').setAttribute('aria-selected', String(active));
-      el(name+'-tab').tabIndex = active ? 0 : -1;
-      if (active && focus) el(name+'-tab').focus();
+  const sections = ['casework','pages','enterprise'];
+  function selectSection(name, focus = false) {
+    if (!sections.includes(name)) name='casework';
+    for (const section of sections) {
+      const active=section===name;
+      el(section+'-panel').hidden=!active;
+      el(section+'-tab').setAttribute('aria-selected',String(active));
+      el(section+'-tab').tabIndex=active?0:-1;
+      if(active&&focus)el(section+'-tab').focus();
     }
+    if(name==='pages'&&config?.membership&&config?.encrypted_storage)pageList().catch(e=>message(e.message));
   }
-  for (const name of ['casework', 'enterprise']) {
-    el(name+'-tab').addEventListener('click', () => {
-      location.hash = name;
-      selectSection(name === 'enterprise');
-    });
-    el(name+'-tab').addEventListener('keydown', event => {
-      if (!['ArrowLeft','ArrowRight','Home','End'].includes(event.key)) return;
+  for(const name of sections){
+    el(name+'-tab').addEventListener('click',()=>{location.hash=name;selectSection(name);});
+    el(name+'-tab').addEventListener('keydown',event=>{
+      if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
       event.preventDefault();
-      const enterprise = event.key === 'End' || (event.key !== 'Home' && name === 'casework');
-      location.hash = enterprise ? 'enterprise' : 'casework';
-      selectSection(enterprise, true);
+      const index=sections.indexOf(name);
+      const next=event.key==='Home'?0:event.key==='End'?sections.length-1:(index+(event.key==='ArrowRight'?1:sections.length-1))%sections.length;
+      location.hash=sections[next];selectSection(sections[next],true);
     });
   }
-  window.addEventListener('hashchange', () => selectSection(location.hash === '#enterprise'));
-  selectSection(location.hash === '#enterprise');
+  window.addEventListener('hashchange',()=>selectSection(location.hash.slice(1)));
+  selectSection(location.hash.slice(1));
 
   async function api(path, body) {
     const options = body === undefined ? {} : {method:'POST',headers:{'X-CSRF-Token':csrf},body:body instanceof FormData ? body : JSON.stringify(body)};
@@ -71,11 +71,19 @@
     for(const f of data.files){const li=document.createElement('li');const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.value=f.id;checkbox.name='evidence';const label=document.createElement('label');label.append(checkbox,document.createTextNode(' '+f.name));const a=document.createElement('a');a.href=`/api/casework/cases/${id}/files/${f.id}`;a.textContent='Download';li.append(label,a);el('files').append(li);}
     data.outputs.forEach(output);
   }
+  let pageId=null, pageVersion=null;
+  function newPage(){pageId=null;pageVersion=null;el('page-form').reset();el('page-form').elements.title.disabled=false;el('page-form').elements.body.disabled=false;el('page-save').disabled=false;el('page-archive').hidden=true;el('page-version').replaceChildren();el('page-heading').textContent='Create a page';el('page-state').textContent='Unsaved page';}
+  async function pageList(){const data=await api('pages');el('page-list').replaceChildren();for(const p of data.pages){const li=document.createElement('li');const b=document.createElement('button');b.textContent=p.title;b.addEventListener('click',()=>loadPage(p.id).catch(e=>message(e.message)));li.append(b);el('page-list').append(li);}}
+  async function loadPage(id,version){const p=await api('pages/'+id+(version?'?version='+version:''));pageId=id;pageVersion=p.current_version;const form=el('page-form');form.elements.title.value=p.title;form.elements.body.value=p.body;form.elements.title.disabled=!p.can_edit;form.elements.body.disabled=!p.can_edit;el('page-save').disabled=!p.can_edit||p.archived;el('page-archive').hidden=!p.can_edit||p.archived;el('page-heading').textContent=p.title;el('page-state').textContent=`Version ${p.version} of ${p.current_version}${p.can_edit?' · Can edit':' · Read only'}`;el('page-version').replaceChildren();for(const v of p.versions){const o=document.createElement('option');o.value=v.version;o.textContent=`Version ${v.version} · ${new Date(v.created*1000).toLocaleString()}`;o.selected=v.version===p.version;el('page-version').append(o);}}
+  el('page-new').addEventListener('click',newPage);
+  el('page-version').addEventListener('change',()=>{if(pageId)loadPage(pageId,Number(el('page-version').value)).catch(e=>message(e.message));});
+  action(el('page-form'),async form=>{const data=await api(pageId?'pages/'+pageId:'pages',{title:form.elements.title.value,body:form.elements.body.value,expected_version:pageVersion});await pageList();await loadPage(data.id);});
+  el('page-archive').addEventListener('click',async()=>{try{await api('pages/'+pageId,{archive:true,expected_version:pageVersion});newPage();await pageList();message('Page archived. Its versions are retained.');}catch(e){message(e.message);}});
   action(el('create'),async form=>{const c=await api('cases',{title:form.elements.title.value});await list();await load(c.id);form.reset();});
   action(el('upload'),async form=>{if(!selected)throw new Error('Select a case first.');await api(`cases/${selected}/files`,new FormData(form));await load(selected);form.reset();});
   action(el('quote'),async form=>{const data=await api('enterprise-quote',{agency:form.elements.agency.value,seats:Number(form.elements.seats.value)});form.reset();el('status').textContent=data.message;});
   action(el('analysis'),async form=>{if(!selected)throw new Error('Select a case first.');const data=await api('ai',{kind:'analysis',case_id:selected,file_ids:[...document.querySelectorAll('input[name=evidence]:checked')].map(x=>x.value),question:form.elements.question.value,consent:form.elements.consent.checked});output({...data,kind:'Case draft'});});
   action(el('research'),async form=>{const data=await api('ai',{kind:'research',question:form.elements.question.value,consent:form.elements.consent.checked,public_question_confirmed:form.elements.consent.checked});output({...data,kind:'Public research'});});
   el('archive').addEventListener('click',async()=>{if(!selected)return;try{await api(`cases/${selected}/archive`,{});await list();await load(selected);}catch(e){message(e.message);}});
-  (async()=>{try{config=await api('session');csrf=config.csrf_token;el('status').textContent=`${config.membership ? config.membership.agency+' · '+config.membership.role : 'Agency membership not yet assigned'} | Encrypted storage: ${config.encrypted_storage?'ready':'needs configuration'} | Astra: ${config.ai_configured?'configured':'key needed'} | Client data: ${config.real_data_enabled?'enabled':'pending agency approval'}`;if(config.membership&&config.encrypted_storage)await list();}catch(e){message(e.message);}})();
+  (async()=>{try{config=await api('session');csrf=config.csrf_token;el('status').textContent=`${config.membership ? config.membership.agency+' · '+config.membership.role : 'Agency membership not yet assigned'} | Encrypted storage: ${config.encrypted_storage?'ready':'needs configuration'} | Astra: ${config.ai_configured?'configured':'key needed'} | Client data: ${config.real_data_enabled?'enabled':'pending agency approval'}`;if(config.membership&&config.encrypted_storage){await list();await pageList();}}catch(e){message(e.message);}})();
 })();

@@ -45,6 +45,10 @@ def register_casework(app):
         CREATE TABLE IF NOT EXISTS casework_outputs(id TEXT PRIMARY KEY, agency TEXT NOT NULL,
           owner TEXT NOT NULL, case_id TEXT, kind TEXT NOT NULL, data BLOB, created REAL NOT NULL);
         CREATE INDEX IF NOT EXISTS casework_agency ON casework_cases(agency,owner);
+        CREATE TABLE IF NOT EXISTS agency_pages(id TEXT PRIMARY KEY, agency TEXT NOT NULL,
+          owner TEXT NOT NULL, version INTEGER NOT NULL, archived INTEGER NOT NULL DEFAULT 0);
+        CREATE TABLE IF NOT EXISTS agency_page_versions(page_id TEXT NOT NULL, version INTEGER NOT NULL,
+          data BLOB NOT NULL, actor TEXT NOT NULL, created REAL NOT NULL, PRIMARY KEY(page_id,version));
         CREATE TABLE IF NOT EXISTS enterprise_quotes(id TEXT PRIMARY KEY, owner TEXT NOT NULL,
           data BLOB NOT NULL, created REAL NOT NULL);
         ''')
@@ -339,3 +343,63 @@ def quote():
           (quote_id, current_user.get_id(), encrypt(dict(agency=agency.strip(), seats=seats, interval='year', status='requested')), time.time()))
         audit(db, 'enterprise_quote_requested', quote_id)
     return jsonify(id=quote_id, status='requested', interval='year', message='Annual agency quote request recorded. No charge or access change has been made.'), 201
+
+
+@bp.route('/api/casework/pages', methods=['GET', 'POST'])
+@protected
+def pages():
+    with store().connect() as db:
+        if request.method == 'GET':
+            rows = db.execute('SELECT p.*,v.data FROM agency_pages p JOIN agency_page_versions v ON v.page_id=p.id AND v.version=p.version WHERE p.agency=? AND p.archived=0 ORDER BY v.created DESC', (member()['agency'],)).fetchall()
+            return jsonify(pages=[dict(id=r['id'],version=r['version'],title=decrypt(r['data'])['title']) for r in rows])
+        data = json_body()
+        title, body = data.get('title'), data.get('body', '')
+        if not isinstance(title,str) or not 1 <= len(title.strip()) <= 120 or not isinstance(body,str) or len(body)>20000:
+            return jsonify(error='Enter a title of 1–120 characters and text up to 20,000 characters.'),400
+        db.execute('BEGIN IMMEDIATE')
+        if db.execute('SELECT COUNT(*) FROM agency_pages WHERE agency=?', (member()['agency'],)).fetchone()[0]>=200:
+            return jsonify(error='Agency page limit reached.'),409
+        page_id=str(uuid.uuid4())
+        db.execute('INSERT INTO agency_pages(id,agency,owner,version) VALUES(?,?,?,1)',(page_id,member()['agency'],current_user.get_id()))
+        db.execute('INSERT INTO agency_page_versions VALUES(?,?,?,?,?)',(page_id,1,encrypt(dict(title=title.strip(),body=body)),current_user.get_id(),time.time()))
+        audit(db,'page_created',page_id)
+        return jsonify(id=page_id,version=1),201
+
+
+@bp.route('/api/casework/pages/<page_id>',methods=['GET','POST'])
+@protected
+def page_detail(page_id):
+    with store().connect() as db:
+        if request.method=='POST':
+            db.execute('BEGIN IMMEDIATE')
+        row=db.execute('SELECT * FROM agency_pages WHERE id=? AND agency=?',(page_id,member()['agency'])).fetchone()
+        if not row:
+            return jsonify(error='Page not found.'),404
+        can_edit=row['owner']==current_user.get_id() or member()['role']=='supervisor'
+        if request.method=='GET':
+            versions=db.execute('SELECT version,created,actor FROM agency_page_versions WHERE page_id=? ORDER BY version DESC',(page_id,)).fetchall()
+            requested=request.args.get('version',row['version'],type=int)
+            content=db.execute('SELECT data FROM agency_page_versions WHERE page_id=? AND version=?',(page_id,requested)).fetchone()
+            if not content:
+                return jsonify(error='Version not found.'),404
+            audit(db,'page_viewed',page_id)
+            return jsonify(id=page_id,version=requested,current_version=row['version'],archived=bool(row['archived']),can_edit=can_edit,versions=[dict(v) for v in versions],**decrypt(content['data']))
+        if not can_edit:
+            return jsonify(error='Only the author or an agency supervisor can edit this page.'),403
+        data=json_body()
+        if type(data.get('expected_version')) is not int or data['expected_version']!=row['version']:
+            return jsonify(error='This page changed. Reload it before saving.',code='version_conflict'),409
+        if data.get('archive') is True:
+            db.execute('UPDATE agency_pages SET archived=1 WHERE id=?',(page_id,))
+            audit(db,'page_archived',page_id)
+            return jsonify(archived=True)
+        title,body=data.get('title'),data.get('body')
+        if not isinstance(title,str) or not 1<=len(title.strip())<=120 or not isinstance(body,str) or len(body)>20000:
+            return jsonify(error='Enter a title of 1–120 characters and text up to 20,000 characters.'),400
+        if row['archived']:
+            return jsonify(error='This page is archived.'),409
+        version=row['version']+1
+        db.execute('INSERT INTO agency_page_versions VALUES(?,?,?,?,?)',(page_id,version,encrypt(dict(title=title.strip(),body=body)),current_user.get_id(),time.time()))
+        db.execute('UPDATE agency_pages SET version=? WHERE id=?',(version,page_id))
+        audit(db,'page_saved',page_id)
+        return jsonify(id=page_id,version=version)

@@ -143,3 +143,27 @@ def test_provider_contract_citations_and_failure(app, monkeypatch):
     assert b'SECRET' not in response.data
     with app.extensions['studio_store'].connect() as db:
         assert db.execute('SELECT COUNT(*) FROM casework_outputs WHERE data IS NULL').fetchone()[0] == 1
+
+
+def test_agency_pages_versions_permissions_and_conflicts(app):
+    enable(app);c,h=client_for(app)
+    created=c.post('/api/casework/pages',json={'title':'Agency procedure','body':'PRIVATE GUIDANCE'},headers=h)
+    assert created.status_code==201
+    page_id=created.get_json()['id'];path='/api/casework/pages/'+page_id
+    same,sh=client_for(app,'test:other');foreign,fh=client_for(app,'test:review');supervisor,ah=client_for(app,'test:admin')
+    assert same.get(path).get_json()['can_edit'] is False
+    assert foreign.get(path).status_code==404
+    assert foreign.get('/api/casework/pages').get_json()['pages']==[]
+    edit={'title':'Revised procedure','body':'Updated guidance','expected_version':1}
+    assert same.post(path,json=edit,headers=sh).status_code==403
+    assert c.post(path,json=edit).status_code==403
+    assert supervisor.post(path,json=edit,headers=ah).get_json()['version']==2
+    assert c.post(path,json=edit,headers=h).status_code==409
+    original=c.get(path+'?version=1').get_json()
+    assert original['body']=='PRIVATE GUIDANCE'
+    assert original['current_version']==2
+    assert len(original['versions'])==2
+    assert c.post(path,json={'title':original['title'],'body':original['body'],'expected_version':2},headers=h).get_json()['version']==3
+    with app.extensions['studio_store'].connect() as db:
+        assert all(b'PRIVATE GUIDANCE' not in r['data'] for r in db.execute('SELECT data FROM agency_page_versions'))
+        assert 'PRIVATE GUIDANCE' not in json.dumps([dict(r) for r in db.execute('SELECT * FROM audit')])
