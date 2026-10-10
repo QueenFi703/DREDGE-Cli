@@ -1,0 +1,26 @@
+/* Fi's option C: DejaVu Sans with teal-to-blue accents. Fonts are served locally. */
+@font-face{font-family:'Dredge DejaVu';src:url('/static/fonts/dejavu-sans-regular.woff') format('woff');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Dredge DejaVu';src:url('/static/fonts/dejavu-sans-bold.woff') format('woff');font-weight:600 900;font-style:normal;font-display:swap}
+:root,body.crafted{--accent:#7fefd7;--primary:#0f7268;--heading-gradient:linear-gradient(110deg,#7fefd7,#96bfff);--action-gradient:linear-gradient(110deg,#0f7268,#294ca1)}
+body,body.crafted{font-family:'Dredge DejaVu',sans-serif}
+h1,h2,h3,.crafted h1,.crafted h2,.crafted h3,h1 em{font-family:inherit;font-weight:700}
+h1,.crafted h1{letter-spacing:-.045em;line-height:1.18;overflow-wrap:anywhere}
+h2,.crafted h2{letter-spacing:-.025em;line-height:1.35}
+h3,.crafted h3{line-height:1.4}
+h1,h2,h3,.brand,h1 em,.crafted h1 em{color:#7fefd7}
+.brand::first-letter{color:inherit}
+@supports ((background-clip:text) or (-webkit-background-clip:text)){
+ h1,h2,h3,.brand,h1 em,.crafted h1 em{background-image:var(--heading-gradient);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+ h1 em,.crafted h1 em{background-image:none;-webkit-text-fill-color:inherit}
+ h2 small,.crafted h2 small,.brand span,.crafted .brand span{-webkit-text-fill-color:var(--muted);color:var(--muted)}
+}
+button,.button,.crafted button,.crafted .button{font-family:inherit;font-weight:700;background-image:var(--action-gradient);background-color:#0f7268;color:#fff;border-color:#408d9c}
+button:hover,.button:hover{background-image:linear-gradient(110deg,#126f66,#3457ac);background-color:#126f66}
+button.secondary,.button.secondary,.crafted button.secondary,.crafted .button.secondary{background-image:none;background-color:transparent;border-color:#579b9c;color:var(--ink)}
+button.secondary:hover,.button.secondary:hover{background-color:#7fefd714}
+.workspace-tabs button,.crafted .workspace-tabs button{background-image:none;background-color:transparent;font-weight:400}
+.workspace-tabs button[aria-selected=true],.crafted .workspace-tabs button[aria-selected=true]{background-image:none;border-color:#7fefd7;color:#fff;font-weight:700}
+.crafted pre{border-left-color:#7fefd7}
+button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,summary:focus-visible,[tabindex]:focus-visible{outline-color:#7fefd7}
+button:disabled,.button[aria-disabled=true]{background-image:none;background-color:#343c4c;border-color:#626b7d;color:#c6cedb;opacity:1}
+@media(forced-colors:active){h1,h2,h3,.brand,h1 em,.crafted h1 em,h2 small,.crafted h2 small,.brand span,.crafted .brand span{background-image:none;-webkit-text-fill-color:CanvasText;color:CanvasText}button,.button,.crafted button,.crafted .button{background-image:none;background-color:ButtonFace;color:ButtonText;border-color:ButtonText}}
