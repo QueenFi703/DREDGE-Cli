@@ -35,3 +35,15 @@ def test_opening_scene_is_readable_without_javascript(app):
     assert '<button disabled id="play"' in html
     assert 'only the static opening view is shown' in html
     assert 'Static opening view. Playback controls activate' in html
+
+
+def test_compact_asset_urls_do_not_reuse_initial_preview_cache_key(app):
+    html = app.test_client().get('/pilot-demo').get_data(as_text=True)
+    assert '/static/studio_pilot.css?v=compact-2' in html
+    assert '/static/studio_pilot.js?v=compact-2' in html
+    assert '/static/studio_pilot.css?v=1' not in html
+    assert '/static/studio_pilot.js?v=1' not in html
+    css = app.test_client().get('/static/studio_pilot.css?v=compact-2').get_data(as_text=True)
+    script = app.test_client().get('/static/studio_pilot.js?v=compact-2').get_data(as_text=True)
+    assert '.pilot-player .demo-screen{display:flex' in css
+    assert 'captionBlocks' in script
