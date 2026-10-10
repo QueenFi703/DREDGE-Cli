@@ -10,8 +10,6 @@ on:
 permissions:
   contents: read
   actions: read
-  security-events: write
-  pull-requests: write
 
 env:
   GATE_VERSION: '0.2'
@@ -53,12 +51,15 @@ jobs:
       - name: Detect Changed Files
         id: changes
         shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
         run: |
           set -euo pipefail
 
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            git fetch origin "${{ github.base_ref }}" --depth=1
-            CHANGED=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            git fetch origin "$BASE_REF" --depth=1
+            CHANGED=$(git diff --name-only "origin/$BASE_REF...HEAD")
           else
             CHANGED=$(git diff --name-only HEAD~1 HEAD || true)
           fi
@@ -70,12 +71,14 @@ jobs:
       - name: Intent Classification
         id: classify
         shell: bash
+        env:
+          CHANGED_FILES: ${{ steps.changes.outputs.changed_files }}
         run: |
           set -euo pipefail
 
           SCORE=0
           VERDICT="low"
-          CHANGED="${{ steps.changes.outputs.changed_files }}"
+          CHANGED="$CHANGED_FILES"
 
           echo "----- DREDGE GATE ANALYSIS -----"
           echo "$CHANGED"
@@ -156,24 +159,25 @@ jobs:
             echo "::warning::Critical execution surface detected"
           fi
 
+      # Outbound reports remain disabled pending explicit audience/destination approval.
       - name: Annotate Pull Request
-        if: github.event_name == 'pull_request'
+        if: ${{ false }}
         uses: actions/github-script@v7
         with:
           script: |
             const body = `## 🜂 Dredge Gate Agent
 
-| Signal | Value |
-|---|---|
-| Risk Score | ${{ steps.classify.outputs.risk_score }} |
-| Verdict | ${{ steps.classify.outputs.verdict }} |
-| Feedback State | ${{ steps.feedback.outputs.feedback_state }} |
-| Gate Version | ${process.env.GATE_VERSION} |
-| M365 Toolkit Repo | ${{ steps.sync.outputs.m365_repo }} |
-| M365 Toolkit HEAD | ${{ steps.sync.outputs.m365_sha }} |
-| Codex Action Repo | ${{ steps.sync.outputs.codex_repo }} |
-| Codex Action HEAD | ${{ steps.sync.outputs.codex_sha }} |
-`
+            | Signal | Value |
+            |---|---|
+            | Risk Score | ${{ steps.classify.outputs.risk_score }} |
+            | Verdict | ${{ steps.classify.outputs.verdict }} |
+            | Feedback State | ${{ steps.feedback.outputs.feedback_state }} |
+            | Gate Version | ${process.env.GATE_VERSION} |
+            | M365 Toolkit Repo | ${{ steps.sync.outputs.m365_repo }} |
+            | M365 Toolkit HEAD | ${{ steps.sync.outputs.m365_sha }} |
+            | Codex Action Repo | ${{ steps.sync.outputs.codex_repo }} |
+            | Codex Action HEAD | ${{ steps.sync.outputs.codex_sha }} |
+            `
             github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -182,7 +186,7 @@ jobs:
             })
 
       - name: Export Telemetry
-        if: always() && env.DREDGE_WEBHOOK != ''
+        if: ${{ false }}
         shell: bash
         run: |
           set -euo pipefail

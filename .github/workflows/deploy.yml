@@ -5,6 +5,7 @@ name: Deploy DREDGE to GitHub Pages
 # Swift CI, or the TestFlight release pipeline.
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -14,11 +15,9 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -44,38 +43,50 @@ jobs:
         run: |
           mkdir -p docs
           cat > docs/API_ENDPOINTS.md << 'EOF'
-# DREDGE API Endpoints
+          # DREDGE API Endpoints
 
-## Deployment boundary
+          ## Deployment boundary
 
-GitHub Pages is the documentation deployment path for this workflow.
-Vercel is an optional external deployment target and is **not a release gate**.
-A Vercel account, billing, project, or deployment restriction must not block
-DREDGE CI or the iOS TestFlight release pipeline.
+          GitHub Pages is the documentation deployment path for this workflow.
+          Vercel is an optional external deployment target and is **not a release gate**.
+          A Vercel account, billing, project, or deployment restriction must not block
+          DREDGE CI or the iOS TestFlight release pipeline.
 
-## Health & Status
-- `GET /health` - System health
-- `GET /api/gordon/health` - Gordon bridge health
-- `GET /api/architecture/health` - Architecture health
+          ## Health & Status
+          - `GET /health` - System health
+          - `GET /api/gordon/health` - Gordon bridge health
+          - `GET /api/architecture/health` - Architecture health
 
-## Release gates
-The authoritative DREDGE release gates are:
-1. Swift package validation/tests
-2. iOS archive/export
-3. Code signing/provisioning validation
-4. App Store Connect/TestFlight upload
+          ## Release gates
+          The authoritative DREDGE release gates are:
+          1. Swift package validation/tests
+          2. iOS archive/export
+          3. Code signing/provisioning validation
+          4. App Store Connect/TestFlight upload
 
-Vercel deployment status is informational only.
-EOF
+          Vercel deployment status is informational only.
+          EOF
 
       - name: Upload to GitHub Pages
-        uses: actions/upload-pages-artifact@v2
+        uses: actions/upload-pages-artifact@v4
         with:
           path: 'docs'
 
+  # Automatic events validate an artifact only; publishing requires manual dispatch.
+  deploy:
+    if: github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v2
+        uses: actions/deploy-pages@v4
 
   test-pages:
     needs: deploy

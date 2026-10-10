@@ -78,8 +78,10 @@ dredge-server = "dredge.server:run"
 dredge-advanced = "dredge.server:run"
 
 [tool.setuptools]
-packages = ["dredge"]
 package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
