@@ -163,11 +163,12 @@ def detail(case_id):
         row = get_case(db, case_id)
         if not row:
             return jsonify(error='Case not found.'), 404
+        from .document_text import metadata
         files = db.execute('SELECT * FROM casework_files WHERE case_id=? ORDER BY created', (case_id,)).fetchall()
         outputs = db.execute('SELECT * FROM casework_outputs WHERE case_id=? AND data IS NOT NULL ORDER BY created', (case_id,)).fetchall()
         audit(db, 'viewed', case_id)
         return jsonify(id=case_id, archived=bool(row['archived']), **decrypt(row['data']),
-          files=[dict(id=f['id'], name=decrypt(f['data'])['name']) for f in files],
+          files=[dict(id=f['id'], **metadata(decrypt(f['data']))) for f in files],
           outputs=[dict(id=o['id'], kind=o['kind'], **decrypt(o['data'])) for o in outputs])
 
 
@@ -184,35 +185,17 @@ def upload(case_id):
             return jsonify(error='Maximum 50 files per case.'), 409
         file = request.files.get('file')
         if not file:
-            return jsonify(error='Choose a UTF-8 text or text-based PDF file.'), 400
-        name = secure_filename(file.filename or '')
-        content = file.read(MAX_FILE + 1)
-        if not content or len(content) > MAX_FILE:
-            return jsonify(error='Files must contain data and be at most 5 MB.'), 400
+            return jsonify(error='Choose a TXT, PDF, JPEG or PNG file.'), 400
+        from .document_text import read_document
         try:
-            if name.lower().endswith('.txt'):
-                text = content.decode('utf-8')
-                if '\x00' in text:
-                    raise ValueError()
-                mime = 'text/plain'
-            elif name.lower().endswith('.pdf') and content.startswith(b'%PDF-'):
-                from pypdf import PdfReader
-                reader = PdfReader(io.BytesIO(content))
-                if reader.is_encrypted or len(reader.pages) > 100:
-                    raise ValueError()
-                text = '\n'.join(page.extract_text() or '' for page in reader.pages)
-                mime = 'application/pdf'
-            else:
-                raise ValueError()
-            if not text.strip() or len(text) > 100000:
-                raise ValueError()
+            document=read_document(file)
         except Exception:
-            return jsonify(error='Use UTF-8 text or an unencrypted text PDF, up to 100 pages and 100,000 characters. Scanned PDFs need OCR first.'), 400
+            return jsonify(error='Use a valid TXT, unencrypted PDF, JPEG or PNG, up to 5 MB and 100,000 characters.'),400
         file_id = str(uuid.uuid4())
         db.execute('INSERT INTO casework_files VALUES(?,?,?,?)', (file_id, case_id,
-          encrypt(dict(name=name, mime=mime, text=text, content=base64.b64encode(content).decode())), time.time()))
+          encrypt(document), time.time()))
         audit(db, 'file_uploaded', file_id)
-        return jsonify(id=file_id, name=name), 201
+        return jsonify(id=file_id, name=document['name'], ocr_status=document['ocr_status']), 201
 
 
 @bp.get('/api/casework/cases/<case_id>/files/<file_id>')
@@ -306,7 +289,11 @@ def ai():
                 f = db.execute('SELECT data FROM casework_files WHERE id=? AND case_id=?', (file_id, case_id)).fetchone()
                 if not f:
                     return jsonify(error='Selected file not found.'), 404
-                text=decrypt(f['data'])['text']
+                document=decrypt(f['data'])
+                from .document_text import needs_review
+                if needs_review(document) and document.get('ocr_status')!='verified':
+                    return jsonify(error='Verify the extracted text against the original before AI review.'),409
+                text=document['text']
                 if not text.strip():
                     return jsonify(error='Selected photo or scan has no extracted text. OCR or transcription is required before AI review.'),409
                 evidence.append(dict(id=file_id, text=text))
@@ -424,3 +411,58 @@ def page_detail(page_id):
         db.execute('UPDATE agency_pages SET version=? WHERE id=?',(version,page_id))
         audit(db,'page_saved',page_id)
         return jsonify(id=page_id,version=version)
+
+
+@bp.route('/api/casework/cases/<case_id>/files/<file_id>/text',methods=['GET','POST'])
+@protected
+def extracted_text(case_id,file_id):
+    from .document_text import revision,needs_review,metadata
+    with store().connect() as db:
+        case=get_case(db,case_id)
+        if not case:return jsonify(error='File not found.'),404
+        row=db.execute('SELECT data FROM casework_files WHERE id=? AND case_id=?',(file_id,case_id)).fetchone()
+        if not row:return jsonify(error='File not found.'),404
+        document=decrypt(row['data'])
+        if request.method=='GET':
+            audit(db,'extracted_text_viewed',file_id)
+            return jsonify(text=document['text'],revision=revision(document['text']),ocr_status=metadata(document)['ocr_status'],method=document.get('extraction_method','native'))
+        if case['archived'] or not current_app.config['CASEWORK_REAL_DATA_ENABLED']:return jsonify(error='Text review is not enabled for this case.'),409
+        if not needs_review(document):return jsonify(error='This file does not require OCR verification.'),400
+        body=json_body();text=body.get('text')
+        if not isinstance(text,str) or not text.strip() or len(text)>100000 or '\x00' in text or body.get('verified') is not True:
+            return jsonify(error='Check non-empty text against the original and confirm verification.'),400
+        db.execute('BEGIN IMMEDIATE')
+        if get_case(db,case_id)['archived']:return jsonify(error='Case was archived. Reload it.'),409
+        document=decrypt(db.execute('SELECT data FROM casework_files WHERE id=? AND case_id=?',(file_id,case_id)).fetchone()['data'])
+        if body.get('revision')!=revision(document['text']):return jsonify(error='Text changed. Reload it before saving your review.'),409
+        if document.get('ocr_status') not in {'pending_review','verified'} and text==document['text']:
+            return jsonify(error='Extraction did not complete. Enter a checked transcription or retry OCR.'),409
+        document.update(text=text,text_revision=revision(text),ocr_required=True,ocr_status='verified',text_reviewed_by=current_user.get_id(),text_reviewed_at=time.time())
+        db.execute('UPDATE casework_files SET data=? WHERE id=?',(encrypt(document),file_id))
+        db.execute('UPDATE client_documents SET data=? WHERE id=? AND case_id=?',(encrypt(document),file_id,case_id))
+        audit(db,'extracted_text_verified',file_id)
+    return jsonify(verified=True)
+
+
+@bp.post('/api/casework/cases/<case_id>/files/<file_id>/ocr')
+@protected
+def retry_ocr(case_id,file_id):
+    from .document_text import read_document,revision,needs_review
+    from werkzeug.datastructures import FileStorage
+    with store().connect() as db:
+        case=get_case(db,case_id)
+        if not case:return jsonify(error='File not found.'),404
+        if case['archived'] or not current_app.config['CASEWORK_REAL_DATA_ENABLED']:return jsonify(error='OCR is not enabled for this case.'),409
+        row=db.execute('SELECT data FROM casework_files WHERE id=? AND case_id=?',(file_id,case_id)).fetchone()
+        if not row:return jsonify(error='File not found.'),404
+        old=decrypt(row['data'])
+        if not needs_review(old) or old.get('ocr_status')=='verified':return jsonify(error='OCR retry is not needed.'),409
+        document=read_document(FileStorage(stream=io.BytesIO(base64.b64decode(old['content'])),filename=old['name']))
+        db.execute('BEGIN IMMEDIATE')
+        if get_case(db,case_id)['archived']:return jsonify(error='Case was archived during OCR.'),409
+        current=decrypt(db.execute('SELECT data FROM casework_files WHERE id=? AND case_id=?',(file_id,case_id)).fetchone()['data'])
+        if current.get('ocr_status')=='verified' or revision(current['text'])!=revision(old['text']):return jsonify(error='Text changed while processing. Reload the file.'),409
+        db.execute('UPDATE casework_files SET data=? WHERE id=?',(encrypt(document),file_id))
+        db.execute('UPDATE client_documents SET data=? WHERE id=? AND case_id=?',(encrypt(document),file_id,case_id))
+        audit(db,'ocr_retried',file_id)
+    return jsonify(ocr_status=document['ocr_status'])

@@ -99,33 +99,7 @@ def assign(case_id):
     return jsonify(assigned=True)
 
 
-def read_document(file):
-    name=secure_filename(file.filename or '')
-    content=file.read(MAX_FILE+1)
-    if not content or len(content)>MAX_FILE:
-        raise ValueError('Use a file containing data, up to 5 MB.')
-    text=''
-    if name.lower().endswith('.txt'):
-        text=content.decode('utf-8');mime='text/plain'
-        if '\x00' in text or len(text)>100000:raise ValueError('Invalid text document.')
-    elif name.lower().endswith('.pdf') and content.startswith(b'%PDF-'):
-        from pypdf import PdfReader
-        reader=PdfReader(io.BytesIO(content))
-        if reader.is_encrypted or len(reader.pages)>100:raise ValueError('Use an unencrypted PDF of up to 100 pages.')
-        chunks=[]
-        for page in reader.pages:
-            chunk=page.extract_text() or ''
-            chunks.append(chunk)
-            if sum(len(c) for c in chunks)>100000:raise ValueError('Document text is too long.')
-        text='\n'.join(chunks);mime='application/pdf'
-    elif name.lower().endswith(('.jpg','.jpeg','.png')):
-        from PIL import Image
-        image=Image.open(io.BytesIO(content))
-        if image.format not in {'JPEG','PNG'} or image.width*image.height>20000000:raise ValueError('Use a JPEG or PNG image of at most 20 megapixels.')
-        image.verify();mime='image/jpeg' if image.format=='JPEG' else 'image/png'
-    else:
-        raise ValueError('Use TXT, PDF, JPEG or PNG.')
-    return dict(name=name,mime=mime,text=text,content=base64.b64encode(content).decode(),sha256=hashlib.sha256(content).hexdigest(),kind='original')
+from .document_text import read_document
 
 
 @bp.route('/api/client/cases/<case_id>/documents',methods=['GET','POST'])
@@ -135,14 +109,14 @@ def upload(case_id):
         if not assigned(db,case_id):return jsonify(error='Case not found.'),404
         if request.method=='GET':
             rows=db.execute('SELECT * FROM client_documents WHERE case_id=? AND owner=? ORDER BY created',(case_id,current_user.get_id())).fetchall()
-            return jsonify(documents=[dict(id=r['id'],created=r['created'],**{k:v for k,v in decrypt(r['data']).items() if k in {'name','mime','sha256','kind','source_id'}}) for r in rows])
+            return jsonify(documents=[dict(id=r['id'],created=r['created'],**{k:v for k,v in decrypt(r['data']).items() if k in {'name','mime','sha256','kind','source_id','ocr_status','extraction_method'}}) for r in rows])
         if not current_app.config['CASEWORK_REAL_DATA_ENABLED']:return jsonify(error='Uploads await agency data handling approval.'),409
         if request.form.get('consent')!='true':return jsonify(error='Confirm that this document may be stored and reviewed by assigned agency staff.'),400
         if db.execute('SELECT COUNT(*) FROM client_documents WHERE case_id=? AND owner=?',(case_id,current_user.get_id())).fetchone()[0]>=50:return jsonify(error='Document limit reached.'),409
         file=request.files.get('file')
         if not file:return jsonify(error='Choose a document.'),400
         try:data=read_document(file)
-        except Exception:return jsonify(error='Use a valid TXT, unencrypted PDF, JPEG or PNG, up to 5 MB. Scanned documents are stored without OCR.'),400
+        except Exception:return jsonify(error='Use a valid TXT, unencrypted PDF, JPEG or PNG, up to 5 MB. OCR is attempted locally for photos and scanned pages.'),400
         document_id=str(uuid.uuid4())
         db.execute('INSERT INTO client_documents VALUES(?,?,?,?,?)',(document_id,case_id,current_user.get_id(),encrypt(data),time.time()))
         # Original evidence is also available through existing assigned-staff workflow.

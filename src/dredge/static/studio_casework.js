@@ -73,7 +73,22 @@
   }
   async function load(id) {
     const data=await api('cases/'+id); selected=id;el('case-title').textContent=data.title;el('archive-state').textContent=data.archived?'Archived; retained according to your agency policy.':'';el('files').replaceChildren();el('outputs').replaceChildren();
-    for(const f of data.files){const li=document.createElement('li');const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.value=f.id;checkbox.name='evidence';const label=document.createElement('label');label.append(checkbox,document.createTextNode(' '+f.name));const a=document.createElement('a');a.href=`/api/casework/cases/${id}/files/${f.id}`;a.textContent='Download';li.append(label,a);el('files').append(li);}
+    for(const f of data.files){const li=document.createElement('li');const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.value=f.id;checkbox.name='evidence';const label=document.createElement('label');label.append(checkbox,document.createTextNode(' '+f.name));const a=document.createElement('a');a.href=`/api/casework/cases/${id}/files/${f.id}`;a.textContent='Download';li.append(label,a);
+      if(f.ocr_status && f.ocr_status!=='not_required'){
+        checkbox.disabled=f.ocr_status!=='verified';
+        const state=document.createElement('p');state.textContent='OCR: '+f.ocr_status.replaceAll('_',' ');li.append(state);
+        const review=document.createElement('button');review.type='button';review.textContent=f.ocr_status==='verified'?'View verified text':'Review extracted text';
+        review.addEventListener('click',async()=>{try{
+          const draft=await api(`cases/${id}/files/${f.id}/text`);const form=document.createElement('form');
+          const note=document.createElement('p');note.textContent='Open the original download and check every name, date, amount and page. OCR may omit or misread text. Correct the draft before confirmation.';
+          const text=document.createElement('textarea');text.value=draft.text;text.rows=12;text.maxLength=100000;text.setAttribute('aria-label','Extracted text for '+f.name);
+          const confirm=document.createElement('input');confirm.type='checkbox';confirm.required=true;const check=document.createElement('label');check.append(confirm,document.createTextNode(' I checked this text against the original document, including page completeness.'));
+          const save=document.createElement('button');save.textContent='Save verified text';form.append(note,text,check,save);li.append(form);review.disabled=true;
+          action(form,async()=>{await api(`cases/${id}/files/${f.id}/text`,{text:text.value,revision:draft.revision,verified:confirm.checked});await load(id);});
+        }catch(e){message(e.message);}});li.append(review);
+        if(!['pending_review','verified'].includes(f.ocr_status)){const retry=document.createElement('button');retry.type='button';retry.textContent='Retry local OCR';retry.addEventListener('click',async()=>{retry.disabled=true;try{await api(`cases/${id}/files/${f.id}/ocr`,{});await load(id);}catch(e){message(e.message);retry.disabled=false;}});li.append(retry);}
+      }
+      el('files').append(li);}
     data.outputs.forEach(output);
   }
   let pageId=null, pageVersion=null;
