@@ -25,3 +25,7 @@ The public route does not change authentication, roles, subscriptions, client as
 - Python: `PYTHONPATH=src python -m pytest tests/test_pilot_demo.py tests/test_studio.py tests/test_studio_live.py -q`.
 - Inspect desktop and iPhone-sized layouts, all scene controls, screen reader labels and keyboard navigation before release.
 - Publication and deployment require separate approval; this implementation is local until that approval is obtained.
+
+## Asset cache versions
+
+The compact player uses `studio_pilot.css?v=compact-2` and `studio_pilot.js?v=compact-2`. Increment both HTML asset revision tags whenever changing player CSS or JavaScript, so an existing browser session cannot combine new markup with cached older player assets. Verify actual loaded styles and caption labels after deployment, not only the Git commit.
