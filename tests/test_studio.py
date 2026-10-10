@@ -192,8 +192,8 @@ def test_empty_reports_and_provider_state_are_honest(app):
     report=client.get('/api/studio/report').get_json()
     assert report['success_rate'] is None and report['average_duration_ms'] is None
     status=client.get('/api/studio/status').get_json()
-    assert next(m for m in status['models'] if m['name']=='External AI inference')['status']=='not_connected'
-    assert status['tools'][0]['status']=='not_yet_observed'
+    assert next(m for m in status['models'] if m['name'].startswith('Astra · '))['status']=='not_connected'
+    assert next(t for t in status['tools'] if t['name']=='Local DAG engine')['status']=='not_yet_observed'
 
 
 def test_login_errors_are_accessible_and_do_not_reflect_arbitrary_input(app):

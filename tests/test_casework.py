@@ -167,3 +167,20 @@ def test_agency_pages_versions_permissions_and_conflicts(app):
     with app.extensions['studio_store'].connect() as db:
         assert all(b'PRIVATE GUIDANCE' not in r['data'] for r in db.execute('SELECT data FROM agency_page_versions'))
         assert 'PRIVATE GUIDANCE' not in json.dumps([dict(r) for r in db.execute('SELECT * FROM audit')])
+
+
+def test_models_tools_configuration_is_not_live_verification(app):
+    enable(app);c,_=client_for(app)
+    app.config['CASEWORK_AI_DATA_ENABLED']=False
+    data=c.get('/api/studio/status').get_json()
+    astra=data['models'][0]
+    web=next(t for t in data['tools'] if t['name']=='OpenAI web research')
+    assert astra['status']=='agency_approval_required'
+    assert web['status']=='configured_not_verified'
+    assert web['label']=='Configured · Unverified'
+    assert web['last_observed'] is None
+    foreign,_=client_for(app,'test:viewer')
+    other=foreign.get('/api/studio/status').get_json()
+    assert other['models'][0]['status']=='agency_access_required'
+    with app.extensions['studio_store'].connect() as db:
+        assert db.execute('SELECT COUNT(*) FROM casework_outputs').fetchone()[0]==0

@@ -164,7 +164,19 @@
   }
   function renderStatus(data) {
     $('status-list').replaceChildren();
-    [...data.models,...data.tools].forEach(item=>{const row=el('div',undefined,'status-record');row.append(el('strong',item.name),el('p',item.status.replaceAll('_',' '),'muted'),badge(item.status==='not_connected'?'Disconnected':item.mode,item.status==='not_connected'?'disconnected':item.mode));if(item.last_observed)row.append(el('p','Observed: '+new Date(item.last_observed*1000).toLocaleString(),'small'));$('status-list').append(row);});
+    for (const [heading,items] of [['Models',data.models],['Tools and storage',data.tools]]) {
+      $('status-list').append(el('h3',heading));
+      items.forEach(item=>{
+        const row=el('article',undefined,'status-record');
+        const label=item.label || (item.status==='not_connected'?'Disconnected':item.mode);
+        const tone=item.status==='not_connected'?'disconnected':item.mode==='live'&&item.status!=='successful_request_recorded'?'local':item.mode;
+        row.append(el('strong',item.name),badge(label,tone),el('p',item.status.replaceAll('_',' '),'muted'));
+        if(item.description)row.append(el('p',item.description));
+        if(item.last_observed)row.append(el('p','Last recorded success: '+new Date(item.last_observed*1000).toLocaleString(),'small'));
+        if(item.href && ['/casework#casework','/casework#pages','/advanced/toolkit'].includes(item.href)){const link=el('a',item.href.includes('pages')?'Open Pages ↗':item.href.includes('toolkit')?'Open demonstrations ↗':'Open Casework ↗');link.href=item.href;row.append(link);}
+        $('status-list').append(row);
+      });
+    }
     $('status-scope').textContent=`${data.scope} Storage: ${data.persistence.replaceAll('_',' ')}.`;
   }
   async function refreshStatus(){renderStatus(await api('/api/studio/status'));}

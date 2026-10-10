@@ -324,16 +324,34 @@ def execute_run(run_id):
 def status_panels():
     with store().connect() as db:
         latest = db.execute('SELECT ended FROM runs WHERE owner=? AND status=? ORDER BY ended DESC LIMIT 1', (current_user.get_id(),'completed')).fetchone()
+    from .casework import member, cipher, MODEL
+    membership = member()
+    configured = bool(current_app.config.get('OPENAI_API_KEY'))
+    encrypted = bool(cipher())
+    provider_ready = configured and encrypted and bool(membership)
+    analysis_ready = provider_ready and current_app.config.get('CASEWORK_AI_DATA_ENABLED', False)
+    observations = {}
+    if membership:
+        with store().connect() as db:
+            for kind in ('analysis','research'):
+                result = db.execute('SELECT MAX(created) AS observed FROM casework_outputs WHERE agency=? AND kind=? AND data IS NOT NULL', (membership['agency'],kind)).fetchone()
+                observations[kind] = result['observed']
+    def provider_item(name, kind, ready, description):
+        observed = observations.get(kind)
+        status = 'not_connected' if not configured else 'agency_access_required' if not membership else 'encryption_required' if not encrypted else 'agency_approval_required' if not ready else 'successful_request_recorded' if observed else 'configured_not_verified'
+        return dict(name=name, mode='live', status=status, label='Disconnected' if not configured else 'Recorded success' if ready and observed else 'Configured · Unverified' if ready else 'Setup required', description=description, last_observed=observed, href='/casework#casework' if membership else None)
     return jsonify(observed_at=time.time(), models=[
-        dict(name='Quasimoto / String Theory', mode='simulated', status='demonstration_catalog'),
-        dict(name='Deep / Google providers', mode='simulated', status='scripted_adapters'),
-        dict(name='External AI inference', mode='live', status='not_connected')], tools=[
-        dict(name='Local DAG engine', mode='local', status='last_execution_completed' if latest else 'not_yet_observed', last_observed=latest['ended'] if latest else None),
-        dict(name='Trace and audit storage', mode='local', status='read_write_available'),
-        dict(name='Source inspector', mode='local', status='user_supplied_sources_only'),
-        dict(name='Web retrieval', mode='live', status='not_connected')],
+        provider_item('Astra · '+MODEL, 'analysis', analysis_ready, 'Draft analysis of selected case evidence. No web tools. Requires agency data-transfer approval and per-request consent.'),
+        dict(name='Demonstration model catalog', mode='simulated', status='demonstration_catalog', description='Quasimoto, String Theory and scripted Deep / Google adapters are demonstrations, not connected provider models.', href='/advanced/toolkit')], tools=[
+        provider_item('OpenAI web research', 'research', provider_ready, 'Public questions only, with source citations. Case attachments are excluded. Up to two web tool calls per request.'),
+        dict(name='Local DAG engine', mode='local', status='last_execution_completed' if latest else 'not_yet_observed', last_observed=latest['ended'] if latest else None, description='Actual local pipeline execution after independent human approval.'),
+        dict(name='Trace and audit storage', mode='local', status='read_write_available', description='Recorded node events and append-only audit entries. Configured storage path does not verify backup recovery.'),
+        dict(name='Encrypted case files', mode='local', status='ready' if encrypted and membership and current_app.config.get('CASEWORK_REAL_DATA_ENABLED') else 'agency_approval_required' if encrypted and membership else 'setup_required', description='Agency-scoped TXT and PDF storage. Real client uploads remain gated until agency approval.', href='/casework#casework' if membership else None),
+        dict(name='Agency Pages', mode='local', status='ready' if encrypted and membership else 'setup_required', description='Shared guidance with encrypted version history and conflict protection.', href='/casework#pages' if membership else None),
+        dict(name='Source inspector', mode='local', status='user_supplied_sources_only', description='Studio source records are user supplied. Web research citations are displayed in Casework.')],
         persistence='configured_path' if current_app.config.get('STUDIO_EXPLICIT_DB') else 'instance_disk_requires_persistent_volume',
-        scope='This Studio instance; no external provider health probes were performed.')
+        scope='Configuration and stored observations only; no external health probes or paid requests were made. Recorded success is historical, not a current availability guarantee. Agency AI limit: 20 attempts per rolling 24 hours; output limit: 2,400 tokens per request.')
+
 
 
 @studio_bp.route('/api/studio/report')
