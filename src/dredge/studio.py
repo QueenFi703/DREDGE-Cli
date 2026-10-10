@@ -222,6 +222,12 @@ def public_preview():
     return send_file(STATIC / 'studio_workspace.html')
 
 
+@studio_bp.route('/pilot-demo')
+def public_pilot_demo():
+    # Read-only fictional walkthrough: no account lookup or provider execution.
+    return send_file(STATIC / 'studio_pilot.html')
+
+
 @studio_bp.route('/api/studio/session')
 @login_required
 def session_info():
