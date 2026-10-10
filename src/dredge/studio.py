@@ -208,17 +208,17 @@ def session_info():
 @studio_bp.route('/api/studio/preview')
 def preview_data():
     # Public fixture contains no account information and creates no persisted run.
-    return jsonify(id='public-demo', query='How should a fictional community library evaluate a new service?',
+    return jsonify(id='public-demo', query='How should staff clarify a difference between two fictional child-support records?',
                    status='completed', mode='simulated',
                    nodes=[dict(id='frame', dependencies=[], status='completed', mode='simulated', duration_ms=None),
                           dict(id='sources', dependencies=['frame'], status='completed', mode='simulated', duration_ms=None),
                           dict(id='alternatives', dependencies=['frame'], status='completed', mode='simulated', duration_ms=None),
                           dict(id='review', dependencies=['sources','alternatives'], status='completed', mode='simulated', duration_ms=None)],
-                   evidence=[dict(id='demo-source', title='Public documentation: Python SQLite',
-                                  url='https://docs.python.org/3/library/sqlite3.html',
-                                  excerpt='Example source link for the guided inspector. This is not retrieved research.',
+                   evidence=[dict(id='demo-source', title='Fictional child-support training records',
+                                  url='/static/child_support_training.txt',
+                                  excerpt='FICTIONAL TRAINING DATA: January notice lists $900; February record lists $950. The client says the amount changed the following month. Check the periods before treating this as a discrepancy.',
                                   provenance='demonstration', verification='unverified')],
-                   result={'summary':'Demonstration only: frame the decision, attach sources, compare options, then request human review.'},
+                   result={'summary':'Fictional demonstration: compare dates and amounts, preserve the client explanation, ask which period each record covers and prepare the evidence for staff review. No official balance, enforcement decision or MACSS change is made.'},
                    provider_calls=0, token_usage=None, cost_usd=None, cost_status='not_metered')
 
 
@@ -346,7 +346,7 @@ def status_panels():
         provider_item('OpenAI web research', 'research', provider_ready, 'Public questions only, with source citations. Case attachments are excluded. Up to two web tool calls per request.'),
         dict(name='Local DAG engine', mode='local', status='last_execution_completed' if latest else 'not_yet_observed', last_observed=latest['ended'] if latest else None, description='Actual local pipeline execution after independent human approval.'),
         dict(name='Trace and audit storage', mode='local', status='read_write_available', description='Recorded node events and append-only audit entries. Configured storage path does not verify backup recovery.'),
-        dict(name='Encrypted case files', mode='local', status='ready' if encrypted and membership and current_app.config.get('CASEWORK_REAL_DATA_ENABLED') else 'agency_approval_required' if encrypted and membership else 'setup_required', description='Agency-scoped TXT and PDF storage. Real client uploads remain gated until agency approval.', href='/casework#casework' if membership else None),
+        dict(name='Encrypted case files', mode='local', status='ready' if encrypted and membership and current_app.config.get('CASEWORK_REAL_DATA_ENABLED') else 'agency_approval_required' if encrypted and membership else 'setup_required', description='Agency-scoped TXT, PDF and photo storage with local OCR and staff text verification. Real client uploads remain gated until agency approval.', href='/casework#casework' if membership else None),
         dict(name='Agency Pages', mode='local', status='ready' if encrypted and membership else 'setup_required', description='Shared guidance with encrypted version history and conflict protection.', href='/casework#pages' if membership else None),
         dict(name='Source inspector', mode='local', status='user_supplied_sources_only', description='Studio source records are user supplied. Web research citations are displayed in Casework.')],
         persistence='configured_path' if current_app.config.get('STUDIO_EXPLICIT_DB') else 'instance_disk_requires_persistent_volume',

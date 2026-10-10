@@ -203,7 +203,7 @@
   $('refresh-report').addEventListener('click',()=>action($('refresh-report'),refreshReport));
   $('refresh-audit').addEventListener('click',()=>action($('refresh-audit'),refreshAudit));
   const guide=[
-    ['execution','1 / Frame a question. This fictional library-service example contains no account data or external provider calls.'],
+    ['execution','1 / Frame a question. This fictional child-support record example contains no account data or external provider calls.'],
     ['execution','2 / Inspect the graph. Select a node to see its dependencies. Every preview node is simulated; timings are unavailable.'],
     ['execution','3 / Follow a source. The inspector links to public documentation and marks the example as unverified.'],
     ['reviews','4 / Keep human review visible. In the signed-in workspace, a separate reviewer must approve before local execution.'],

@@ -1,0 +1,7 @@
+FICTIONAL TRAINING DATA — NOT AN AGENCY RECORD
+Training case: Jordan Example
+Record A: A fictional January notice lists a monthly amount of $900.
+Record B: A fictional February record lists a monthly amount of $950.
+Client explanation: The $950 amount began the following month; the earlier record describes the previous month.
+Review question: Which period and source order does each record refer to?
+No official balance is calculated. No fraud, liability or enforcement finding is made.

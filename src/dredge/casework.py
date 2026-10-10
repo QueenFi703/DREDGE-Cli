@@ -52,6 +52,8 @@ def register_casework(app):
         CREATE TABLE IF NOT EXISTS enterprise_quotes(id TEXT PRIMARY KEY, owner TEXT NOT NULL,
           data BLOB NOT NULL, created REAL NOT NULL);
         ''')
+    from .child_support import register_review
+    register_review(app)
     app.register_blueprint(bp)
 
 
