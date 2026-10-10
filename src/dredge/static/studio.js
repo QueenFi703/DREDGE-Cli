@@ -2,7 +2,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const preview = location.pathname === '/preview';
-  let identity = null, selected = null, runs = [], expired = false, guideStep = 0;
+  let identity = null, selected = null, runs = [], expired = false, guideStep = 0, viewSequence = 0;
   let lastActivity = Date.now(), idleTimer = null;
   const labels = {pending_approval:'Awaiting approval', approved:'Approved', rejected:'Rejected', running:'Running', completed:'Completed', failed:'Failed'};
   const el = (tag, text, className) => { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; if (className) node.className = className; return node; };
@@ -10,6 +10,8 @@
   const say = message => { $('feedback').textContent = message; };
   function lockSession() {
     expired = true; $('session-notice').hidden = false;
+    const returnRun=selected?.id || new URLSearchParams(location.search).get('run');
+    $('session-notice').querySelector('a').href=returnRun && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(returnRun) ? '/advanced?run='+encodeURIComponent(returnRun) : '/advanced';
     $('session-notice').scrollIntoView({block:'nearest'});
     document.querySelectorAll('form button, #execute-run, #start-proposal, .review-decision').forEach(node => { node.disabled = true; });
     say('Your session expired. Sign in again to continue.');
@@ -19,7 +21,7 @@
     const response = await fetch(path, {credentials:'same-origin', headers:{'Accept':'application/json', 'Content-Type':'application/json', ...(identity ? {'X-CSRF-Token':identity.csrf_token} : {})}, ...options});
     if (response.status === 401 || (response.redirected && response.url.includes('/auth/login'))) { lockSession(); throw new Error('Your session expired.'); }
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || `Request failed (${response.status}).`);
+    if (!response.ok) throw new Error(data.error || data.result?.error || `Request failed (${response.status}).`);
     return data;
   }
   async function action(button, work) {
@@ -61,6 +63,7 @@
   function inspectNode(node) {
     $('node-detail').hidden = false;
     $('node-detail').replaceChildren(el('strong', node.id), el('p', `${node.mode} · ${node.status} · ${node.duration_ms == null ? 'Timing unavailable' : node.duration_ms + ' ms measured on the server'}`), el('p', 'Dependencies: ' + (node.dependencies.join(', ') || 'None')));
+    if(node.response_id) $('node-detail').append(el('p',`OpenAI response: ${node.response_id} · ${node.model} · ${node.usage?.total_tokens ?? 'Unknown'} tokens`));
   }
   function drawGraph(nodes) {
     $('graph').replaceChildren(); $('node-list').replaceChildren(); $('node-detail').hidden = true;
@@ -111,7 +114,7 @@
     $('evidence-list').replaceChildren();
     if (!sources.length) { $('evidence-list').append(el('p','No source records attached to this run.','muted')); return; }
     sources.forEach(source => {
-      const article = el('article',undefined,'source-record'); article.append(el('h3',source.title));
+      const article = el('article',undefined,'source-record'); article.append(el('h3',(source.id ? source.id+' · ' : '')+source.title));
       try { const url = new URL(source.url, location.origin); if (url.protocol === 'https:' && !url.username && !url.password) { const link = el('a',url.hostname + ' ↗'); link.href=url.href; link.target='_blank'; link.rel='noopener noreferrer'; article.append(link); } } catch (_) {}
       const meta=el('div',undefined,'source-meta'); meta.append(badge(source.provenance),badge(source.verification)); article.append(meta);
       article.append(el('blockquote',source.excerpt || 'No excerpt was supplied.')); $('evidence-list').append(article);
@@ -119,10 +122,16 @@
   }
   function renderRun(run) {
     selected = run; $('workspace-start').hidden=true; $('graph').hidden=false; $('run-heading').textContent=run.query; $('run-state').textContent=labels[run.status]||run.status; $('run-state').className='badge '+run.status;
-    $('trace-context').textContent=preview ? 'Public demonstration graph. No measured timings or live execution.' : `Run ${run.id} · Actual stored local DAG events; simulated steps retain their own labels.`;
+    $('trace-context').textContent=preview ? 'Public demonstration graph. No measured timings or live execution.' : `Run ${run.id} · ${run.mode === 'live' ? 'Live API execution with recorded local and provider steps.' : 'Local demonstration; simulated steps retain their labels. No AI inference.'}`;
     drawGraph(run.nodes||[]); renderEvidence(run.evidence||[]);
     $('run-result').textContent=run.result ? JSON.stringify(run.result,null,2) : 'No result recorded.';
+    $('answer-panel').hidden=!run.result?.answer;
+    $('answer-text').textContent=run.result?.answer || '';
+    $('provider-record').textContent=run.result?.answer ? `${run.result.provider} · ${run.result.model} · Response ${run.result.response_id} · ${run.token_usage ?? 'Unknown'} tokens · Actual billed cost unavailable` : '';
+    $('reference-warning').textContent=run.result?.evidence_review?.unknown_source_ids?.length ? 'Warning: the answer cites unknown source IDs: '+run.result.evidence_review.unknown_source_ids.join(', ')+'. Check the draft before using it.' : 'Source IDs are matched locally. Sources and model claims remain unverified.';
     $('execute-run').hidden=preview || !run.can_execute || run.status!=='approved';
+    $('run-permalink').hidden=preview;
+    if(!preview){$('run-permalink').href='/advanced?run='+encodeURIComponent(run.id);history.replaceState(null,'',$('run-permalink').href);}
     renderRunList();
   }
   function renderRunList() {
@@ -136,23 +145,43 @@
         $('trace-context').textContent='No recorded execution yet.';
         $('start-proposal').hidden=!identity?.can_run;
         $('start-heading').textContent=identity?.can_run?'Frame a question. Propose the work.':'Explore how DREDGE works';
-        $('start-description').textContent=identity?.can_run?'Create a local pipeline proposal with optional source records. A different reviewer must approve it before you can execute.':'Your viewer role lets you inspect your saved work. Try the public preview now; to create runs, the administrator must assign your OAuth account an operator role and arrange a separate reviewer.';
+        $('start-description').textContent=identity?.can_run?'Propose live Astra inference or a local demonstration with optional source records. A different reviewer must approve it before you can execute.':'Your viewer role lets you inspect your saved work. Try the public preview now; to create runs, the administrator must assign your OAuth account an operator role and arrange a separate reviewer.';
       }
     }
     runs.forEach(run=>{
       const button=el('button',`${run.query} — ${labels[run.status]||run.status}`,'secondary'); button.setAttribute('aria-pressed',String(selected?.id===run.id));
-      button.addEventListener('click',()=>action(button,async()=>{renderRun(await api('/api/studio/runs/'+encodeURIComponent(run.id)));})); $('run-list').append(button);
+      button.addEventListener('click',()=>action(button,()=>loadRun(run.id))); $('run-list').append(button);
     });
   }
   $('start-proposal').addEventListener('click',()=>{if(!identity?.can_run||expired)return;selectTab('execution');$('proposal-details').open=true;$('run-query').focus();});
-  async function refreshRuns() { const data=await api('/api/studio/runs'); runs=data.runs; renderRunList(); renderReviews(); }
+  async function loadRun(id) {
+    const sequence=++viewSequence;
+    const run=await api('/api/studio/runs/'+encodeURIComponent(id));
+    if(sequence!==viewSequence)return null;
+    renderRun(run);
+    if(!runs.some(item=>item.id===run.id))runs.unshift(run);
+    renderRunList();renderReviews();return run;
+  }
+  async function refreshRuns() {
+    const data=await api('/api/studio/runs');
+    const selectedId=selected?.id;
+    if(selectedId && !data.runs.some(run=>run.id===selectedId)) {
+      const latest=await api('/api/studio/runs/'+encodeURIComponent(selectedId));
+      if(selected?.id===selectedId)selected=latest;
+    }
+    runs=data.runs;
+    if(selected && !runs.some(run=>run.id===selected.id))runs.unshift(selected);
+    if(selected){selected={...selected,...runs.find(run=>run.id===selected.id)};renderRun(selected);}
+    renderRunList();renderReviews();
+  }
   function renderReviews() {
     $('review-list').replaceChildren();
     const pending = runs.filter(run=>run.status==='pending_approval');
     if (!pending.length) $('review-list').append(el('p','No requests are awaiting approval.','muted'));
     pending.forEach(run=>{
-      const article=el('article',undefined,'review-record'); article.append(el('h3',run.query),el('p',`${run.pipeline_type} · ${run.id}`,'muted small'));
-      const inspect=el('button','Inspect proposal & sources','secondary'); inspect.addEventListener('click',()=>action(inspect,async()=>{renderRun(await api('/api/studio/runs/'+encodeURIComponent(run.id)));selectTab('execution',true);})); article.append(inspect);
+      const article=el('article',undefined,'review-record'); article.append(el('h3',run.query),el('p',`${run.mode || 'demo'} · ${run.model || run.pipeline_type} · ${run.max_output_tokens || 0} max output tokens · ${run.id}`,'muted small'));
+      const inspect=el('button','Inspect proposal & sources','secondary'); inspect.addEventListener('click',()=>action(inspect,async()=>{if(await loadRun(run.id))selectTab('execution',true);})); article.append(inspect);
+      if(run.mode==='live') article.append(el('p','Transfer to OpenAI: question and all source records. Scope: public or fictional. Operator consent: '+(run.consent===true?'recorded':'missing')+'. Review the complete proposal and sources before approving.','notice'));
       if (identity?.can_review) {
         const label=el('label','Review reason'); const textarea=el('textarea'); textarea.id='review-'+run.id; textarea.maxLength=2000; textarea.rows=2; label.htmlFor=textarea.id; article.append(label,textarea);
         const actions=el('div',undefined,'actions');
@@ -182,21 +211,35 @@
   async function refreshStatus(){renderStatus(await api('/api/studio/status'));}
   function renderReport(data) {
     $('report-scope').textContent=data.scope; $('report-values').replaceChildren();
-    const metrics=[['Proposed runs',data.proposed_runs],['Completed',data.completed_runs],['Failed',data.failed_runs],['Success rate',data.success_rate==null?'No samples':(data.success_rate*100).toFixed(1)+'%'],['Mean local duration',data.average_duration_ms==null?'No samples':data.average_duration_ms+' ms'],['External calls',data.provider_calls],['Tokens',data.token_usage??'Unavailable'],['Cost',data.cost_usd==null?'Not metered':'$'+data.cost_usd.toFixed(4)],['Interrupted / running',data.interrupted_runs??0]];
+    const metrics=[['Proposed runs',data.proposed_runs],['Completed',data.completed_runs],['Failed',data.failed_runs],['Success rate',data.success_rate==null?'No samples':(data.success_rate*100).toFixed(1)+'%'],['Mean run duration',data.average_duration_ms==null?'No samples':data.average_duration_ms+' ms'],['API attempts',data.provider_calls],['Tokens',data.token_usage == null ? 'Unavailable' : String(data.token_usage)+(data.usage_status==='partial'?' (partial; '+data.calls_without_usage+' calls missing usage)':'')],['Cost',data.cost_usd==null?'Not metered':'$'+data.cost_usd.toFixed(4)],['Interrupted / running',data.interrupted_runs??0]];
     metrics.forEach(([name,value])=>{const row=el('div');row.append(el('dt',name),el('dd',String(value)));$('report-values').append(row);}); $('cost-note').textContent=data.cost_note;
   }
   async function refreshReport(){renderReport(await api('/api/studio/report'));}
-  async function refreshAudit(){const data=await api('/api/studio/audit');$('audit-integrity').textContent=data.integrity;$('audit-list').replaceChildren();if(!data.events.length)$('audit-list').append(el('p','No audit events recorded.','muted'));data.events.forEach(event=>{const row=el('article',undefined,'audit-record');row.append(el('strong',event.action.replaceAll('_',' ')),el('p',`${new Date(event.recorded*1000).toLocaleString()} · ${event.actor}`,'muted small'),el('p','Run: '+(event.run_id||'—'),'small'));const details=el('details');details.append(el('summary','Integrity record'),el('pre',JSON.stringify({seq:event.seq,detail:JSON.parse(event.detail),hash:event.hash,previous_hash:event.previous_hash},null,2)));row.append(details);$('audit-list').append(row);});}
+  async function refreshAudit(){
+    const data=await api('/api/studio/audit');
+    const integrity=$('audit-integrity'), verified=data.chain_verified===true;
+    const summary=verified?'Audit chain verified.':data.chain_verified===false?'Audit chain verification failed. Do not rely on these records until an administrator investigates.':'Audit chain verification unavailable. Integrity has not been established.';
+    integrity.textContent=summary+' '+data.integrity;
+    integrity.classList.toggle('error',!verified);
+    integrity.classList.toggle('notice',!verified);
+    integrity.classList.toggle('muted',verified);
+    integrity.setAttribute('role',verified?'status':'alert');
+    $('audit-list').replaceChildren();
+    if(!data.events.length)$('audit-list').append(el('p','No audit events recorded.','muted'));
+    data.events.forEach(event=>{const row=el('article',undefined,'audit-record');row.append(el('strong',event.action.replaceAll('_',' ')),el('p',`${new Date(event.recorded*1000).toLocaleString()} · ${event.actor}`,'muted small'),el('p','Run: '+(event.run_id||'—'),'small'));const details=el('details');details.append(el('summary','Integrity record'),el('pre',JSON.stringify({seq:event.seq,detail:JSON.parse(event.detail),hash:event.hash,previous_hash:event.previous_hash},null,2)));row.append(details);$('audit-list').append(row);});
+  }
   $('proposal-form').addEventListener('submit',event=>{event.preventDefault();action($('propose-run'),async()=>{
     const evidence=[];const url=$('source-url').value.trim(),title=$('source-title').value.trim(),excerpt=$('source-excerpt').value;
     if(url||title||excerpt){if(!url||!title)throw new Error('Provide both a source title and URL, or leave the source blank.');evidence.push({url,title,excerpt});}
-    const run=await api('/api/studio/runs',{method:'POST',body:JSON.stringify({query:$('run-query').value,pipeline_type:$('run-pipeline').value,evidence})});await refreshRuns();renderRun(run);say('Proposal saved. A separate reviewer must approve it before execution.');
+    const mode=$('run-mode').value;
+    if(mode==='live' && (!$('provider-consent').checked || !$('public-confirmed').checked)) throw new Error('Confirm the OpenAI transfer and public or fictional data before proposing a live run.');
+    const run=await api('/api/studio/runs',{method:'POST',body:JSON.stringify({query:$('run-query').value,pipeline_type:$('run-pipeline').value,evidence,execution_mode:mode,consent:$('provider-consent').checked,public_data_confirmed:$('public-confirmed').checked})});await refreshRuns();renderRun(run);$('provider-consent').checked=false;$('public-confirmed').checked=false;say('Proposal saved. A separate reviewer must approve it before execution.');
   });});
   $('execute-run').addEventListener('click',()=>action($('execute-run'),async()=>{
-    const id=selected.id;say('Executing approved local pipeline…');
+    const id=selected.id, live=selected.mode==='live';say(live?'Calling OpenAI for the approved question and evidence…':'Executing approved demonstration…');
     const poll=setInterval(async()=>{try{const run=await api('/api/studio/runs/'+encodeURIComponent(id));if(selected?.id===id)renderRun(run);}catch(error){say(error.message);}},750);
-    try {const run=await api(`/api/studio/runs/${encodeURIComponent(id)}/execute`,{method:'POST',body:'{}'});if(selected?.id===id)renderRun(run);say('Local pipeline completed; recorded traces are ready.');}
-    finally{clearInterval(poll);await refreshRuns();await refreshReport();}
+    try {const run=await api(`/api/studio/runs/${encodeURIComponent(id)}/execute`,{method:'POST',body:'{}'});if(selected?.id===id)renderRun(run);say(live?'Astra response received. Review the answer, usage and evidence before using it.':'Demonstration completed; recorded traces are ready.');}
+    finally{clearInterval(poll);try{const latest=await api('/api/studio/runs/'+encodeURIComponent(id));if(selected?.id===id)renderRun(latest);}catch(_){}await refreshRuns();await refreshReport();await refreshStatus();}
   }));
   $('refresh-runs').addEventListener('click',()=>action($('refresh-runs'),refreshRuns));
   $('refresh-status').addEventListener('click',()=>action($('refresh-status'),refreshStatus));
@@ -221,11 +264,17 @@
       renderStatus({models:[{name:'Example model adapter',status:'demonstration_only',mode:'simulated'}],tools:[{name:'Preview graph',status:'fixture_only',mode:'simulated'},{name:'External inference and retrieval',status:'not_connected',mode:'live'}],scope:'Public fixture; no server health observations.',persistence:'no_preview_records_saved'});
       renderReport({scope:'Public preview has no usage samples.',proposed_runs:0,completed_runs:0,failed_runs:0,success_rate:null,average_duration_ms:null,provider_calls:0,token_usage:null,cost_usd:null,cost_note:'Preview values are not production usage or billing data.'});showGuide();return;
     }
-    identity=await api('/api/studio/session');$('identity').textContent=`${identity.name} · ${identity.role}`;
-    $('proposal-details').hidden=!identity.can_run;$('role-note').textContent=identity.can_run?'You can propose local runs. Execution requires a separate reviewer.':'Your role provides read access to your saved runs. Ask the workspace administrator for an operator role to propose work.';
+    identity=await api('/api/studio/session');
+    $('live-config').textContent=identity.live_configured ? `Configured model: ${identity.live_model}. Availability is verified only by a successful request.` : 'Live API is not configured. Demonstration mode remains available.';
+    function syncMode(){const live=$('run-mode').value==='live';$('live-consent').hidden=!live;$('run-pipeline').disabled=live;if(live)$('run-pipeline').value='standard';$('provider-consent').checked=false;$('public-confirmed').checked=false;}
+    $('run-mode').addEventListener('change',syncMode);syncMode();
+    ['run-query','source-title','source-url','source-excerpt'].forEach(id=>$(id).addEventListener('input',()=>{$('provider-consent').checked=false;$('public-confirmed').checked=false;}));$('identity').textContent=`${identity.name} · ${identity.role}`;
+    $('proposal-details').hidden=!identity.can_run;$('role-note').textContent=identity.can_run?'You can propose live or demonstration runs. Execution requires a separate reviewer.':'Your role provides read access to your saved runs. Ask the workspace administrator for an operator role to propose work.';
     $('tab-audit').hidden=!identity.can_review;
     await refreshRuns();await refreshStatus();await refreshReport();if(identity.can_review)await refreshAudit();
-    const mostRecent=runs[0];if(mostRecent)renderRun(await api('/api/studio/runs/'+encodeURIComponent(mostRecent.id)));
+    const linkedRun=new URLSearchParams(location.search).get('run');
+    const requested=linkedRun || runs[0]?.id;
+    if(requested && viewSequence===0)await loadRun(requested);
     ['pointerdown','keydown','touchstart'].forEach(type=>document.addEventListener(type,()=>{lastActivity=Date.now();},{passive:true}));
     idleTimer=setInterval(()=>{if(Date.now()-lastActivity>identity.idle_timeout_seconds*1000||Date.now()/1000>identity.expires_at){clearInterval(idleTimer);lockSession();}},10000);
   }

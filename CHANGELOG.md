@@ -5,6 +5,20 @@ All notable changes to DREDGE Studio will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Compatibility
+- Python 3.10+ is now the declared and tested minimum, matching the existing runtime dependencies. Python 3.8/3.9 were no longer installable with those requirements. The deployed Python 3.12 runtime is unchanged.
+- Package metadata is centralized in pyproject.toml (including the setup.py compatibility path) and reads runtime requirements from requirements.txt so authentication, billing and OCR dependencies are installed consistently. CI installs the local OCR tools and uses CPU PyTorch wheels.
+
+### Fixed
+- Repair malformed Pages/Gate workflow YAML. Automatic Pages events validate artifacts only; deployment requires manual dispatch. Gate PR comments and unknown-webhook reports remain disabled, with read-only classification retained.
+- Match client redaction terms only against original text; overlapping phrases are fully removed without rewriting generated markers.
+- Require a separate per-request opt-in before sending the latest five client explanations to OpenAI. Files-only requests remain files-only.
+- Allow bounded JSON transport for the documented 100,000-character OCR review limit, including escaped Unicode.
+- Display failed or unavailable audit-chain verification explicitly in the workspace.
+- Restore runtime/mobile CLI entrypoints alongside pipeline commands, remove unused global declarations, and generate/validate actual Bandit and Checkov SARIF reports in CI.
+
 ## [2.0.0] - 2026-05-29
 
 ### Added

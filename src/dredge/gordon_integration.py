@@ -321,7 +321,6 @@ async def start_gordon_bridge(gordon_url: str = "http://localhost:8000",
 
 async def stop_gordon_bridge():
     """Stop Gordon-DREDGE bridge"""
-    global _bridge
 
     if _bridge:
         await _bridge.stop()
@@ -329,7 +328,6 @@ async def stop_gordon_bridge():
 
 async def get_bridge_status() -> Dict[str, Any]:
     """Get bridge status"""
-    global _bridge
 
     if _bridge:
         return await _bridge.health_check()

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+requires = ["setuptools>=66.1.1", "wheel", "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,7 +7,7 @@ name = "dredge-studio"
 version = "2.0.0"
 description = "Advanced Security Intelligence and Model Management Platform"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
 authors = [
     { name = "DREDGE Team", email = "team@dredge.dev" }
@@ -32,22 +32,18 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Security",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: System :: Monitoring",
 ]
 
-dependencies = [
-    "flask>=2.0.0",
-    "requests>=2.25.0",
-    "numpy>=1.19.0",
-    "torch>=2.0.0",
-]
+dynamic = ["dependencies"]
 
 
 [project.optional-dependencies]
@@ -77,12 +73,18 @@ Issues = "https://github.com/docker/dredge-cli-repo/issues"
 
 [project.scripts]
 dredge = "dredge.cli:main"
+dredge-cli = "dredge.cli:main"
 dredge-server = "dredge.server:run"
-dredge-advanced = "dredge.server:run_advanced"
+dredge-advanced = "dredge.server:run"
 
 [tool.setuptools]
-packages = ["dredge"]
 package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
 
 [tool.setuptools.package-data]
 dredge = [
@@ -93,7 +95,7 @@ dredge = [
 
 [tool.black]
 line-length = 100
-target-version = ["py38", "py39", "py310", "py311"]
+target-version = ["py310", "py311", "py312", "py313", "py314"]
 include = '\.pyi?$'
 extend-exclude = '''
 /(

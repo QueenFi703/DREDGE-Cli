@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import logging
 import time
+from uuid import UUID
 from pathlib import Path
 
 from flask import (
@@ -53,7 +54,6 @@ class User(UserMixin):
 
 def get_oauth():
     """Get the OAuth instance. Must call init_auth first."""
-    global _oauth_instance
     return _oauth_instance
 
 
@@ -159,6 +159,16 @@ def login():
                                   google_enabled=bool(oauth and oauth.create_client('google')))
 
 
+def studio_return_path():
+    """Restore only a canonical Studio run ID, never an arbitrary redirect URL."""
+    value = session.pop('studio_return_run', None)
+    try:
+        run_id = str(UUID(value))
+    except (ValueError, TypeError, AttributeError):
+        return '/advanced'
+    return '/advanced?run=' + run_id
+
+
 def remember_studio_session(user):
     # Only the signed session stores this profile. Never accept profile or role from a request body.
     session['studio_profile'] = dict(id=user.id, name=user.name, email=user.email,
@@ -240,7 +250,7 @@ def github_callback():
         print(f"[GitHub Callback] Redirecting to /advanced\n")
         
         # Redirect to advanced dashboard (this route doesn't require the blueprint prefix)
-        return redirect("/advanced")
+        return redirect(studio_return_path())
         
     except Exception as e:
         print(f"[GitHub Callback] Exception: {e}\n")
@@ -289,7 +299,7 @@ def google_callback():
         remember_studio_session(user)
         
         # Redirect to advanced dashboard
-        return redirect("/advanced")
+        return redirect(studio_return_path())
         
     except Exception as e:
         logger.error(f"Google OAuth callback error: {e}")
@@ -302,7 +312,7 @@ def logout():
     """Log out the current user."""
     user_id = current_user.id
     logout_user()
-    for key in ('studio_profile','studio_started','studio_last_activity','studio_csrf'):
+    for key in ('studio_profile','studio_started','studio_last_activity','studio_csrf','studio_return_run'):
         session.pop(key, None)
     _users.pop(user_id, None)
     return redirect(url_for("auth.login"))

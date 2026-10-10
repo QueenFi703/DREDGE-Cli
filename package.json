@@ -4,7 +4,7 @@
   "description": "DREDGE CLI - GPU-CPU Lifter · Save · Files · Print",
   "private": true,
   "scripts": {
-    "test:studio": "node --test tests/studio-dom.test.cjs",
+    "test:studio": "node --test tests/*-dom.test.cjs",
     "analytics:enable": "echo 'Vercel Analytics configured. Enable in dashboard at vercel.com/[your-project]/analytics'"
   },
   "dependencies": {

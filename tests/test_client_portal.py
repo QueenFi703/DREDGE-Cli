@@ -48,7 +48,7 @@ def test_ai_discernment_includes_client_explanation_without_web(app,monkeypatch)
     assert c.post(f'/api/client/cases/{case_id}/explanations',json={'text':'The amount was corrected later.'},headers=ch).status_code==201
     payload=[]
     monkeypatch.setattr('dredge.casework.provider',lambda p:payload.append(p) or {'blocks':[],'usage':{}})
-    result=staff.post('/api/casework/ai',json={'kind':'discernment','question':'Compare records','case_id':case_id,'file_ids':[file_id],'consent':True},headers=h)
+    result=staff.post('/api/casework/ai',json={'kind':'discernment','question':'Compare records','case_id':case_id,'file_ids':[file_id],'consent':True,'include_client_explanations':True},headers=h)
     assert result.status_code==200
     assert 'tools' not in payload[0]
     assert json.loads(payload[0]['input'])['client_explanations']==['The amount was corrected later.']

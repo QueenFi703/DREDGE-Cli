@@ -34,7 +34,7 @@ def client_for(app, user_id='test:op'):
 
 
 def proposal(client, headers, **extra):
-    payload = {'query':'Evaluate a fictional library service.', 'evidence':[{'title':'Public reference','url':'https://docs.python.org/3/library/sqlite3.html','excerpt':'User-supplied example, not fetched.'}]}
+    payload = {'execution_mode':'demo', 'query':'Evaluate a fictional library service.', 'evidence':[{'title':'Public reference','url':'https://docs.python.org/3/library/sqlite3.html','excerpt':'User-supplied example, not fetched.'}]}
     payload.update(extra)
     return client.post('/api/studio/runs', json=payload, headers=headers)
 

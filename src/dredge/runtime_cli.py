@@ -1,0 +1,384 @@
+"""Compatibility commands restored from the pre-pipeline DREDGE runtime CLI.
+
+Kept separate so the newer Click pipeline interface remains available.
+"""
+
+import argparse
+import os
+import platform
+import shutil
+import sys
+import json
+from pathlib import Path
+from . import __version__
+from .health import get_system_info, format_system_info, check_health, validate_server_config
+from .config import load_config, save_config, init_config, get_config_path, DEFAULT_CONFIG
+
+
+def _merge_server_args(args, config_key: str, default_host: str, default_port: int):
+    """Merge CLI arguments with configuration for server commands."""
+    config = load_config()
+    server_config = config.get(config_key, {})
+
+    host = args.host if hasattr(args, 'host') and args.host != default_host else server_config.get("host", default_host)
+    port = args.port if hasattr(args, 'port') and args.port != default_port else server_config.get("port", default_port)
+    debug = args.debug if hasattr(args, 'debug') else False
+    debug = debug or server_config.get("debug", False)
+
+    return host, port, debug, server_config
+
+
+def _detect_mobile_context():
+    uname = platform.uname()
+    is_termux = "TERMUX_VERSION" in os.environ
+    # Heuristic: iSH often reports Alpine in release; keep conservative
+    is_ish = "alpine" in uname.release.lower() or "ish" in uname.release.lower()
+    width = shutil.get_terminal_size(fallback=(80, 24)).columns
+    if is_termux or is_ish:
+        width = min(width, 80)
+    return {
+        "is_termux": is_termux,
+        "is_ish": is_ish,
+        "is_mobile": is_termux or is_ish,
+        "term_width": width,
+    }
+
+
+class MobileHelpFormatter(argparse.HelpFormatter):
+    def __init__(self, prog, width=80, **kwargs):
+        super().__init__(prog, width=width, max_help_position=24, **kwargs)
+
+
+def main(argv=None):
+    ctx = _detect_mobile_context()
+    formatter = lambda prog: MobileHelpFormatter(prog, width=ctx["term_width"])
+    parser = argparse.ArgumentParser(
+        prog="dredge",
+        description="DREDGE x Dolly - GPU-CPU Lifter · Save · Files · Print",
+        formatter_class=formatter,
+    )
+    parser.add_argument("--version", action="store_true", help="Print version and exit")
+    parser.add_argument(
+        "--version-info",
+        action="store_true",
+        help="Print detailed version and system information"
+    )
+    parser.add_argument(
+        "--no-spinner",
+        action="store_true",
+        help="Disable spinners/progress (default: enabled; disable for CI/pipes)",
+    )
+
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
+    # Server command
+    server_parser = subparsers.add_parser(
+        "serve", help="Start the DREDGE x Dolly web server", formatter_class=formatter
+    )
+    server_parser.add_argument(
+        "--host",
+        default="0.0.0.0",
+        help="Host to bind to (default: 0.0.0.0)"
+    )
+    server_parser.add_argument(
+        "--port",
+        type=int,
+        default=3000,
+        help="Port to listen on (default: 3000)"
+    )
+    server_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug mode"
+    )
+    server_parser.add_argument(
+        "--threads",
+        type=int,
+        default=1 if ctx["is_mobile"] else 0,
+        help="Legacy compatibility option; does not change server worker threads",
+    )
+
+    # MCP Server command
+    mcp_parser = subparsers.add_parser(
+        "mcp", help="Start the DREDGE MCP server (Quasimoto models)", formatter_class=formatter
+    )
+    mcp_parser.add_argument(
+        "--host",
+        default="0.0.0.0",
+        help="Host to bind to (default: 0.0.0.0)"
+    )
+    mcp_parser.add_argument(
+        "--port",
+        type=int,
+        default=3002,
+        help="Port to listen on (default: 3002)"
+    )
+    mcp_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug mode"
+    )
+    mcp_parser.add_argument(
+        "--threads",
+        type=int,
+        default=1 if ctx["is_mobile"] else 0,
+        help="Legacy compatibility option; does not change server worker threads",
+    )
+    mcp_parser.add_argument(
+        "--device",
+        choices=["auto", "cpu", "cuda", "mps"],
+        default="auto",
+        help="Device to use for computation (default: auto-detect)"
+    )
+
+    # Health check command
+    health_parser = subparsers.add_parser(
+        "health", help="Check system health and dependencies", formatter_class=formatter
+    )
+    health_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output health check as JSON"
+    )
+
+    # Info command
+    info_parser = subparsers.add_parser(
+        "info", help="Show system information", formatter_class=formatter
+    )
+
+    # Config command
+    config_parser = subparsers.add_parser(
+        "config", help="Manage configuration", formatter_class=formatter
+    )
+    config_subparsers = config_parser.add_subparsers(dest="config_action", help="Config actions")
+
+    config_show = config_subparsers.add_parser(
+        "show", help="Show current configuration", formatter_class=formatter
+    )
+    config_init = config_subparsers.add_parser(
+        "init", help="Initialize default configuration file", formatter_class=formatter
+    )
+    config_path_parser = config_subparsers.add_parser(
+        "path", help="Show configuration file path", formatter_class=formatter
+    )
+
+
+    # Print command
+    print_parser = subparsers.add_parser(
+        "print", help="Print project playbooks and ready-to-share content", formatter_class=formatter
+    )
+    print_parser.add_argument(
+        "topic",
+        nargs="?",
+        default="sell",
+        choices=["sell"],
+        help="What to print (default: sell)",
+    )
+    # GitHub event command
+    github_event_parser = subparsers.add_parser(
+        "github-event",
+        help="Process one or more GitHub events (streaming batch mode)",
+        formatter_class=formatter,
+    )
+    github_event_parser.add_argument(
+        "--event-file",
+        metavar="FILE",
+        help="JSON file containing a single event or a newline-delimited list of events",
+    )
+    github_event_parser.add_argument(
+        "--stdin",
+        action="store_true",
+        help="Read newline-delimited JSON events from stdin",
+    )
+    github_event_parser.add_argument(
+        "--workers",
+        type=int,
+        default=4,
+        help="Number of concurrent event-processing workers (default: 4)",
+    )
+    github_event_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output processing summary as JSON",
+    )
+    sync_parser = subparsers.add_parser(
+        "sync", help="Compile orchestration manifest into generated surfaces", formatter_class=formatter
+    )
+    sync_parser.add_argument(
+        "--manifest",
+        default="dredge.manifest.yaml",
+        help="Path to orchestration manifest (default: dredge.manifest.yaml)",
+    )
+
+    args = parser.parse_args(argv)
+
+    if args.version:
+        print(__version__)
+        return 0
+
+    if args.version_info:
+        print(f"DREDGE version {__version__}")
+        print()
+        sys_info = get_system_info()
+        print(format_system_info(sys_info))
+        return 0
+
+    if args.command == "health":
+        health = check_health()
+        if args.json:
+            print(json.dumps(health, indent=2))
+        else:
+            print(f"Health Status: {health['status']}")
+            print()
+            print("Dependency Checks:")
+            for dep, available in health['checks']['dependencies'].items():
+                status = "✓" if available else "✗"
+                print(f"  {status} {dep}")
+
+            if 'missing_dependencies' in health and health['missing_dependencies']:
+                print()
+                print("Missing dependencies:")
+                for dep in health['missing_dependencies']:
+                    print(f"  - {dep}")
+                print()
+                print("Run 'make install-python' or 'pip install -r requirements.txt' to install")
+                return 1
+        return 0 if health['status'] == 'healthy' else 1
+
+    if args.command == "info":
+        sys_info = get_system_info()
+        print(format_system_info(sys_info))
+        return 0
+
+    if args.command == "config":
+        if args.config_action == "show":
+            config = load_config()
+            print(json.dumps(config, indent=2))
+            return 0
+        elif args.config_action == "init":
+            try:
+                path = init_config()
+                print(f"Configuration file created at: {path}")
+                print()
+                print("Edit the file to customize your settings.")
+                return 0
+            except FileExistsError as e:
+                print(f"Error: {e}", file=sys.stderr)
+                print(f"Use 'dredge-cli config show' to view current config", file=sys.stderr)
+                return 1
+        elif args.config_action == "path":
+            path = get_config_path()
+            exists = "exists" if path.exists() else "does not exist"
+            print(f"{path} ({exists})")
+            return 0
+        else:
+            config_parser.print_help()
+            return 0
+
+    if args.command == "print":
+        if args.topic == "sell":
+            print("DREDGE: Make It Sell Itself")
+            print("- Positioning: reasoning gateway between intent and execution")
+            print("- GTM loop: paid endpoint, keys/tiers, metering, billing, SDK snippets")
+            print("- KPI: TTFV < 5 minutes")
+            print("- Full guide: docs/SELL_ITSELF_PLAYBOOK.md")
+            return 0
+
+    if args.command == "serve":
+        # Load config and merge with CLI args
+        host, port, debug, _ = _merge_server_args(args, "server", "0.0.0.0", 3000)
+
+        try:
+            validate_server_config(host, port, debug)
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 1
+
+        from .server import run
+        run(host=host, port=port, debug=debug)
+        return 0
+
+    if args.command == "mcp":
+        # Load config and merge with CLI args
+        host, port, debug, mcp_config = _merge_server_args(args, "mcp", "0.0.0.0", 3002)
+        device = args.device if args.device != "auto" else mcp_config.get("device", "auto")
+
+        try:
+            validate_server_config(host, port, debug)
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 1
+
+        from .mcp_server import run_mcp_server
+        run_mcp_server(host=host, port=port, debug=debug, device=device)
+        return 0
+
+    if args.command == "github-event":
+        from .event_stream_handler import (
+            process_events_from_list,
+            process_events_from_stdin,
+        )
+
+        def _default_handler(event):
+            """Echo the event type back as a minimal stub handler."""
+            return {"event_type": event.get("type", "unknown"), "status": "processed"}
+
+        output_json = getattr(args, "json", False)
+
+        if getattr(args, "stdin", False):
+            summary = process_events_from_stdin(
+                handler=_default_handler,
+                num_workers=args.workers,
+            )
+        elif args.event_file:
+            event_path = Path(args.event_file)
+            if not event_path.exists():
+                print(f"Error: event file not found: {args.event_file}", file=sys.stderr)
+                return 1
+            raw = event_path.read_text()
+            # Support both a single JSON object and newline-delimited objects
+            events = []
+            for line in raw.splitlines():
+                line = line.strip()
+                if line:
+                    try:
+                        events.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        pass
+            if not events:
+                print("Error: no valid JSON events found in file", file=sys.stderr)
+                return 1
+            summary = process_events_from_list(
+                events=events,
+                handler=_default_handler,
+                num_workers=args.workers,
+            )
+        else:
+            github_event_parser.print_help()
+            return 0
+
+        if output_json:
+            print(json.dumps(summary, indent=2))
+        else:
+            print(f"Processed: {summary['total_processed']} events")
+            print(f"Successful: {summary['successful']}")
+            print(f"Errors:    {summary['errors']}")
+            print(f"Elapsed:   {summary['elapsed_seconds']:.3f}s")
+            print(f"Throughput:{summary['throughput_per_sec']:.1f} events/sec")
+        return 0
+
+    if args.command == "sync":
+        from .sync import sync
+        try:
+            sync(manifest_path=Path(args.manifest))
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 1
+        print("DREDGE sync complete.")
+        return 0
+
+    parser.print_help()
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
