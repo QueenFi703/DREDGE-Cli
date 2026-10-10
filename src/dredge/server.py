@@ -119,6 +119,12 @@ def create_app():
 
     @login_manager.unauthorized_handler
     def unauthorized():
+        if request.path == '/advanced':
+            from uuid import UUID
+            try:
+                session['studio_return_run'] = str(UUID(request.args.get('run', '')))
+            except (ValueError, TypeError, AttributeError):
+                session.pop('studio_return_run', None)
         if request.path.startswith('/api/') or request.is_json:
             return jsonify(error='Your session has expired. Sign in again.', code='session_expired',
                            login_url='/auth/login?reason=session_expired'), 401

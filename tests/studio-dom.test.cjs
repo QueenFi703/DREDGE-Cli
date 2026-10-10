@@ -103,7 +103,7 @@ test('reviewer decisions require a reason and send the session CSRF token',async
   const base=signedReplies('reviewer');
   const dom=harness('https://studio.example/advanced',(route,options)=>{
     if(route==='/api/studio/runs')return {status:200,data:{runs:reviewed?[]:[run]}};
-    if(route==='/api/studio/runs/run-one')return {status:200,data:{...run,nodes:[],evidence:[],result:null,can_execute:false}};
+    if(route==='/api/studio/runs/run-one')return {status:200,data:{...run,status:reviewed?'approved':run.status,nodes:[],evidence:[],result:null,can_execute:false}};
     if(route==='/api/studio/runs/run-one/review'){posted.push(options);reviewed=true;return {status:200,data:{status:'approved'}};}
     return base(route);
   });
@@ -147,5 +147,136 @@ test('audit integrity distinguishes failed, unknown and verified chains on refre
     await until(()=>notice.textContent.includes('verified'));
     assert.equal(notice.getAttribute('role'),'status');
     assert.equal(notice.classList.contains('error'),false);
+  }finally{dom.window.close();}
+});
+
+test('live proposals disclose provider, require both confirmations, and reset consent',async()=>{
+  const base=signedReplies('operator');const posts=[];
+  const run={id:'live-one',query:'Fictional question',pipeline_type:'standard',mode:'live',model:'gpt-6-astra',status:'pending_approval',nodes:[],evidence:[],can_execute:true};
+  const dom=harness('https://studio.example/advanced',(route,options)=>{
+    if(route==='/api/studio/session') return {status:200,data:{...base(route).data,live_configured:true,live_model:'gpt-6-astra'}};
+    if(route==='/api/studio/runs' && options.method==='POST'){posts.push(JSON.parse(options.body));return {status:201,data:run};}
+    return base(route);
+  });
+  try{
+    const d=dom.window.document;await until(()=>d.getElementById('live-config').textContent.includes('gpt-6-astra'));
+    assert.equal(d.getElementById('run-mode').value,'live');
+    assert.equal(d.getElementById('run-pipeline').disabled,true);
+    d.getElementById('run-query').value='Fictional question';
+    d.getElementById('proposal-form').dispatchEvent(new dom.window.Event('submit',{cancelable:true}));
+    await until(()=>d.getElementById('feedback').textContent.includes('Confirm'));
+    assert.equal(posts.length,0);
+    d.getElementById('provider-consent').checked=true;d.getElementById('public-confirmed').checked=true;
+    d.getElementById('source-excerpt').dispatchEvent(new dom.window.Event('input'));
+    assert.equal(d.getElementById('provider-consent').checked,false);
+    assert.equal(d.getElementById('public-confirmed').checked,false);
+    d.getElementById('provider-consent').checked=true;d.getElementById('public-confirmed').checked=true;
+    d.getElementById('proposal-form').dispatchEvent(new dom.window.Event('submit',{cancelable:true}));
+    await until(()=>posts.length===1);
+    assert.deepEqual(posts[0],{query:'Fictional question',pipeline_type:'standard',evidence:[],execution_mode:'live',consent:true,public_data_confirmed:true});
+    await until(()=>d.getElementById('feedback').textContent.includes('Proposal saved'));
+    assert.equal(d.getElementById('provider-consent').checked,false);
+    d.getElementById('run-mode').value='demo';d.getElementById('run-mode').dispatchEvent(new dom.window.Event('change'));
+    assert.equal(d.getElementById('live-consent').hidden,true);
+    assert.equal(d.getElementById('run-pipeline').disabled,false);
+  }finally{dom.window.close();}
+});
+
+test('live answer, response trace, partial usage, and unknown source warning render safely',async()=>{
+  const base=signedReplies('operator');
+  const run={id:'live-done',query:'Fictional',status:'completed',mode:'live',model:'gpt-6-astra',token_usage:120,
+    nodes:[{id:'astra_response',dependencies:[],mode:'live',status:'completed',duration_ms:12,response_id:'resp_test',model:'gpt-6-astra',usage:{total_tokens:120}}],evidence:[],
+    result:{answer:'<img src=x onerror=alert(1)> [source-99]',provider:'OpenAI',model:'gpt-6-astra',response_id:'resp_test',evidence_review:{unknown_source_ids:['source-99']}}};
+  const dom=harness('https://studio.example/advanced',(route,options)=>{
+    if(route==='/api/studio/runs')return {status:200,data:{runs:[run]}};
+    if(route==='/api/studio/runs/live-done')return {status:200,data:run};
+    if(route==='/api/studio/report')return {status:200,data:{...report,provider_calls:2,token_usage:120,usage_status:'partial',calls_without_usage:1}};
+    return base(route,options);
+  });
+  try{
+    const d=dom.window.document;await until(()=>d.getElementById('answer-panel').hidden===false);
+    assert.equal(d.querySelector('#answer-panel img'),null);
+    assert.match(d.getElementById('answer-text').textContent,/<img/);
+    assert.match(d.getElementById('provider-record').textContent,/resp_test/);
+    assert.match(d.getElementById('reference-warning').textContent,/unknown source IDs: source-99/);
+    assert.match(d.getElementById('report-values').textContent,/120 \(partial; 1 calls missing usage\)/);
+    d.querySelector('.graph-node').dispatchEvent(new dom.window.MouseEvent('click',{bubbles:true}));
+    assert.match(d.getElementById('node-detail').textContent,/resp_test/);
+    assert.match(d.getElementById('trace-context').textContent,/Live API/);
+  }finally{dom.window.close();}
+});
+
+test('saved-run link opens the requested proposal instead of the newest run',async()=>{
+  const base=signedReplies('reviewer');
+  const run={id:'eac0654f-52ab-4a0e-89e2-b53ac9491308',query:'Exact requested fictional proposal',status:'pending_approval',mode:'live',nodes:[],evidence:[],result:null};
+  const requested=[];
+  const dom=harness('https://studio.example/advanced?run='+run.id,(route,options)=>{
+    if(route==='/api/studio/runs')return {status:200,data:{runs:[{...run,id:'newest',query:'A different newer run'}]}};
+    if(route.startsWith('/api/studio/runs/')){requested.push(route);return {status:200,data:run};}
+    return base(route,options);
+  });
+  try{
+    const d=dom.window.document;await until(()=>d.getElementById('run-heading').textContent===run.query);
+    assert.deepEqual(requested,['/api/studio/runs/'+run.id]);
+    assert.equal(d.getElementById('run-permalink').href,'https://studio.example/advanced?run='+run.id);
+    assert.equal(d.getElementById('run-permalink').hidden,false);
+    assert.ok(d.getElementById('review-'+run.id));
+    d.getElementById('refresh-runs').click();
+    await until(()=>requested.length===2);
+    await until(()=>d.getElementById('refresh-runs').disabled===false);
+    assert.ok(d.getElementById('review-'+run.id));
+  }finally{dom.window.close();}
+});
+
+
+test('a delayed linked-run response cannot replace a newer explicit selection',async()=>{
+  const base=signedReplies('operator');let resolveLinked;
+  const old={id:'older',query:'Emailed proposal',status:'pending_approval',mode:'live',nodes:[],evidence:[],result:null};
+  const newer={...old,id:'newer',query:'Newly selected proposal'};
+  const dom=harness('https://studio.example/advanced?run=older',(route,options)=>{
+    if(route==='/api/studio/runs')return {status:200,data:{runs:[newer]}};
+    if(route==='/api/studio/runs/older')return new Promise(resolve=>{resolveLinked=()=>resolve({status:200,data:old});});
+    if(route==='/api/studio/runs/newer')return {status:200,data:newer};
+    return base(route,options);
+  });
+  try{
+    const d=dom.window.document;await until(()=>resolveLinked);
+    d.querySelector('#run-list button').click();
+    await until(()=>d.getElementById('run-heading').textContent===newer.query);
+    resolveLinked();await new Promise(resolve=>setTimeout(resolve,10));
+    assert.equal(d.getElementById('run-heading').textContent,newer.query);
+    assert.equal(new URL(dom.window.location.href).searchParams.get('run'),'newer');
+  }finally{dom.window.close();}
+});
+
+
+test('expired-session link retains the exact run for server-side sign-in restoration',async()=>{
+  const id='eac0654f-52ab-4a0e-89e2-b53ac9491308';
+  const dom=harness('https://studio.example/advanced?run='+id,()=>({status:401,data:{error:'Expired'}}));
+  try{
+    const d=dom.window.document;await until(()=>d.getElementById('session-notice').hidden===false);
+    assert.equal(d.querySelector('#session-notice a').href,'https://studio.example/advanced?run='+id);
+  }finally{dom.window.close();}
+});
+
+
+test('initialization cannot supersede explicit selection while status is loading',async()=>{
+  const base=signedReplies('operator');let resolveStatus,resolveSelected,linkedCalls=0;
+  const run={id:'chosen',query:'User selected proposal',status:'pending_approval',mode:'live',nodes:[],evidence:[],result:null};
+  const dom=harness('https://studio.example/advanced?run=emailed',(route,options)=>{
+    if(route==='/api/studio/runs')return {status:200,data:{runs:[run]}};
+    if(route==='/api/studio/status')return new Promise(resolve=>{resolveStatus=()=>resolve(base(route,options));});
+    if(route==='/api/studio/runs/chosen')return new Promise(resolve=>{resolveSelected=()=>resolve({status:200,data:run});});
+    if(route==='/api/studio/runs/emailed'){linkedCalls++;return {status:200,data:{...run,id:'emailed',query:'Emailed'}};}
+    return base(route,options);
+  });
+  try{
+    const d=dom.window.document;await until(()=>resolveStatus);
+    d.querySelector('#run-list button').click();await until(()=>resolveSelected);
+    resolveStatus();await until(()=>d.getElementById('report-values').children.length===9);
+    await new Promise(resolve=>setTimeout(resolve,10));
+    assert.equal(linkedCalls,0);resolveSelected();
+    await until(()=>d.getElementById('run-heading').textContent===run.query);
+    assert.equal(new URL(dom.window.location.href).searchParams.get('run'),'chosen');
   }finally{dom.window.close();}
 });

@@ -365,7 +365,7 @@ class DAGExecutionEngine:
                     continue
 
                 logger.info(f"Executing node: {node_id}")
-                mode = 'simulated' if node_id in {'translate', 'normalize', 'async_translation', 'redis_cache'} else 'local'
+                mode = getattr(node, 'execution_mode', 'simulated' if node_id in {'translate', 'normalize', 'async_translation', 'redis_cache'} else 'local')
                 started = time.time()
                 monotonic_started = time.perf_counter()
                 node_trace = {'id': node_id, 'type': node.node_type.value, 'dependencies': list(node.dependencies),
@@ -373,6 +373,10 @@ class DAGExecutionEngine:
                 emit(dict(node_trace))
                 try:
                     result = await node.execute(context, self.redis)
+                    if mode == 'live' and isinstance(result, dict):
+                        for key in ('provider', 'model', 'response_id', 'request_id', 'provider_status', 'usage'):
+                            if key in result:
+                                node_trace[key] = result[key]
                     node_trace['status'] = 'cached' if node.metadata.cache_hit else 'completed'
                     node.metadata.status = NodeStatus.CACHED if node.metadata.cache_hit else NodeStatus.COMPLETED
                 except Exception:

@@ -2,7 +2,7 @@
 
 SQLite lives on STUDIO_DB_PATH; mount persistent storage for deployment durability.
 Roles are assigned by the operator using STUDIO_ROLES_JSON (OAuth IDs, not names).
-No endpoint grants roles or calls an external AI provider.
+No endpoint grants roles. Live proposals call OpenAI only after explicit consent and independent approval.
 """
 import asyncio
 import hashlib
@@ -22,6 +22,7 @@ from urllib.parse import urlsplit
 from flask import Blueprint, current_app, jsonify, request, session, send_file
 from flask_login import current_user, login_required
 from .architecture import dredge_run_pipeline
+from .studio_provider import configured_model, run_live_pipeline, MAX_INPUT_CHARS, MAX_OUTPUT_TOKENS
 
 studio_bp = Blueprint('studio', __name__)
 ROLES = {'viewer', 'operator', 'reviewer', 'admin'}
@@ -109,8 +110,19 @@ def readable(run):
 def serialize_run(run, detail=False):
     item = {k: run[k] for k in ('id', 'status', 'created', 'started', 'ended', 'reviewer', 'review_note')}
     payload = json.loads(run['payload'])
-    item.update(query=payload['query'], pipeline_type=payload['pipeline_type'], mode='local',
-                provider_calls=0, token_usage=None, cost_usd=None, cost_status='not_metered',
+    result = json.loads(run['result']) if run['result'] else {}
+    # Pre-upgrade proposals retain the local/demo behavior that was approved.
+    mode = payload.get('execution_mode', 'demo')
+    calls = result.get('provider_calls', 0)
+    if mode == 'live' and not calls:
+        with store().connect() as db:
+            calls = int(bool(db.execute("SELECT 1 FROM trace_events WHERE run_id=? AND json_extract(event,'$.id')='astra_response' LIMIT 1", (run['id'],)).fetchone()))
+    item.update(query=payload['query'], pipeline_type=payload['pipeline_type'], mode=mode,
+                model=payload.get('model'), provider_calls=calls,
+                token_usage=result.get('token_usage'), usage=result.get('usage'),
+                cost_usd=result.get('cost_usd'), cost_status=result.get('cost_status', 'not_metered'),
+                data_scope=payload.get('data_scope'), consent=payload.get('consent', False),
+                max_output_tokens=payload.get('max_output_tokens'),
                 can_execute=run['owner'] == current_user.get_id() and role() in {'operator','admin'})
     if detail:
         item['evidence'] = payload['evidence']
@@ -156,7 +168,7 @@ def validate_payload(data):
     evidence = data.get('evidence', [])
     if not isinstance(query, str) or not query.strip() or len(query) > 4000:
         raise ValueError('Enter a question between 1 and 4,000 characters.')
-    if pipeline_type not in {'standard', 'ios_swift'}:
+    if not isinstance(pipeline_type, str) or pipeline_type not in {'standard', 'ios_swift'}:
         raise ValueError('Choose a supported pipeline.')
     if not isinstance(evidence, list) or len(evidence) > 10:
         raise ValueError('Provide no more than 10 source records.')
@@ -169,7 +181,22 @@ def validate_payload(data):
             raise ValueError('Sources need a title (up to 300 characters) and excerpt (up to 4,000).')
         checked.append(dict(id=f'source-{index+1}', title=title.strip(), url=source['url'], excerpt=excerpt,
                             provenance='user_supplied', verification='unverified', attached_at=time.time()))
-    return dict(query=query.strip(), pipeline_type=pipeline_type, evidence=checked)
+    mode = data.get('execution_mode', 'live')
+    if not isinstance(mode, str) or mode not in {'live', 'demo'}:
+        raise ValueError('Choose live Astra or demonstration mode.')
+    payload = dict(query=query.strip(), pipeline_type=pipeline_type, evidence=checked, execution_mode=mode)
+    if mode == 'live':
+        if pipeline_type != 'standard':
+            raise ValueError('Live inference uses the Standard pipeline. iOS / Swift is demonstration-only.')
+        if data.get('consent') is not True or data.get('public_data_confirmed') is not True:
+            raise ValueError('Confirm sending the question and all source records to OpenAI, and that they contain only public or fictional information.')
+        if data.get('case_id') or data.get('file_ids') or data.get('include_client_explanations'):
+            raise ValueError('Private case records must use the agency-gated Casework workflow.')
+        if len(query) + sum(len(source['title']) + len(source['url']) + len(source['excerpt']) for source in checked) > MAX_INPUT_CHARS:
+            raise ValueError('Live questions and evidence must total at most 12,000 characters.')
+        payload.update(model=configured_model(), max_output_tokens=MAX_OUTPUT_TOKENS,
+                       consent=True, data_scope='public_or_fictional')
+    return payload
 
 
 @studio_bp.before_request
@@ -201,6 +228,8 @@ def session_info():
     token = session.setdefault('studio_csrf', secrets.token_urlsafe(32))
     return jsonify(name=current_user.name, role=role(), csrf_token=token,
                    can_run=role() in {'operator','admin'}, can_review=role() in {'reviewer','admin'},
+                   live_model=configured_model(), live_configured=bool(current_app.config.get('OPENAI_API_KEY')),
+                   max_output_tokens=MAX_OUTPUT_TOKENS,
                    idle_timeout_seconds=current_app.config['STUDIO_IDLE_SECONDS'],
                    expires_at=session.get('studio_started', time.time()) + current_app.config['STUDIO_SESSION_SECONDS'])
 
@@ -236,11 +265,13 @@ def runs():
             payload = validate_payload(request.get_json(silent=True))
         except ValueError as exc:
             return jsonify(error=str(exc)), 400
+        if payload['execution_mode'] == 'live' and not current_app.config.get('OPENAI_API_KEY'):
+            return jsonify(error='OpenAI is not configured. No provider call was made. Choose demonstration mode or ask the operator to configure the existing credential.'), 503
         run_id = str(uuid.uuid4())
         with store().connect() as db:
             db.execute('INSERT INTO runs(id,owner,status,payload,created) VALUES(?,?,?,?,?)',
                        (run_id, current_user.get_id(), 'pending_approval', json.dumps(payload), time.time()))
-            store().audit(db, current_user.get_id(), 'run_proposed', run_id, {'pipeline_type': payload['pipeline_type']})
+            store().audit(db, current_user.get_id(), 'run_proposed', run_id, {'pipeline_type': payload['pipeline_type'], 'execution_mode': payload['execution_mode'], 'model': payload.get('model'), 'data_scope': payload.get('data_scope'), 'consent': payload.get('consent', False)})
             run = db.execute('SELECT * FROM runs WHERE id=?', (run_id,)).fetchone()
         return jsonify(serialize_run(run, True)), 201
     with store().connect() as db:
@@ -299,18 +330,33 @@ def execute_run(run_id):
             return jsonify(error='Run not found.'), 404
         if run['status'] != 'approved':
             return jsonify(error='This run needs approval or has already executed.'), 409
+        payload = json.loads(run['payload'])
+        if payload.get('execution_mode') == 'live':
+            if not current_app.config.get('OPENAI_API_KEY'):
+                return jsonify(error='OpenAI is not configured. No provider call was made.'), 503
+            if payload.get('model') != configured_model():
+                return jsonify(error='The configured model changed after approval. Create a new proposal.'), 409
+            if payload.get('consent') is not True or payload.get('data_scope') != 'public_or_fictional':
+                return jsonify(error='This proposal lacks consent for public or fictional data. Create a new proposal.'), 409
+            attempts = db.execute("SELECT COUNT(*) FROM runs WHERE owner=? AND started>? AND json_extract(payload,'$.execution_mode')='live'", (current_user.get_id(), time.time()-86400)).fetchone()[0]
+            if attempts >= 20:
+                return jsonify(error='Studio limit of 20 live attempts per account per rolling 24 hours reached.'), 429
         db.execute('UPDATE runs SET status=?,started=? WHERE id=?', ('running', time.time(), run_id))
         store().audit(db, current_user.get_id(), 'run_started', run_id)
-    payload = json.loads(run['payload'])
     trace_store = store()
     try:
-        result = asyncio.run(dredge_run_pipeline({'query': payload['query'], 'mode':'standard'},
-                     pipeline_type=payload['pipeline_type'], pipeline_id=run_id,
-                     trace_callback=lambda event: trace_store.trace(run_id, event)))
-        state = 'completed'
+        callback = lambda event: trace_store.trace(run_id, event)
+        if payload.get('execution_mode') == 'live':
+            result = asyncio.run(run_live_pipeline(payload, run_id, callback))
+        else:
+            result = asyncio.run(dredge_run_pipeline({'query': payload['query'], 'mode':'standard'},
+                         pipeline_type=payload['pipeline_type'], pipeline_id=run_id,
+                         trace_callback=callback))
+        state = 'failed' if result.get('status') == 'failed' else 'completed'
     except Exception:
-        current_app.logger.exception('Studio pipeline failed: %s', run_id)
-        result = {'error': 'The local pipeline failed. Consult server logs using the run ID.'}
+        # Never log provider bodies, credentials, questions, or supplied evidence.
+        current_app.logger.error('Studio pipeline failed: %s', run_id)
+        result = {'error': 'The pipeline failed. Check this run’s recorded trace. No automatic retry was made.'}
         state = 'failed'
     with trace_store.connect() as db:
         db.execute('UPDATE runs SET status=?,result=?,ended=? WHERE id=?', (state,json.dumps(result),time.time(),run_id))
@@ -325,6 +371,8 @@ def status_panels():
     with store().connect() as db:
         latest = db.execute('SELECT ended FROM runs WHERE owner=? AND status=? ORDER BY ended DESC LIMIT 1', (current_user.get_id(),'completed')).fetchone()
     from .casework import member, cipher, MODEL
+    with store().connect() as db:
+        live_success = db.execute("SELECT ended FROM runs WHERE owner=? AND status='completed' AND json_extract(payload,'$.execution_mode')='live' AND json_extract(payload,'$.model')=? ORDER BY ended DESC LIMIT 1", (current_user.get_id(), configured_model())).fetchone()
     membership = member()
     configured = bool(current_app.config.get('OPENAI_API_KEY'))
     encrypted = bool(cipher())
@@ -340,17 +388,19 @@ def status_panels():
         observed = observations.get(kind)
         status = 'not_connected' if not configured else 'agency_access_required' if not membership else 'encryption_required' if not encrypted else 'agency_approval_required' if not ready else 'successful_request_recorded' if observed else 'configured_not_verified'
         return dict(name=name, mode='live', status=status, label='Disconnected' if not configured else 'Recorded success' if ready and observed else 'Configured · Unverified' if ready else 'Setup required', description=description, last_observed=observed, href='/casework#casework' if membership else None)
+    live_observed = live_success['ended'] if live_success else None
     return jsonify(observed_at=time.time(), models=[
         provider_item('Astra · '+MODEL, 'analysis', analysis_ready, 'Draft analysis of selected case evidence. No web tools. Requires agency data-transfer approval and per-request consent.'),
+        dict(name='Studio Astra · '+configured_model(), mode='live', status='not_connected' if not configured else 'successful_request_recorded' if live_observed else 'configured_not_verified', label='Disconnected' if not configured else 'Recorded success' if live_observed else 'Configured · Unverified', last_observed=live_observed, description='Live Responses API for approved public or fictional questions and supplied evidence. Consent and a separate reviewer are required. No web retrieval. Up to 1,200 output tokens; no automatic retries.'),
         dict(name='Demonstration model catalog', mode='simulated', status='demonstration_catalog', description='Quasimoto, String Theory and scripted Deep / Google adapters are demonstrations, not connected provider models.', href='/advanced/toolkit')], tools=[
         provider_item('OpenAI web research', 'research', provider_ready, 'Public questions only, with source citations. Case attachments are excluded. Up to two web tool calls per request.'),
         dict(name='Local DAG engine', mode='local', status='last_execution_completed' if latest else 'not_yet_observed', last_observed=latest['ended'] if latest else None, description='Actual local pipeline execution after independent human approval.'),
         dict(name='Trace and audit storage', mode='local', status='read_write_available', description='Recorded node events and append-only audit entries. Configured storage path does not verify backup recovery.'),
         dict(name='Encrypted case files', mode='local', status='ready' if encrypted and membership and current_app.config.get('CASEWORK_REAL_DATA_ENABLED') else 'agency_approval_required' if encrypted and membership else 'setup_required', description='Agency-scoped TXT, PDF and photo storage with local OCR and staff text verification. Real client uploads remain gated until agency approval.', href='/casework#casework' if membership else None),
         dict(name='Agency Pages', mode='local', status='ready' if encrypted and membership else 'setup_required', description='Shared guidance with encrypted version history and conflict protection.', href='/casework#pages' if membership else None),
-        dict(name='Source inspector', mode='local', status='user_supplied_sources_only', description='Studio source records are user supplied. Web research citations are displayed in Casework.')],
+        dict(name='Source inspector', mode='local', status='user_supplied_sources_only', description='Live Studio answers reference supplied evidence IDs; reference checks do not verify claims. Web research citations are displayed in Casework.')],
         persistence='configured_path' if current_app.config.get('STUDIO_EXPLICIT_DB') else 'instance_disk_requires_persistent_volume',
-        scope='Configuration and stored observations only; no external health probes or paid requests were made. Recorded success is historical, not a current availability guarantee. Agency AI limit: 20 attempts per rolling 24 hours; output limit: 2,400 tokens per request.')
+        scope='Configuration and stored observations only. Refreshing this panel makes no external probes or paid requests. Recorded success is historical, not a current availability guarantee. Studio limit: 20 live attempts per account per rolling 24 hours and 1,200 output tokens. Casework agency limit: 20 attempts per rolling 24 hours and 2,400 output tokens.')
 
 
 
@@ -358,17 +408,22 @@ def status_panels():
 @login_required
 def usage_report():
     with store().connect() as db:
-        rows = db.execute('SELECT status,started,ended FROM runs WHERE owner=?', (current_user.get_id(),)).fetchall()
+        rows = db.execute('SELECT * FROM runs WHERE owner=?', (current_user.get_id(),)).fetchall()
     completed = [row for row in rows if row['status']=='completed']
     failed = [row for row in rows if row['status']=='failed']
     measured = [row['ended']-row['started'] for row in completed if row['started'] and row['ended']]
     terminal = len(completed)+len(failed)
-    return jsonify(scope='Your stored Studio runs, all time', proposed_runs=len(rows),
+    summaries = [serialize_run(row) for row in rows]
+    calls = sum(row['provider_calls'] for row in summaries)
+    metered = [row for row in summaries if row['provider_calls'] and row['token_usage'] is not None]
+    return jsonify(scope='Your stored Studio runs, all time; Casework has separate usage limits', proposed_runs=len(rows),
                    completed_runs=len(completed), failed_runs=len(failed),
                    success_rate=(len(completed)/terminal if terminal else None),
                    average_duration_ms=(round(sum(measured)/len(measured)*1000,3) if measured else None),
-                   provider_calls=0, token_usage=None, cost_usd=None, cost_status='not_metered',
-                   cost_note='These runs execute the local DAG only. Provider billing and infrastructure cost are not integrated.',
+                   provider_calls=calls, token_usage=sum(row['token_usage'] for row in metered) if metered else None,
+                   usage_status='partial' if calls > len(metered) else 'provider_reported' if metered else 'unavailable',
+                   calls_without_usage=calls-len(metered), cost_usd=None, cost_status='billing_unavailable',
+                   cost_note='Tokens come from provider responses, including incomplete responses when available. Missing usage is not zero usage. Provider billing and infrastructure cost are not integrated. Timeouts may still incur charges.',
                    interrupted_runs=sum(row['status']=='running' for row in rows))
 
 
@@ -399,6 +454,7 @@ def register_studio(app):
     except (ValueError, TypeError):
         raise RuntimeError('STUDIO_ROLES_JSON must map OAuth user IDs to viewer/operator/reviewer/admin.')
     app.config.setdefault('STUDIO_ROLES', roles)
+    app.config.setdefault('OPENAI_MODEL', os.environ.get('OPENAI_MODEL', 'gpt-6-astra'))
     app.config.setdefault('STUDIO_IDLE_SECONDS', 1800)
     app.config.setdefault('STUDIO_SESSION_SECONDS', 43200)
     path = os.environ.get('STUDIO_DB_PATH', str(Path(app.instance_path) / 'studio.sqlite3'))
