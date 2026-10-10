@@ -8,6 +8,7 @@
 - Default pacing is approximately 8 minutes 20 seconds, with inspection pauses. Slower and Faster options adjust the elapsed timeline.
 - Pause resumes at the same paragraph. Previous, Next, scene selection, changing pace and opening the full narration pause playback. Restart starts the story over automatically.
 - Hiding the tab pauses playback. Escape pauses. Leaving the page clears its timer.
+- Playback uses a compact viewport layout: the introduction is collapsed, controls and fictional labels remain visible, and captions are split into at most 36-word blocks without changing total timing. Evidence can be scrolled inside its panel for closer inspection.
 - The full narration is available below the player.
 - Without JavaScript, the opening scene and first caption remain readable. Playback controls stay disabled and the static-view notice explains the limitation.
 - This version has no audio, microphone, screen capture or video export. The owner can narrate the captions while recording separately. No personal-voice claim is made.
