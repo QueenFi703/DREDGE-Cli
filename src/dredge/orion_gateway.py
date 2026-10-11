@@ -410,7 +410,24 @@ from starlette.middleware.wsgi import WSGIMiddleware
 from .server import create_app
 
 studio_application = create_app()
-app.mount('/', WSGIMiddleware(studio_application))
+if studio_application.config.get('DREDGE_CHATGPT_ENABLED'):
+    # Preserve all existing gateway routes and startup/shutdown hooks. Mounted
+    # ASGI apps do not automatically receive lifespan events from Starlette.
+    from contextlib import asynccontextmanager
+    from .chatgpt_transport import create_chatgpt_app
+    chatgpt_application = create_chatgpt_app(studio_application)
+    gateway_lifespan = app.router.lifespan_context
+
+    @asynccontextmanager
+    async def chatgpt_gateway_lifespan(application):
+        async with gateway_lifespan(application):
+            async with chatgpt_application.router.lifespan_context(chatgpt_application):
+                yield
+
+    app.router.lifespan_context = chatgpt_gateway_lifespan
+    app.mount('/', chatgpt_application)
+else:
+    app.mount('/', WSGIMiddleware(studio_application))
 
 if __name__ == "__main__":
     run_orion(debug=True)

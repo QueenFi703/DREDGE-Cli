@@ -2,12 +2,12 @@
 # Example:
 # requests
 click>=8.0.0
-flask>=3.0.0
+flask>=3.1.3,<4
 requests>=2.32.5
 aiohttp>=3.14.2
 
 # OAuth2 / authentication
-authlib>=1.7.2
+authlib==1.8.0
 flask-login>=0.6.3
 
 # HTTP client
@@ -41,7 +41,7 @@ matplotlib>=3.9.4
 PyYAML>=6.0.3
 uvicorn
 fastapi
-pydantic
+pydantic>=2.12,<3
 httpx
 
 
@@ -53,3 +53,6 @@ cryptography>=44.0.0
 pypdf>=5.0.0,<7
 
 Pillow>=12.0.0
+
+# Read-only ChatGPT transport (runtime remains disabled by default)
+mcp==1.29.0

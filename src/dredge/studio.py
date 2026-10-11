@@ -428,8 +428,15 @@ def status_panels():
 @studio_bp.route('/api/studio/report')
 @login_required
 def usage_report():
+    return jsonify(activity_report_for_owner(current_user.get_id()))
+
+
+def activity_report_for_owner(owner):
+    """Shared aggregate report; caller must supply the authenticated owner ID."""
+    if not isinstance(owner, str) or not owner:
+        raise ValueError('An authenticated owner ID is required.')
     with store().connect() as db:
-        rows = db.execute('SELECT * FROM runs WHERE owner=?', (current_user.get_id(),)).fetchall()
+        rows = db.execute('SELECT * FROM runs WHERE owner=?', (owner,)).fetchall()
     completed = [row for row in rows if row['status']=='completed']
     failed = [row for row in rows if row['status']=='failed']
     measured = [row['ended']-row['started'] for row in completed if row['started'] and row['ended']]
@@ -437,7 +444,7 @@ def usage_report():
     summaries = [serialize_run(row) for row in rows]
     calls = sum(row['provider_calls'] for row in summaries)
     metered = [row for row in summaries if row['provider_calls'] and row['token_usage'] is not None]
-    return jsonify(scope='Your stored Studio runs, all time; Casework has separate usage limits', proposed_runs=len(rows),
+    return dict(scope='Your stored Studio runs, all time; Casework has separate usage limits', proposed_runs=len(rows),
                    completed_runs=len(completed), failed_runs=len(failed),
                    success_rate=(len(completed)/terminal if terminal else None),
                    average_duration_ms=(round(sum(measured)/len(measured)*1000,3) if measured else None),

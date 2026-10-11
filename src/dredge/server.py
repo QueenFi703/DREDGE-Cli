@@ -107,6 +107,8 @@ def create_app():
     register_studio(app)
     from .billing import register_billing
     register_billing(app)
+    from .chatgpt_foundation import register_chatgpt_foundation
+    register_chatgpt_foundation(app)
     from .casework import register_casework
     register_casework(app)
     from .client_portal import register_clients

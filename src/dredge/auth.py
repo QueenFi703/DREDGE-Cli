@@ -3,6 +3,7 @@ OAuth2 authentication for DREDGE — Google and GitHub login.
 """
 from __future__ import annotations
 import os
+import re
 import logging
 import time
 from uuid import UUID
@@ -10,6 +11,7 @@ from pathlib import Path
 
 from flask import (
     Blueprint,
+    current_app,
     redirect,
     url_for,
     request,
@@ -161,6 +163,10 @@ def login():
 
 def studio_return_path():
     """Restore only a canonical Studio run ID, never an arbitrary redirect URL."""
+    oauth_return = session.pop('chatgpt_return_to', None)
+    if (current_app.config.get('DREDGE_CHATGPT_ENABLED') and isinstance(oauth_return, str)
+            and re.fullmatch(r'/chatgpt/oauth/authorize\?transaction=[A-Za-z0-9_-]{43}', oauth_return)):
+        return oauth_return
     value = session.pop('studio_return_run', None)
     try:
         run_id = str(UUID(value))
