@@ -1,16 +1,8 @@
+# STAGING ONLY: never merge this branch into production.
 [build]
-builder = "dockerfile"
-dockerfilePath = "Dockerfile.railway"
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile.chatgpt-tunnel"
 
-
-# Start command uses Gunicorn with WSGI entry point
-# Railway automatically sets PORT environment variable
 [deploy]
-startCommand = "./start.sh"
-healthCheckPath = "/health"
-
-# Environment configuration
-[env]
-FLASK_ENV = "production"
-PYTHONUNBUFFERED = "1"
-PYTHONDONTWRITEBYTECODE = "1"
+startCommand = "/opt/venv/bin/python -I /app/src/dredge/chatgpt_tunnel_supervisor.py"
+healthcheckPath = "/health"

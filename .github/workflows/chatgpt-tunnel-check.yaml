@@ -4,11 +4,12 @@ name: Isolated ChatGPT Tunnel Checks
 # This workflow never receives service secrets, publishes images, or deploys.
 on:
   push:
-    branches: ['feat/chatgpt-readonly-oauth']
+    branches: ['staging/chatgpt-tunnel-20261011']
     paths:
       - '.github/workflows/chatgpt-tunnel-check.yaml'
       - 'Dockerfile.chatgpt-tunnel'
       - 'railway.chatgpt-tunnel.json'
+      - 'railway.toml'
       - 'src/**'
       - 'requirements.txt'
       - 'pyproject.toml'
@@ -42,7 +43,7 @@ jobs:
       - name: Verify dedicated deployment configuration
         run: |
           python - <<'PY'
-          import json
+          import json, tomllib
           from pathlib import Path
           config = json.loads(Path('railway.chatgpt-tunnel.json').read_text())
           assert config['build'] == {'builder': 'DOCKERFILE', 'dockerfilePath': 'Dockerfile.chatgpt-tunnel'}
@@ -50,6 +51,8 @@ jobs:
               'startCommand': '/opt/venv/bin/python -I /app/src/dredge/chatgpt_tunnel_supervisor.py',
               'healthcheckPath': '/health',
           }
+          staging = tomllib.loads(Path('railway.toml').read_text())
+          assert staging == {key: config[key] for key in ('build', 'deploy')}
           dockerfile = Path(config['build']['dockerfilePath']).read_text()
           assert 'ENTRYPOINT ' + json.dumps(config['deploy']['startCommand'].split()) in dockerfile
           PY
