@@ -8,6 +8,7 @@ on:
     paths:
       - '.github/workflows/chatgpt-tunnel-check.yaml'
       - 'Dockerfile.chatgpt-tunnel'
+      - 'railway.chatgpt-tunnel.json'
       - 'src/**'
       - 'requirements.txt'
       - 'pyproject.toml'
@@ -37,6 +38,21 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+
+      - name: Verify dedicated deployment configuration
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          config = json.loads(Path('railway.chatgpt-tunnel.json').read_text())
+          assert config['build'] == {'builder': 'DOCKERFILE', 'dockerfilePath': 'Dockerfile.chatgpt-tunnel'}
+          assert config['deploy'] == {
+              'startCommand': '/opt/venv/bin/python -I /app/src/dredge/chatgpt_tunnel_supervisor.py',
+              'healthcheckPath': '/health',
+          }
+          dockerfile = Path(config['build']['dockerfilePath']).read_text()
+          assert 'ENTRYPOINT ' + json.dumps(config['deploy']['startCommand'].split()) in dockerfile
+          PY
 
       - name: Build dedicated runtime without credentials
         run: docker build --file Dockerfile.chatgpt-tunnel --tag dredge-chatgpt-tunnel:runtime .
