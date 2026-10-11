@@ -68,17 +68,12 @@ def init_auth(app) -> None:
     # Authlib OAuth registry
     _oauth_instance = OAuth(app)
 
-    _redirect_base = os.environ.get("OAUTH_REDIRECT_BASE", "http://localhost:3000").rstrip("/")
     
-    print(f"\n[Auth Module] Initializing OAuth providers")
-    print(f"  Redirect base: {_redirect_base}")
 
     # Google OAuth
     google_id = os.environ.get("GOOGLE_CLIENT_ID", "").strip()
     google_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "").strip()
     
-    print(f"  Google ID set: {bool(google_id)}")
-    print(f"  Google Secret set: {bool(google_secret)}")
     
     if google_id and google_secret:
         try:
@@ -90,20 +85,15 @@ def init_auth(app) -> None:
                 client_kwargs={"scope": "openid email profile"},
             )
             logger.info("[+] Google OAuth provider registered.")
-            print("[+] Google OAuth provider registered.")
-        except Exception as e:
-            logger.error(f"Failed to register Google OAuth: {e}")
-            print(f"[-] Failed to register Google OAuth: {e}")
+        except Exception:
+            logger.error("Failed to register Google OAuth.")
     else:
         logger.warning("[!] Google OAuth not configured.")
-        print("[!] Google OAuth not configured.")
 
     # GitHub OAuth
     github_id = os.environ.get("GITHUB_CLIENT_ID", "").strip()
     github_secret = os.environ.get("GITHUB_CLIENT_SECRET", "").strip()
     
-    print(f"  GitHub ID set: {bool(github_id)}")
-    print(f"  GitHub Secret set: {bool(github_secret)}")
     
     if github_id and github_secret:
         try:
@@ -117,26 +107,15 @@ def init_auth(app) -> None:
                 client_kwargs={"scope": "user:email"},
             )
             logger.info("[+] GitHub OAuth provider registered.")
-            print("[+] GitHub OAuth provider registered.")
             
-            # Verify registration
-            print(f"  OAuth object: {_oauth_instance}")
-            print(f"  Has github attr: {hasattr(_oauth_instance, 'github')}")
-            if hasattr(_oauth_instance, 'github'):
-                print(f"  GitHub provider: {_oauth_instance.github}")
             
-        except Exception as e:
-            logger.error(f"Failed to register GitHub OAuth: {e}")
-            print(f"[-] Failed to register GitHub OAuth: {e}")
-            import traceback
-            traceback.print_exc()
+        except Exception:
+            logger.error("Failed to register GitHub OAuth.")
     else:
         logger.warning("[!] GitHub OAuth not configured.")
-        print("[!] GitHub OAuth not configured.")
 
     app.register_blueprint(auth_bp)
-    logger.info(f"OAuth redirect base: {_redirect_base}")
-    print(f"[Auth Module] Initialization complete\n")
+    logger.info("OAuth provider initialization complete.")
 
 
 # Login and public architecture use the shared, responsive Studio template.
@@ -188,27 +167,20 @@ def github_login():
     """Redirect to GitHub OAuth."""
     try:
         oauth = get_oauth()
-        print(f"\n[GitHub Login] OAuth object: {oauth}")
-        print(f"[GitHub Login] Has github: {hasattr(oauth, 'github') if oauth else 'oauth is None'}")
         
         if not oauth:
-            print("[GitHub Login] ERROR: oauth is None")
             return redirect(url_for('auth.login', error='github_auth_failed'))
         
         if not hasattr(oauth, "github"):
-            print("[GitHub Login] ERROR: oauth has no github attribute")
             return redirect(url_for('auth.login', error='github_not_configured'))
         
         base = os.environ.get('OAUTH_REDIRECT_BASE', '').rstrip('/')
         redirect_uri = base + '/auth/github/callback' if base else url_for("auth.github_callback", _external=True)
-        print(f"[GitHub Login] Redirect URI: {redirect_uri}\n")
         
         return oauth.github.authorize_redirect(redirect_uri)
         
-    except Exception as e:
-        print(f"[GitHub Login] Exception: {e}\n")
-        import traceback
-        traceback.print_exc()
+    except Exception:
+        logger.error("GitHub OAuth sign-in could not start.")
         return redirect(url_for('auth.login', error='github_auth_failed'))
 
 
@@ -216,11 +188,9 @@ def github_login():
 def github_callback():
     """Handle GitHub OAuth callback."""
     try:
-        print("[GitHub Callback] Processing...")
         
         oauth = get_oauth()
         if not oauth or not hasattr(oauth, "github"):
-            print("[GitHub Callback] ERROR: GitHub not configured")
             return redirect(url_for("auth.login") + "?error=github_not_configured")
         
         oauth.github.authorize_access_token()
@@ -237,8 +207,8 @@ def github_callback():
                         if entry.get("primary") and entry.get("verified"):
                             email = entry["email"]
                             break
-            except Exception as e:
-                logger.warning(f"Could not fetch GitHub emails: {e}")
+            except Exception:
+                logger.warning("Could not fetch GitHub emails.")
         
         user_id = f"github:{user_info['id']}"
         user = User(
@@ -252,17 +222,12 @@ def github_callback():
         login_user(user, remember=False)
         remember_studio_session(user)
         
-        print(f"[GitHub Callback] User logged in: {user.name}")
-        print(f"[GitHub Callback] Redirecting to /advanced\n")
         
         # Redirect to advanced dashboard (this route doesn't require the blueprint prefix)
         return redirect(studio_return_path())
         
-    except Exception as e:
-        print(f"[GitHub Callback] Exception: {e}\n")
-        import traceback
-        traceback.print_exc()
-        logger.error(f"GitHub OAuth callback error: {e}")
+    except Exception:
+        logger.error("GitHub OAuth callback failed.")
         return redirect(url_for("auth.login") + "?error=github_auth_failed")
 
 
@@ -275,7 +240,11 @@ def google_login():
     
     base = os.environ.get('OAUTH_REDIRECT_BASE', '').rstrip('/')
     redirect_uri = base + '/auth/google/callback' if base else url_for("auth.google_callback", _external=True)
-    return oauth.google.authorize_redirect(redirect_uri)
+    try:
+        return oauth.google.authorize_redirect(redirect_uri)
+    except Exception:
+        logger.error("Google OAuth sign-in could not start.")
+        return redirect(url_for('auth.login', error='google_auth_failed'))
 
 
 @auth_bp.route("/google/callback")
@@ -307,8 +276,8 @@ def google_callback():
         # Redirect to advanced dashboard
         return redirect(studio_return_path())
         
-    except Exception as e:
-        logger.error(f"Google OAuth callback error: {e}")
+    except Exception:
+        logger.error("Google OAuth callback failed.")
         return redirect(url_for("auth.login") + "?error=google_auth_failed")
 
 

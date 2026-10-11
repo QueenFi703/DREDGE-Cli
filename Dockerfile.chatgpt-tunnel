@@ -1,0 +1,64 @@
+# Dedicated, opt-in ChatGPT service. Dockerfile.railway and start.sh are unchanged.
+# Build explicitly: docker build -f Dockerfile.chatgpt-tunnel .
+# Runtime: both ChatGPT enable flags, persistent /data/studio, reviewed OAuth
+# configuration and a named TUNNEL_TOKEN supplied through the deployment secret UI.
+# Cloudflare's remotely managed ingress must target unix:/run/dredge/gateway.sock.
+# PORT is a public health-only listener. Never route Cloudflare to PORT or :2000.
+FROM python:3.12-slim AS builder
+ENV PIP_NO_CACHE_DIR=1 PYTHONDONTWRITEBYTECODE=1
+WORKDIR /build
+RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ git curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+COPY requirements.txt pyproject.toml README.md LICENSE ./
+COPY src/ ./src/
+RUN python -m venv /opt/venv \
+    && /opt/venv/bin/pip install --upgrade pip setuptools wheel \
+    && /opt/venv/bin/pip install 'torch>=2.8.0' --index-url https://download.pytorch.org/whl/cpu \
+    && /opt/venv/bin/pip install -r requirements.txt \
+    && /opt/venv/bin/pip install --no-deps .
+
+# Official release and SHA256s verified from:
+# https://github.com/cloudflare/cloudflared/releases/tag/2026.10.0
+# Both supported architectures fail closed on a checksum mismatch.
+RUN set -eu; \
+    case "$(dpkg --print-architecture)" in \
+      amd64) arch=amd64; sha=d33ff2d14475178d2012c2c56beba87389ac5ded27649519f198a7d3134a99db ;; \
+      arm64) arch=arm64; sha=e6422b9d4f72d3194bc5a38676f13667c06666523217b842a877d72a80b5ac08 ;; \
+      *) echo 'Unsupported cloudflared architecture' >&2; exit 1 ;; \
+    esac; \
+    curl --fail --location --proto '=https' --tlsv1.2 \
+      "https://github.com/cloudflare/cloudflared/releases/download/2026.10.0/cloudflared-linux-${arch}" \
+      --output /tmp/cloudflared; \
+    printf '%s  /tmp/cloudflared\n' "$sha" | sha256sum --check --strict; \
+    install -o root -g root -m 0555 /tmp/cloudflared /usr/local/bin/cloudflared
+
+FROM python:3.12-slim
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=8000 \
+    DREDGE_CHATGPT_ENABLED=false \
+    DREDGE_CHATGPT_TUNNEL_ENABLED=false
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid 1000 appuser \
+    && useradd --no-create-home --uid 1000 --gid 1000 --shell /usr/sbin/nologin appuser \
+    && groupadd --gid 1001 cloudflared \
+    && useradd --no-create-home --uid 1001 --gid 1001 --shell /usr/sbin/nologin cloudflared \
+    && groupadd --gid 2000 dredge-socket \
+    && install -d -o root -g root -m 0755 /data \
+    && install -d -o appuser -g appuser -m 0700 /data/studio \
+    && chmod 0755 /tmp /var/tmp
+COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /usr/local/bin/cloudflared /usr/local/bin/cloudflared
+COPY --chown=root:root src/ /app/src/
+RUN chown -R root:root /app /opt/venv \
+    && chmod -R go-w /app /opt/venv \
+    && chmod 0444 /app/src/dredge/chatgpt_tunnel_supervisor.py
+# Root only executes the standard-library bootstrap. -I ignores PYTHONPATH and
+# user-site injection before privilege separation. No shell or command override.
+USER root
+ENTRYPOINT ["/opt/venv/bin/python", "-I", "/app/src/dredge/chatgpt_tunnel_supervisor.py"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD ["/opt/venv/bin/python", "-I", "-c", "import http.client,os; c=http.client.HTTPConnection('127.0.0.1',int(os.environ.get('PORT','8000')),timeout=3); c.request('GET','/health'); r=c.getresponse(); raise SystemExit(0 if r.status==200 else 1)"]
+EXPOSE 8000

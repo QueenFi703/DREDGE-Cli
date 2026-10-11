@@ -1,0 +1,69 @@
+name: Isolated ChatGPT Tunnel Checks
+
+# .yaml intentionally avoids the repository's *.yml auto-instrumentation bot.
+# This workflow never receives service secrets, publishes images, or deploys.
+on:
+  push:
+    branches: ['feat/chatgpt-readonly-oauth']
+    paths:
+      - '.github/workflows/chatgpt-tunnel-check.yaml'
+      - 'Dockerfile.chatgpt-tunnel'
+      - 'src/**'
+      - 'requirements.txt'
+      - 'pyproject.toml'
+      - 'setup.py'
+      - 'MANIFEST.in'
+      - '.dockerignore'
+      - 'README.md'
+      - 'LICENSE'
+      - 'tests/test_auth_logging.py'
+      - 'tests/test_chatgpt*.py'
+      - 'tests/tunnel_container_check.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chatgpt-tunnel-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout immutable candidate
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Build dedicated runtime without credentials
+        run: docker build --file Dockerfile.chatgpt-tunnel --tag dredge-chatgpt-tunnel:runtime .
+
+      - name: Check real identities, sockets, listeners and readiness offline
+        run: |
+          docker run --rm --network none \
+            --mount type=bind,src="${{ github.workspace }}/tests/tunnel_container_check.py",dst=/checks/tunnel_container_check.py,readonly \
+            --entrypoint /opt/venv/bin/python \
+            dredge-chatgpt-tunnel:runtime -I /checks/tunnel_container_check.py
+
+      - name: Build disposable test-only dependency layer
+        run: |
+          printf '%s\n' \
+            'FROM dredge-chatgpt-tunnel:runtime' \
+            'RUN /opt/venv/bin/pip install --no-cache-dir pytest pytest-cov pytest-asyncio' \
+            | docker build --tag dredge-chatgpt-tunnel:tests -
+
+      - name: Run socket and lifecycle regressions without network or skipped checks
+        run: |
+          docker run --rm --network none \
+            --mount type=bind,src="${{ github.workspace }}/tests",dst=/checks,readonly \
+            --entrypoint /bin/sh dredge-chatgpt-tunnel:tests -ec '
+              PYTHONPATH=/app/src /opt/venv/bin/python -m pytest -o addopts="" -p no:cacheprovider \
+                /checks/test_auth_logging.py /checks/test_chatgpt_tunnel.py \
+                /checks/test_chatgpt_tunnel_health.py /checks/test_chatgpt_tunnel_supervisor.py \
+                /checks/test_chatgpt_oauth.py /checks/test_chatgpt_transport.py \
+                --junitxml=/tmp/tunnel-results.xml -q
+              /opt/venv/bin/python -c '\''import xml.etree.ElementTree as ET; r=ET.parse("/tmp/tunnel-results.xml"); assert not r.findall(".//skipped"), "Socket checks must run, not skip"'\''
+            '
