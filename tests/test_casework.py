@@ -124,9 +124,11 @@ def test_provider_contract_citations_and_failure(app, monkeypatch):
     from dredge.casework import provider
     seen=[]
     class Response:
+        status_code=200
+        headers={}
         def raise_for_status(self): pass
         def json(self):
-            return {'status':'completed','usage':{'input_tokens':30,'output_tokens':10},'output':[{'type':'message','content':[{'type':'output_text','text':'See source','annotations':[{'type':'url_citation','url':'https://www.usa.gov/benefits','title':'Benefits','start_index':4,'end_index':10},{'type':'url_citation','url':'javascript:alert(1)'}]}]}]}
+            return {'id':'resp_test','model':'gpt-6-astra','status':'completed','usage':{'input_tokens':30,'output_tokens':10},'output':[{'type':'message','content':[{'type':'output_text','text':'See source','annotations':[{'type':'url_citation','url':'https://www.usa.gov/benefits','title':'Benefits','start_index':4,'end_index':10},{'type':'url_citation','url':'javascript:alert(1)'}]}]}]}
     def post(url, **kwargs):
         seen.append((url,kwargs));return Response()
     monkeypatch.setattr('dredge.casework.requests.post',post)

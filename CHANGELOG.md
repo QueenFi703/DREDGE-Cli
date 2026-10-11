@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Research execution evidence
+- Retain sanitized Responses IDs, actual model/status/usage and separate web-search receipts, including failed/incomplete attempts without accepting a draft.
+- Add owner-scoped research history and an atomic, fixed one-shot public connectivity test with explicit consent and no retries. Actual billed costs remain unavailable; reservations are planning allowances.
+
 ### Compatibility
 - Python 3.10+ is now the declared and tested minimum, matching the existing runtime dependencies. Python 3.8/3.9 were no longer installable with those requirements. The deployed Python 3.12 runtime is unchanged.
 - Package metadata is centralized in pyproject.toml (including the setup.py compatibility path) and reads runtime requirements from requirements.txt so authentication, billing and OCR dependencies are installed consistently. CI installs the local OCR tools and uses CPU PyTorch wheels.
