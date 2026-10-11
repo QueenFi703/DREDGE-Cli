@@ -109,9 +109,13 @@ jobs:
           python process_event.py
           
           # Base64-encode the output to avoid shell metacharacter problems
+          # Use heredoc syntax to safely handle special characters
           if [ -f out.json ]; then
-            OUTPUT_B64=$(base64 -w 0 out.json)
-            echo "output_b64=${OUTPUT_B64}" >> "${GITHUB_OUTPUT}"
+            {
+              echo "output_b64<<EOF"
+              base64 -w 0 < out.json
+              echo "EOF"
+            } >> "${GITHUB_OUTPUT}"
             echo "has_output=true" >> "${GITHUB_OUTPUT}"
           else
             echo "has_output=false" >> "${GITHUB_OUTPUT}"
