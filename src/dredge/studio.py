@@ -376,7 +376,7 @@ def execute_run(run_id):
 def status_panels():
     with store().connect() as db:
         latest = db.execute('SELECT ended FROM runs WHERE owner=? AND status=? ORDER BY ended DESC LIMIT 1', (current_user.get_id(),'completed')).fetchone()
-    from .casework import member, cipher, MODEL
+    from .casework import member, cipher, decrypt, MODEL
     with store().connect() as db:
         live_success = db.execute("SELECT ended FROM runs WHERE owner=? AND status='completed' AND json_extract(payload,'$.execution_mode')='live' AND json_extract(payload,'$.model')=? ORDER BY ended DESC LIMIT 1", (current_user.get_id(), configured_model())).fetchone()
     membership = member()
@@ -385,11 +385,26 @@ def status_panels():
     provider_ready = configured and encrypted and bool(membership)
     analysis_ready = provider_ready and current_app.config.get('CASEWORK_AI_DATA_ENABLED', False)
     observations = {}
-    if membership:
+    if membership and encrypted:
         with store().connect() as db:
             for kind in ('analysis','research'):
                 result = db.execute('SELECT MAX(created) AS observed FROM casework_outputs WHERE agency=? AND kind=? AND data IS NOT NULL', (membership['agency'],kind)).fetchone()
                 observations[kind] = result['observed']
+            # A saved answer/citation is not evidence that the web tool actually ran.
+            observations['research'] = None
+            receipts = db.execute('''SELECT o.created,e.data FROM casework_execution e
+              JOIN casework_outputs o ON o.id=e.id WHERE e.agency=? AND e.status='completed'
+              AND o.kind IN ('research','case_law') ORDER BY o.created DESC LIMIT 100''',
+              (membership['agency'],)).fetchall()
+            from cryptography.fernet import InvalidToken
+            for receipt in receipts:
+                try:
+                    recorded = decrypt(receipt['data'])
+                except (InvalidToken, ValueError, TypeError):
+                    continue
+                if isinstance(recorded, dict) and recorded.get('web_search_verified') is True:
+                    observations['research'] = receipt['created']
+                    break
     def provider_item(name, kind, ready, description):
         observed = observations.get(kind)
         status = 'not_connected' if not configured else 'agency_access_required' if not membership else 'encryption_required' if not encrypted else 'agency_approval_required' if not ready else 'successful_request_recorded' if observed else 'configured_not_verified'
@@ -399,7 +414,7 @@ def status_panels():
         provider_item('Astra · '+MODEL, 'analysis', analysis_ready, 'Draft analysis of selected case evidence. No web tools. Requires agency data-transfer approval and per-request consent.'),
         dict(name='Studio Astra · '+configured_model(), mode='live', status='not_connected' if not configured else 'successful_request_recorded' if live_observed else 'configured_not_verified', label='Disconnected' if not configured else 'Recorded success' if live_observed else 'Configured · Unverified', last_observed=live_observed, description='Live Responses API for approved public or fictional questions and supplied evidence. Consent and a separate reviewer are required. No web retrieval. Up to 1,200 output tokens; no automatic retries.'),
         dict(name='Demonstration model catalog', mode='simulated', status='demonstration_catalog', description='Quasimoto, String Theory and scripted Deep / Google adapters are demonstrations, not connected provider models.', href='/advanced/toolkit')], tools=[
-        provider_item('OpenAI web research', 'research', provider_ready, 'Public questions only, with source citations. Case attachments are excluded. Up to two web tool calls per request.'),
+        provider_item('OpenAI web research', 'research', provider_ready, 'Public questions only; case attachments are excluded. Recorded success requires a completed provider web-search receipt, not citations alone. Up to two tool calls normally; one in the one-shot smoke test.'),
         dict(name='Local DAG engine', mode='local', status='last_execution_completed' if latest else 'not_yet_observed', last_observed=latest['ended'] if latest else None, description='Actual local pipeline execution after independent human approval.'),
         dict(name='Trace and audit storage', mode='local', status='read_write_available', description='Recorded node events and append-only audit entries. Configured storage path does not verify backup recovery.'),
         dict(name='Encrypted case files', mode='local', status='ready' if encrypted and membership and current_app.config.get('CASEWORK_REAL_DATA_ENABLED') else 'agency_approval_required' if encrypted and membership else 'setup_required', description='Agency-scoped TXT, PDF and photo storage with local OCR and staff text verification. Real client uploads remain gated until agency approval.', href='/casework#casework' if membership else None),

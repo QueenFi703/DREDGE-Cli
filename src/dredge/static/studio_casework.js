@@ -33,17 +33,18 @@
     if (body !== undefined && !(body instanceof FormData)) options.headers['Content-Type']='application/json';
     const response = await fetch('/api/casework/'+path, options);
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Request failed.');
+    if (!response.ok) {if(path==='ai'&&data.id)output(data);throw new Error(data.error || 'Request failed.');}
     return data;
   }
   function action(form, fn) {
     form.addEventListener('submit', async event => {
-      event.preventDefault(); const button=form.querySelector('button'); button.disabled=true; message('Working…');
+      event.preventDefault(); const button=form.querySelector('button'); if(button.disabled)return; button.disabled=true; message('Working…');
       try {await fn(form); message('Saved.');} catch(error) {message(error.message);} finally {button.disabled=false;}
     });
   }
   function output(data) {
-    const section=document.createElement('section');
+    if(data.id)document.getElementById('receipt-'+data.id)?.remove();
+    const section=document.createElement('section');if(data.id)section.id='receipt-'+data.id;
     const heading=document.createElement('h3'); heading.textContent=`${data.kind || 'Astra'} · ${data.mode} · Human review required`; section.append(heading);
     for (const block of data.blocks || []) {
       const p=document.createElement('p'); p.style.whiteSpace='pre-wrap';
@@ -65,6 +66,12 @@
       const label=document.createElement('label');const checkbox=document.createElement('input');checkbox.type='checkbox';label.append(checkbox,document.createTextNode(data.kind==='legal_draft'?'I completed qualified legal review and checked evidence, citations and client explanations.':'I checked this draft against the evidence and client explanations.'));
       review.addEventListener('click',async()=>{try{if(!checkbox.checked)throw new Error('Complete the review and confirm it before release.');await clientApi(`staff/cases/${selected}/release/${data.id}`,{evidence_verified:true,qualified_legal_review:data.kind==='legal_draft'});message('Reviewed draft released to assigned clients.');}catch(e){message(e.message);}});section.append(label,review);
     }
+    if(data.error){const error=document.createElement('p');error.textContent=data.error;section.append(error);}
+    const receipt=document.createElement('p');receipt.textContent=`Execution: ${data.status || 'legacy / unreported'} · Provider status: ${data.provider_status || 'unreported'} · Response ID: ${data.response_id || 'unreported'} · Request ID: ${data.request_id || 'unreported'}. Actual billed cost: unavailable.`;section.append(receipt);
+    const searches=document.createElement('section');const title=document.createElement('h4');title.textContent='Actual provider search records (separate from answer citations)';searches.append(title);
+    const note=document.createElement('p');note.textContent=data.web_search_verified?'A completed web-search call was recorded. This does not verify the accuracy or legal validity of the answer.':'No completed web-search call is evidenced by this receipt. Citations alone do not prove live search.';searches.append(note);
+    for(const call of data.search_calls||[]){const p=document.createElement('p');p.textContent=`${call.id || 'ID unreported'} · ${call.status || 'status unreported'} · ${call.action?.type || 'action unreported'}`;searches.append(p);for(const url of [...new Set([call.action?.url,...(call.action?.sources||[])].filter(Boolean))]){if(!/^https:\/\//.test(url))continue;const a=document.createElement('a');a.href=url;a.textContent=url;a.target='_blank';a.rel='noopener noreferrer';const line=document.createElement('p');line.append(a);searches.append(line);}}
+    section.append(searches);
     const usage=document.createElement('p');usage.textContent=`Model: ${data.model}. Input tokens: ${data.usage?.input_tokens ?? 'unreported'}; output tokens: ${data.usage?.output_tokens ?? 'unreported'}.`;section.append(usage);el('outputs').prepend(section);
   }
   async function list() {
@@ -145,7 +152,9 @@
     form.elements.consent.checked=false;form.elements.include_client_explanations.checked=false;
     const data=await api('ai',body);output({...data,kind:body.kind});
   });
-  action(el('research'),async form=>{const data=await api('ai',{kind:form.elements.kind.value,jurisdiction:form.elements.jurisdiction.value,question:form.elements.question.value,consent:form.elements.consent.checked,public_question_confirmed:form.elements.consent.checked});output({...data,kind:'Public research'});});
+  action(el('research'),async form=>{const body={kind:form.elements.kind.value,jurisdiction:form.elements.jurisdiction.value,question:form.elements.question.value,consent:form.elements.consent.checked,public_question_confirmed:form.elements.consent.checked};form.elements.consent.checked=false;const data=await api('ai',body);output({...data,kind:body.kind});});
+  action(el('research-smoke'),async form=>{const consent=form.elements.consent.checked;form.elements.consent.checked=false;const data=await api('ai',{kind:'research',profile:'public-web-smoke-v1',question:'Public web connectivity test',consent,public_question_confirmed:consent});output({...data,kind:'Public web smoke test'});});
+  el('research-history').addEventListener('click',async()=>{try{const data=await api('research-history');for(const receipt of [...data.outputs].reverse())output(receipt);message('Loaded your recorded public research attempts, including incomplete or failed requests.');}catch(e){message(e.message);}});
   el('archive').addEventListener('click',async()=>{if(!selected)return;try{await api(`cases/${selected}/archive`,{});await list();await load(selected);}catch(e){message(e.message);}});
   (async()=>{try{config=await api('session');csrf=config.csrf_token;el('status').textContent=`${config.membership ? config.membership.agency+' · '+config.membership.role : 'Agency membership not yet assigned'} | Encrypted storage: ${config.encrypted_storage?'ready':'needs configuration'} | Astra: ${config.ai_configured?'configured':'key needed'} | Client data: ${config.real_data_enabled?'enabled':'pending agency approval'}`;if(config.membership&&config.encrypted_storage){await list();await pageList();}}catch(e){message(e.message);}})();
 })();
