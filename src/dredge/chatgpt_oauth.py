@@ -43,6 +43,9 @@ VERIFIER_PATTERN = re.compile(r'[A-Za-z0-9._~-]{43,128}\Z')
 AUTHORIZATION_FIELDS = frozenset({
     'response_type', 'client_id', 'redirect_uri', 'scope', 'state', 'resource',
     'code_challenge', 'code_challenge_method',
+    # ChatGPT sends this optional display-language hint during connection.
+    # It carries no authorization authority; existing size/duplicate checks apply.
+    'ui_locales',
 })
 TOKEN_FIELDS = frozenset({
     'grant_type', 'client_id', 'code', 'redirect_uri', 'resource', 'code_verifier',
