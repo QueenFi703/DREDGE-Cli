@@ -100,6 +100,32 @@ def test_discovery_reveals_only_supported_grant_and_pkce(app):
     assert 'registration_endpoint' not in data
 
 
+def test_authorization_accepts_chatgpt_locale_hint(app):
+    client = app.test_client()
+    sign_in(client)
+    code = authorize(client, ui_locales='en-US')
+    response = exchange(client, code)
+    assert response.status_code == 200
+    verified = verify_access_token(app, response.get_json()['access_token'])
+    assert verified['owner'] == 'github:fictional-owner'
+    assert response.get_json()['scope'] == 'studio:read'
+
+
+@pytest.mark.parametrize('extra', [
+    [('ui_locales', 'en-US'), ('ui_locales', 'fr')],
+    [('ui_locales', 'x' * 2049)],
+    [('unknown_parameter', 'en-US')],
+])
+def test_locale_support_keeps_parameter_boundary(app, extra):
+    client = app.test_client()
+    sign_in(client)
+    response = client.get('/chatgpt/oauth/authorize',
+                          query_string=list(parameters().items()) + extra, base_url=ISSUER)
+    assert response.status_code == 400
+    with app.extensions['studio_store'].connect() as db:
+        assert db.execute('SELECT COUNT(*) FROM chatgpt_oauth_consents').fetchone()[0] == 0
+
+
 def test_registration_disabled_without_explicit_switch(tmp_path):
     app = Flask(__name__)
     register_chatgpt_oauth(app)
