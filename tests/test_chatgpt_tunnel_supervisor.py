@@ -1,4 +1,5 @@
 """Isolated bootstrap and real local subprocess tests; no tunnel/provider calls."""
+import json
 import os
 from pathlib import Path
 import signal
@@ -181,7 +182,7 @@ class ProcessLifecycleTests(unittest.TestCase):
                                     cwd=Path.cwd(), drop_privileges=False,
                                     grace_seconds=0.10, poll_seconds=0.01)
 
-    def test_even_clean_child_exit_is_failure_and_reaps_siblings(self):
+    def assert_child_exit_is_failure(self, exitcode):
         created = []
         original = supervisor.spawn_child
         def track(*args, **kwargs):
@@ -190,16 +191,85 @@ class ProcessLifecycleTests(unittest.TestCase):
             return child
         with patch.object(supervisor, "spawn_child", side_effect=track):
             result = self.run_specs([
-                self.spec("import time; time.sleep(0.15)"),
+                self.spec(f"import sys,time; time.sleep(0.15); sys.exit({exitcode})"),
                 self.spec("import time; time.sleep(30)"),
                 self.spec("import time; time.sleep(30)"),
             ])
         self.assertNotEqual(result, 0)
         self.assertEqual(len(created), 3)
+        self.assertEqual(created[0].returncode, exitcode)
         for process in created:
             self.assertIsNotNone(process.returncode)
             with self.assertRaises(ChildProcessError):
                 os.waitpid(process.pid, os.WNOHANG)
+
+    def test_even_clean_child_exit_is_failure_and_reaps_siblings(self):
+        self.assert_child_exit_is_failure(0)
+
+    def test_nonzero_child_exit_is_failure_and_reaps_siblings(self):
+        self.assert_child_exit_is_failure(7)
+
+    def test_stop_before_start_succeeds_without_spawning(self):
+        stop = threading.Event()
+        stop.set()
+        with patch.object(supervisor, "spawn_child") as spawn:
+            result = self.run_specs([self.spec("raise AssertionError('must not start')")], stop)
+        self.assertEqual(result, 0)
+        spawn.assert_not_called()
+
+    def test_stop_during_start_reaps_started_child_without_spawning_more(self):
+        stop = threading.Event()
+        created = []
+        original = supervisor.spawn_child
+        def track(*args, **kwargs):
+            child = original(*args, **kwargs)
+            created.append(child)
+            stop.set()
+            return child
+        with patch.object(supervisor, "spawn_child", side_effect=track):
+            result = self.run_specs([
+                self.spec("import time; time.sleep(30)"),
+                self.spec("raise AssertionError('must not start')"),
+            ], stop)
+        self.assertEqual(result, 0)
+        self.assertEqual(len(created), 1)
+        self.assertIsNotNone(created[0].returncode)
+        with self.assertRaises(ChildProcessError):
+            os.waitpid(created[0].pid, os.WNOHANG)
+
+    def test_stop_does_not_mask_an_already_exited_child(self):
+        for exitcode in (0, 7):
+            with self.subTest(exitcode=exitcode):
+                stop = threading.Event()
+                created = []
+                original = supervisor.spawn_child
+                def track(*args, **kwargs):
+                    child = original(*args, **kwargs)
+                    created.append(child)
+                    # Wait for a real exit without reaping the group leader.
+                    os.waitid(os.P_PID, child.pid, os.WEXITED | os.WNOWAIT)
+                    stop.set()
+                    return child
+                with patch.object(supervisor, "spawn_child", side_effect=track):
+                    result = self.run_specs([self.spec(f"raise SystemExit({exitcode})")], stop)
+                self.assertNotEqual(result, 0)
+                self.assertEqual(created[0].returncode, exitcode)
+
+    def test_requested_stop_does_not_swallow_child_cleanup_failure(self):
+        stop = threading.Event()
+        original_spawn = supervisor.spawn_child
+        original_cleanup = supervisor.stop_children
+        def spawn_and_stop(*args, **kwargs):
+            child = original_spawn(*args, **kwargs)
+            stop.set()
+            return child
+        def cleanup_then_fail(*args, **kwargs):
+            original_cleanup(*args, **kwargs)
+            raise RuntimeError("fixture cleanup failure")
+        with patch.object(supervisor, "spawn_child", side_effect=spawn_and_stop), \
+                patch.object(supervisor, "stop_children", side_effect=cleanup_then_fail):
+            with self.assertRaisesRegex(RuntimeError, "fixture cleanup failure"):
+                self.run_specs([self.spec("import time; time.sleep(30)")], stop)
 
     def test_spawn_explicitly_drops_all_inherited_groups(self):
         spec = supervisor.child_specs(supervisor.read_configuration(FIXTURE_ENV), 7)[0]
@@ -214,16 +284,17 @@ class ProcessLifecycleTests(unittest.TestCase):
         self.assertEqual(kwargs["pass_fds"], (7,))
         self.assertEqual(kwargs["umask"], 0o077)
 
-    def test_real_sigterm_reaps_children_and_grandchildren(self):
+    def assert_real_signal_reaps_children_and_grandchildren(self, stop_signal):
         # A separate local test harness becomes a subreaper, so this test cannot
         # adopt unrelated pytest children. Its grandchild ignores SIGTERM.
         harness = r'''
-import ctypes, json, os, signal, sys, threading
+import ctypes, os, signal, sys, threading
 from pathlib import Path
 from dredge import chatgpt_tunnel_supervisor as s
 assert ctypes.CDLL(None).prctl(36, 1, 0, 0, 0) == 0
 stop = threading.Event()
 signal.signal(signal.SIGTERM, lambda *_: stop.set())
+signal.signal(signal.SIGINT, lambda *_: stop.set())
 script = "import os,signal,time; signal.signal(signal.SIGTERM,signal.SIG_IGN); child=os.fork(); print('READY',os.getpid(),flush=True); time.sleep(30)"
 spec = s.ChildSpec('fixture', (sys.executable, '-c', script), {}, os.getuid(), os.getgid(), (), ())
 result = s.supervise([spec], stop, cwd=Path.cwd(), drop_privileges=False, grace_seconds=0.10)
@@ -233,6 +304,7 @@ except ChildProcessError:
     print('ALL_REAPED', result, flush=True)
 else:
     raise AssertionError('A child was not reaped')
+raise SystemExit(result)
 '''
         process = subprocess.Popen([sys.executable, "-u", "-c", harness],
                                    env={"PYTHONPATH": str(Path(supervisor.__file__).parents[1])},
@@ -240,10 +312,10 @@ else:
                                    start_new_session=True)
         try:
             pids = [int(process.stdout.readline().split()[1]) for _ in range(2)]
-            process.send_signal(signal.SIGTERM)
+            process.send_signal(stop_signal)
             stdout, stderr = process.communicate(timeout=5)
             self.assertEqual(process.returncode, 0, stderr)
-            self.assertIn("ALL_REAPED 1", stdout)
+            self.assertIn("ALL_REAPED 0", stdout)
             for pid in pids:
                 with self.assertRaises(ProcessLookupError):
                     os.kill(pid, 0)
@@ -251,6 +323,12 @@ else:
             if process.poll() is None:
                 os.killpg(process.pid, signal.SIGKILL)
                 process.wait()
+
+    def test_real_sigterm_reaps_children_and_grandchildren(self):
+        self.assert_real_signal_reaps_children_and_grandchildren(signal.SIGTERM)
+
+    def test_real_sigint_reaps_children_and_grandchildren(self):
+        self.assert_real_signal_reaps_children_and_grandchildren(signal.SIGINT)
 
     def test_stop_terminates_and_kills_child_ignoring_sigterm(self):
         stop = threading.Event()
@@ -269,7 +347,7 @@ else:
                 ], stop)
         finally:
             timer.cancel()
-        self.assertNotEqual(result, 0)
+        self.assertEqual(result, 0)
         self.assertEqual(created[0].returncode, -signal.SIGKILL)
 
     def test_spawn_failure_reaps_already_started_child(self):
@@ -285,6 +363,68 @@ else:
             with self.assertRaises(FileNotFoundError):
                 self.run_specs([self.spec("import time; time.sleep(30)"), invalid])
         self.assertIsNotNone(created[0].returncode)
+
+    def test_main_exit_status_preserves_configuration_and_cleanup_failures(self):
+        # Isolate main's environment clearing and signal handlers in a process.
+        # Only privileged runtime assets are replaced; supervise and main keep
+        # their actual return/exception behavior and drive the harness exit code.
+        harness = r'''
+import json, os, sys
+from unittest.mock import Mock, patch
+from dredge import chatgpt_tunnel_supervisor as s
+stage, config = sys.argv[1], json.loads(sys.argv[2])
+token = Mock()
+token.exists.return_value = False
+token.is_symlink.return_value = False
+socket_path = Mock()
+listener = Mock()
+listener.fileno.return_value = 9
+close_lock = Mock()
+original_supervise = s.supervise
+def requested_stop(specs, stop):
+    stop.set()
+    return original_supervise([], stop)
+def fail_cleanup(*args, **kwargs):
+    print('INJECTED', stage, flush=True)
+    raise OSError('fixture cleanup failure')
+cleanup = s.stop_children
+if stage == 'configuration':
+    config['DREDGE_CHATGPT_ENABLED'] = 'false'
+elif stage == 'children':
+    cleanup = fail_cleanup
+elif stage == 'listener':
+    listener.close.side_effect = fail_cleanup
+elif stage == 'socket':
+    socket_path.unlink.side_effect = fail_cleanup
+elif stage == 'token':
+    token.unlink.side_effect = fail_cleanup
+elif stage == 'lock':
+    close_lock.side_effect = fail_cleanup
+with patch.object(os, 'geteuid', return_value=0), \
+        patch.object(s, 'harden_supervisor'), \
+        patch.object(s, 'prepare_directories'), \
+        patch.object(s, 'acquire_lock', return_value=9), \
+        patch.object(s, 'TOKEN_PATH', token), \
+        patch.object(s, 'SOCKET_PATH', socket_path), \
+        patch.object(s, 'write_token_file'), \
+        patch.object(s, 'bind_gateway_socket', return_value=listener), \
+        patch.object(s, 'supervise', side_effect=requested_stop), \
+        patch.object(s, 'stop_children', side_effect=cleanup), \
+        patch.object(os, 'close', close_lock):
+    raise SystemExit(s.main(config))
+'''
+        for stage in ("success", "configuration", "children", "listener", "socket", "token", "lock"):
+            with self.subTest(stage=stage):
+                result = subprocess.run(
+                    [sys.executable, "-c", harness, stage, json.dumps(FIXTURE_ENV)],
+                    env={"PYTHONPATH": str(Path(supervisor.__file__).parents[1])},
+                    capture_output=True, text=True, timeout=5,
+                )
+                self.assertEqual(result.returncode, 0 if stage == "success" else 1, result.stderr)
+                if stage not in ("success", "configuration"):
+                    self.assertIn("INJECTED " + stage, result.stdout)
+                if stage in ("configuration", "children"):
+                    self.assertIn("startup or supervision failed", result.stderr)
 
     def test_inherited_socket_is_usable_and_environment_is_not_inherited(self):
         require_unix_socket(self)

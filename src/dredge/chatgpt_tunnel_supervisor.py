@@ -288,13 +288,15 @@ def supervise(specs: tuple[ChildSpec, ...] | list[ChildSpec], stop: threading.Ev
     try:
         for spec in specs:
             if stop.is_set():
-                return 1
+                break
             children.append(spawn_child(spec, cwd=cwd, drop_privileges=drop_privileges))
         while not stop.is_set():
             if any(_has_exited(child) for child in children):
                 return 1  # A clean child exit is still failure of this service.
             stop.wait(poll_seconds)
-        return 1
+        # A requested stop succeeds only if no child already exited. Keep the
+        # leaders unreaped here, and let cleanup failures override this result.
+        return 1 if any(_has_exited(child) for child in children) else 0
     finally:
         stop_children(children, grace_seconds)
 
