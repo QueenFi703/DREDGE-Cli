@@ -44,9 +44,15 @@ return the same not-found behavior for absent and other-owner runs.
    records, production database copy, or paid inference is part of this candidate.
 3. Enable only the isolated staging feature after approval, retaining all existing
    issuer, resource, callback, PKCE, token and owner controls.
-4. Reauthorize with both `studio:read` and `studio:runs:read`, and refresh the host's
-   tool list. Old base-scope tokens must continue to see/call only the original two
-   tools. Revoked/expired tokens must remain unusable.
+4. Refresh the host's tool list. Valid base-scope tokens can discover all enabled
+   tool names, schemas and required OAuth scopes, but can still call only the original
+   two tools. A valid run-tool call without `studio:runs:read` returns an MCP
+   `insufficient_scope` challenge through `_meta["mcp/www_authenticate"]`, including
+   the required scopes and protected-resource metadata URL. This allows the host to
+   offer reauthorization with both `studio:read` and `studio:runs:read`; grants never
+   expand automatically. Consent explicitly covers run metadata, bounded summaries,
+   and anonymous execution topology with recorded timings. Invalid/unknown requests
+   do not trigger scope upgrades. Revoked/expired tokens remain unusable.
 5. Verify one fictional owner can list/read its record and cannot access another
    owner's record. Confirm unavailable usage/cost is not presented as zero.
 

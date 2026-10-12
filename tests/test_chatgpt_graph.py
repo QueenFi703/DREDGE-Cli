@@ -95,7 +95,7 @@ def test_real_mcp_graph_requires_expanded_grant_and_is_readonly(make_app):
         before = {table: db.execute('SELECT COUNT(*) FROM ' + table).fetchone()[0]
                   for table in ('runs', 'trace_events', 'audit')}
     with TestClient(create_chatgpt_app(app), base_url=ISSUER) as client:
-        assert TOOL not in {t['name'] for t in rpc(client, base).json()['result']['tools']}
+        assert TOOL in {t['name'] for t in rpc(client, base).json()['result']['tools']}
         params = {'name': TOOL, 'arguments': {'run_id': ident}}
         assert rpc(client, base, 'tools/call', params).json()['result']['isError'] is True
         result = rpc(client, expanded, 'tools/call', params).json()['result']

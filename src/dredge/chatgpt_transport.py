@@ -133,9 +133,11 @@ def create_chatgpt_app(flask_app=None):
     from .auth import User
     from .chatgpt_foundation import SCOPE, call_read_tool, supported_scopes, tool_definitions
     from .chatgpt_oauth import verify_access_token
+    from .chatgpt_runs import validate_run_arguments
 
     issuer = flask_app.config['CHATGPT_ISSUER']
     resource = flask_app.config['CHATGPT_RESOURCE']
+    resource_metadata_url = build_resource_metadata_url(AnyHttpUrl(resource))
 
     class Verifier:
         async def verify_token(self, token):
@@ -156,15 +158,31 @@ def create_chatgpt_app(flask_app=None):
                   if token else None)
         if not record:
             raise PermissionError('DREDGE authorization is no longer valid.')
-        granted = frozenset(record['scope'].split(' '))
-        return [Tool(**definition) for definition in tool_definitions(flask_app)
-                if frozenset(definition['securitySchemes'][0]['scopes']) <= granted]
+        # Discovery exposes enabled schemas and their required scopes, never data.
+        # Existing base grants must be able to discover tools that need consent.
+        return [Tool(**definition) for definition in tool_definitions(flask_app)]
 
     def invoke(name, arguments, token):
         # Recheck revocation/expiry at execution, not only at the HTTP gate.
         record = verify_access_token(flask_app, token)
         if not record:
             raise PermissionError('DREDGE authorization is no longer valid.')
+        definition = next((tool for tool in tool_definitions(flask_app)
+                           if tool['name'] == name), None)
+        if definition is None:
+            raise ValueError('Unknown or disabled read-only tool.')
+        required_scopes = definition['securitySchemes'][0]['scopes']
+        if not frozenset(required_scopes) <= frozenset(record['scope'].split()):
+            # Check semantic constraints too (e.g. timestamp ordering). Invalid
+            # inputs must not prompt consent, and no run data may be read here.
+            validate_run_arguments(name, arguments)
+            challenge = (f'Bearer resource_metadata="{resource_metadata_url}", '
+                         'error="insufficient_scope", '
+                         'error_description="This tool requires additional DREDGE read-only permission.", '
+                         f'scope="{" ".join(required_scopes)}"')
+            return CallToolResult(isError=True, content=[TextContent(
+                type='text', text='Additional DREDGE read-only permission is required for this tool.')],
+                **{'_meta': {'mcp/www_authenticate': [challenge]}})
         # An isolated request context receives no browser cookies or request input.
         # login_user here only binds the verified principal for existing helpers;
         # no session is sent to the MCP client or added to the browser session.
@@ -190,7 +208,7 @@ def create_chatgpt_app(flask_app=None):
         security_settings=TransportSecuritySettings(enable_dns_rebinding_protection=True,
             allowed_hosts=[urlsplit(issuer).netloc], allowed_origins=[issuer, 'https://chatgpt.com']))
     protected = RequireAuthMiddleware(_JsonEnvelope(StreamableHTTPASGIApp(manager)), [SCOPE],
-                                      build_resource_metadata_url(AnyHttpUrl(resource)))
+                                      resource_metadata_url)
     routes = [Route('/chatgpt/mcp', endpoint=protected)]
     routes.extend(create_protected_resource_routes(
         resource_url=AnyHttpUrl(resource), authorization_servers=[TypeAdapter(Annotated[AnyHttpUrl, UrlConstraints(preserve_empty_path=True)]).validate_python(issuer)],

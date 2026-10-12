@@ -106,15 +106,15 @@ def _arguments(arguments, allowed):
         raise ValueError('Invalid run read arguments.')
 
 
-def list_runs_for_owner(owner, arguments):
-    """Return a bounded deterministic page, never a privileged workspace list."""
+def _list_query(arguments):
+    """Validate and shape filters without reading any stored account data."""
     _arguments(arguments, set(LIST_SCHEMA['properties']))
     limit, offset = arguments.get('limit', 10), arguments.get('offset', 0)
     if type(limit) is not int or not 1 <= limit <= 20:
         raise ValueError('limit must be an integer between 1 and 20.')
     if type(offset) is not int or not 0 <= offset <= 1000:
         raise ValueError('offset must be an integer between 0 and 1000.')
-    clauses, values = ['owner=?'], [owner]
+    clauses, values = [], []
     if 'status' in arguments:
         status = arguments['status']
         if not isinstance(status, str) or status not in RUN_STATUSES:
@@ -131,6 +131,32 @@ def list_runs_for_owner(owner, arguments):
     if ('created_after' in arguments and 'created_before' in arguments
             and arguments['created_after'] >= arguments['created_before']):
         raise ValueError('created_after must precede created_before.')
+    return clauses, values, limit, offset
+
+
+def _run_id_argument(arguments):
+    _arguments(arguments, {'run_id'})
+    ident = _run_uuid(arguments.get('run_id'))
+    if ident is None:
+        raise ValueError('run_id must be a canonical lowercase hyphenated UUID.')
+    return ident
+
+
+def validate_run_arguments(name, arguments):
+    """Pure validation for scope-upgrade challenges; never query run data."""
+    if name == 'list_my_studio_runs':
+        _list_query(arguments)
+    elif name in {'get_my_studio_run_result', 'get_my_studio_execution_graph'}:
+        _run_id_argument(arguments)
+    else:
+        raise ValueError('Unknown run read tool.')
+
+
+def list_runs_for_owner(owner, arguments):
+    """Return a bounded deterministic page, never a privileged workspace list."""
+    clauses, values, limit, offset = _list_query(arguments)
+    clauses.insert(0, 'owner=?')
+    values.insert(0, owner)
     with store().connect() as db:
         # The extra row detects another page without an unbounded count/query.
         # Reject embedded NUL before TEXT substr: SQLite stops at NUL and could
@@ -154,10 +180,7 @@ def list_runs_for_owner(owner, arguments):
 
 def result_for_owner(owner, arguments):
     """Project metadata and optional bounded stored text; never the raw result."""
-    _arguments(arguments, {'run_id'})
-    ident = _run_uuid(arguments.get('run_id'))
-    if ident is None:
-        raise ValueError('run_id must be a canonical lowercase hyphenated UUID.')
+    ident = _run_id_argument(arguments)
     with store().connect() as db:
         row = db.execute(
             'SELECT id,status,created,started,ended,CASE WHEN instr(payload,char(0))>0 '
@@ -202,10 +225,7 @@ def result_for_owner(owner, arguments):
 
 def graph_for_owner(owner, arguments):
     """Project recorded topology only; arbitrary trace strings never leave storage."""
-    _arguments(arguments, {'run_id'})
-    ident = _run_uuid(arguments.get('run_id'))
-    if ident is None:
-        raise ValueError('run_id must be a canonical lowercase hyphenated UUID.')
+    ident = _run_id_argument(arguments)
     with store().connect() as db:
         row = db.execute('SELECT id,status,created,started,ended FROM runs '
                          'WHERE owner=? AND id=?', (owner, ident)).fetchone()

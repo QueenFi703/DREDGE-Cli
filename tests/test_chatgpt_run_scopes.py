@@ -26,6 +26,12 @@ RUN_SCOPE = 'studio:runs:read'
 EXPANDED_SCOPE = BASE_SCOPE + ' ' + RUN_SCOPE
 OLD_TOOLS = {'get_dredge_access', 'get_studio_activity_report'}
 NEW_TOOLS = {'list_my_studio_runs', 'get_my_studio_run_result', 'get_my_studio_execution_graph'}
+RUN_CALLS = [
+    ('list_my_studio_runs', {}),
+    ('get_my_studio_run_result', {'run_id': '00000000-0000-0000-0000-000000000001'}),
+    ('get_my_studio_execution_graph', {'run_id': '00000000-0000-0000-0000-000000000001'}),
+]
+
 
 
 @pytest.fixture
@@ -131,7 +137,10 @@ def test_run_flag_is_disabled_by_default_and_explicit_false(make_app, flag):
                      '/.well-known/oauth-protected-resource/chatgpt/mcp'):
             assert client.get(path).json()['scopes_supported'] == [BASE_SCOPE]
         assert {t['name'] for t in rpc(client, token).json()['result']['tools']} == OLD_TOOLS
-        assert call(client, token, 'list_my_studio_runs').json()['result']['isError'] is True
+        for name, arguments in RUN_CALLS:
+            denied = call(client, token, name, arguments).json()['result']
+            assert denied['isError'] is True
+            assert '_meta' not in denied
 
 
 @pytest.mark.parametrize('flag', ['1', 'yes', 'on', 'maybe', 'true false'])
@@ -145,10 +154,13 @@ def test_expanded_consent_and_grant_preserve_exact_requested_set(make_app):
     browser = signed_browser(app)
     base, _ = consent(browser)
     assert 'stored result summaries' not in base.text
+    assert 'anonymous execution topology and recorded timings' not in base.text
     assert 'Scope: studio:read.' in base.text
     expanded, _ = consent(browser, RUN_SCOPE + ' ' + BASE_SCOPE)
     assert 'stored result summaries' in expanded.text
     assert 'run metadata' in expanded.text
+    assert 'anonymous execution topology and recorded timings' in expanded.text
+    assert 'Raw trace content is not included.' in expanded.text
     assert 'public_or_fictional' in expanded.text
     assert 'not automatically redacted' in expanded.text
     assert 'Scope: ' + EXPANDED_SCOPE + '.' in expanded.text
@@ -176,7 +188,7 @@ def test_scope_syntax_unknown_or_missing_base_rejected_before_consent(make_app, 
         assert db.execute('SELECT COUNT(*) FROM chatgpt_oauth_consents').fetchone()[0] == 0
 
 
-def test_existing_token_retains_two_tools_after_opt_in_and_new_consent_expands(make_app):
+def test_existing_token_discovers_enabled_tools_without_expanding_its_grant(make_app):
     original = make_app()
     old_token = issue_token(original)
     app = make_app(' TRUE ')
@@ -193,22 +205,77 @@ def test_existing_token_retains_two_tools_after_opt_in_and_new_consent_expands(m
             expected = [BASE_SCOPE, RUN_SCOPE] if tool['name'] in NEW_TOOLS else [BASE_SCOPE]
             assert tool['securitySchemes'] == [{'type': 'oauth2', 'scopes': expected}]
         for _ in range(2):
-            assert {t['name'] for t in rpc(client, old_token).json()['result']['tools']} == OLD_TOOLS
-            assert call(client, old_token, 'list_my_studio_runs').json()['result']['isError'] is True
-            assert call(client, old_token, 'get_my_studio_run_result', {
-                'run_id': '00000000-0000-0000-0000-000000000001',
-            }).json()['result']['isError'] is True
+            assert rpc(client, old_token).json()['result']['tools'] == new_tools
+            for name, arguments in RUN_CALLS:
+                denied = call(client, old_token, name, arguments).json()['result']
+                assert denied['isError'] is True
+                assert 'structuredContent' not in denied
+                assert denied['_meta']['mcp/www_authenticate'] == [
+                    f'Bearer resource_metadata="{ISSUER}/.well-known/oauth-protected-resource/chatgpt/mcp", '
+                    'error="insufficient_scope", '
+                    'error_description="This tool requires additional DREDGE read-only permission.", '
+                    f'scope="{EXPANDED_SCOPE}"'
+                ]
             for name in OLD_TOOLS:
                 assert call(client, old_token, name).json()['result']['isError'] is False
             assert call(client, new_token, 'list_my_studio_runs').json()['result']['isError'] is False
+    assert verify_access_token(app, old_token)['scope'] == BASE_SCOPE
+
+
+@pytest.mark.parametrize('name,arguments', [
+    ('unknown_tool', {}),
+    ('get_dredge_access', {'owner': 'other'}),
+    ('list_my_studio_runs', {'owner': 'other'}),
+    ('list_my_studio_runs', {'limit': 0}),
+    ('list_my_studio_runs', {'limit': 1.0}),
+    ('list_my_studio_runs', {'offset': 1.0}),
+    ('list_my_studio_runs', {'created_after': 2, 'created_before': 1}),
+    ('list_my_studio_runs', {'created_after': 1, 'created_before': 1}),
+    ('list_my_studio_runs', {'created_after': True}),
+    ('get_my_studio_run_result', {}),
+    ('get_my_studio_run_result', {'run_id': 'invalid'}),
+    ('get_my_studio_execution_graph', {}),
+    ('get_my_studio_execution_graph', {'run_id': 'invalid'}),
+    ('get_my_studio_execution_graph', {**RUN_CALLS[2][1], 'scope': EXPANDED_SCOPE}),
+])
+@pytest.mark.parametrize('scope', [BASE_SCOPE, EXPANDED_SCOPE])
+def test_invalid_or_unknown_calls_never_request_scope_upgrade(make_app, name, arguments, scope):
+    app = make_app('true')
+    token = issue_token(app, scope)
+    with TestClient(create_chatgpt_app(app), base_url=ISSUER) as client:
+        result = call(client, token, name, arguments).json()['result']
+        assert result['isError'] is True
+        assert '_meta' not in result
+        assert 'structuredContent' not in result
+
+
+def test_scope_challenge_does_not_dispatch_data_reads_or_modify_grants(make_app, monkeypatch):
+    from dredge import chatgpt_foundation
+
+    app = make_app('true')
+    token = issue_token(app)
+    dispatches = []
+    monkeypatch.setattr(chatgpt_foundation, 'call_read_tool',
+                        lambda *args, **kwargs: dispatches.append(args))
+    with app.extensions['studio_store'].connect() as db:
+        before = '\n'.join(db.iterdump())
+    with TestClient(create_chatgpt_app(app), base_url=ISSUER) as client:
+        for name, arguments in RUN_CALLS:
+            result = call(client, token, name, arguments).json()['result']
+            assert result['isError'] is True
+            assert 'mcp/www_authenticate' in result['_meta']
+    assert dispatches == []
+    with app.extensions['studio_store'].connect() as db:
+        assert '\n'.join(db.iterdump()) == before
 
 
 @pytest.mark.parametrize('invalidation', ['revoked', 'expired'])
-def test_expanded_tokens_rejected_after_revocation_or_expiry(make_app, invalidation):
+@pytest.mark.parametrize('scope', [BASE_SCOPE, EXPANDED_SCOPE])
+def test_tokens_rejected_after_revocation_or_expiry(make_app, invalidation, scope):
     app = make_app('true')
-    token = issue_token(app, EXPANDED_SCOPE)
+    token = issue_token(app, scope)
     with TestClient(create_chatgpt_app(app), base_url=ISSUER) as client:
-        assert call(client, token, 'list_my_studio_runs').json()['result']['isError'] is False
+        assert rpc(client, token).status_code == 200
         if invalidation == 'revoked':
             response = client.post('/chatgpt/oauth/revoke', data={
                 'token': token, 'client_id': 'fictional-client',
@@ -219,7 +286,8 @@ def test_expanded_tokens_rejected_after_revocation_or_expiry(make_app, invalidat
                 db.execute('UPDATE chatgpt_oauth_tokens SET expires_at=0')
         assert verify_access_token(app, token) is None
         assert rpc(client, token).status_code == 401
-        assert call(client, token, 'list_my_studio_runs').status_code == 401
+        for name, arguments in RUN_CALLS:
+            assert call(client, token, name, arguments).status_code == 401
 
 
 def test_opt_out_invalidates_expanded_codes_tokens_and_pending_consent(make_app):
@@ -346,21 +414,25 @@ def test_expanded_calls_keep_owner_immutable_and_leave_store_unchanged(make_app)
             }).json()['result']
             assert result['isError'] is False
             assert result['structuredContent']['summary'] == expected_text
+            graph = call(client, token, 'get_my_studio_execution_graph', {
+                'run_id': expected_id,
+            }).json()['result']
+            assert graph['isError'] is False
+            assert graph['structuredContent']['id'] == expected_id
             return True
 
         pairs = [(own_token, own_id, other_id, 'Fictional owner summary'),
                  (other_token, other_id, own_id, 'Fictional other summary')]
         with ThreadPoolExecutor(max_workers=4) as pool:
             assert all(pool.map(owned_read, pairs * 4))
-        denied = call(client, own_token, 'get_my_studio_run_result', {
-            'run_id': other_id,
-        }).json()['result']
-        missing = call(client, own_token, 'get_my_studio_run_result', {
-            'run_id': missing_id,
-        }).json()['result']
-        assert denied == missing
-        assert other_id not in json.dumps(denied)
-        assert 'Fictional other summary' not in json.dumps(denied)
+        for name in ('get_my_studio_run_result', 'get_my_studio_execution_graph'):
+            denied = call(client, own_token, name, {'run_id': other_id}).json()['result']
+            missing = call(client, own_token, name, {'run_id': missing_id}).json()['result']
+            assert denied == missing
+            assert denied['isError'] is True
+            assert '_meta' not in denied
+            assert other_id not in json.dumps(denied)
+            assert 'Fictional other summary' not in json.dumps(denied)
         for name, arguments in (
             ('list_my_studio_runs', {'owner': other}),
             ('get_my_studio_run_result', {'run_id': own_id, 'owner': other}),
@@ -385,11 +457,14 @@ def test_new_scope_flag_cannot_enable_disabled_chatgpt(monkeypatch):
 
 
 @pytest.mark.parametrize('field,value', [('revoked_at', 1), ('expires_at', 0)])
-def test_run_calls_recheck_authorization_after_http_gate(make_app, monkeypatch, field, value):
+@pytest.mark.parametrize('scope', [BASE_SCOPE, EXPANDED_SCOPE])
+@pytest.mark.parametrize('name,arguments', RUN_CALLS)
+def test_run_calls_recheck_authorization_after_http_gate(
+        make_app, monkeypatch, field, value, scope, name, arguments):
     from dredge import chatgpt_foundation, chatgpt_oauth
 
     app = make_app('true')
-    token = issue_token(app, EXPANDED_SCOPE)
+    token = issue_token(app, scope)
     real_verify = chatgpt_oauth.verify_access_token
     armed = False
     checks = []
@@ -417,9 +492,10 @@ def test_run_calls_recheck_authorization_after_http_gate(make_app, monkeypatch, 
     with TestClient(create_chatgpt_app(app), base_url=ISSUER) as client:
         assert rpc(client, token).status_code == 200
         armed = True
-        response = call(client, token, 'list_my_studio_runs')
+        response = call(client, token, name, arguments)
         assert response.status_code == 200
         assert response.json()['result']['isError'] is True
+        assert '_meta' not in response.json()['result']
     assert checks[0] is not None
     assert checks[-1] is None
     assert len(checks) >= 2

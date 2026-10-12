@@ -59,8 +59,9 @@ CONSENT_TEMPLATE = '''<!doctype html>
 <p>Allow the registered client <strong>{{ client_id }}</strong> to read your DREDGE
 access configuration and aggregate activity for your own Studio runs.</p>
 {% if runs_requested %}
-<p>This additional permission allows ChatGPT to read run metadata for your own runs and
-stored result summaries for runs marked public_or_fictional. Summaries can include submitted text
+<p>This additional permission allows ChatGPT to read run metadata for your own runs,
+stored result summaries for runs marked public_or_fictional, and anonymous execution topology and recorded timings
+for your own runs. Raw trace content is not included. Summaries can include submitted text
 and are not automatically redacted. Only connect with this permission for public or fictional data.</p>
 {% endif %}
 <p>Scope: {{ scope }}. Resource: {{ resource }}.</p>
