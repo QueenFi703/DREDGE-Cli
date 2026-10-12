@@ -25,7 +25,7 @@ BASE_SCOPE = 'studio:read'
 RUN_SCOPE = 'studio:runs:read'
 EXPANDED_SCOPE = BASE_SCOPE + ' ' + RUN_SCOPE
 OLD_TOOLS = {'get_dredge_access', 'get_studio_activity_report'}
-NEW_TOOLS = {'list_my_studio_runs', 'get_my_studio_run_result'}
+NEW_TOOLS = {'list_my_studio_runs', 'get_my_studio_run_result', 'get_my_studio_execution_graph'}
 
 
 @pytest.fixture

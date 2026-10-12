@@ -2,7 +2,7 @@
 
 This layer does not use Studio's role-based reviewer/admin read helper. Every SQL
 read binds the authenticated owner supplied by the trusted adapter. It neither
-executes runs nor loads trace events, reviewer notes, or external resources.
+executes runs nor exposes raw trace events, reviewer notes, or external resources.
 
 The public_or_fictional label is declarative, not a content-safety classifier.
 Even bounded answer text may contain personal information. Access to that stored
@@ -198,3 +198,73 @@ def result_for_owner(owner, arguments):
         cost_usd=cost, cost_status='recorded' if cost is not None else 'unknown',
     )
     return output
+
+
+def graph_for_owner(owner, arguments):
+    """Project recorded topology only; arbitrary trace strings never leave storage."""
+    _arguments(arguments, {'run_id'})
+    ident = _run_uuid(arguments.get('run_id'))
+    if ident is None:
+        raise ValueError('run_id must be a canonical lowercase hyphenated UUID.')
+    with store().connect() as db:
+        row = db.execute('SELECT id,status,created,started,ended FROM runs '
+                         'WHERE owner=? AND id=?', (owner, ident)).fetchone()
+        if row is None:
+            raise ValueError('Run not found.')
+        events = db.execute(
+            'SELECT CASE WHEN instr(e.event,char(0))>0 THEN NULL '
+            'ELSE substr(e.event,1,16385) END AS event '
+            'FROM trace_events e JOIN runs r ON r.id=e.run_id '
+            'WHERE r.owner=? AND r.id=? ORDER BY e.seq DESC LIMIT 501',
+            (owner, ident),
+        ).fetchall()
+    truncated = len(events) > 500
+    latest = {}
+    for event_row in reversed(events[:500]):
+        raw = event_row['event']
+        event = _stored_object(raw) if isinstance(raw, str) and len(raw) <= 16384 else {}
+        node_id = event.get('id')
+        if not isinstance(node_id, str) or not node_id or len(node_id) > 256:
+            continue
+        latest[node_id] = event
+    if len(latest) > 100:
+        truncated = True
+        latest = dict(list(latest.items())[-100:])
+    aliases = {key: 'node_' + str(index) for index, key in enumerate(latest, 1)}
+    nodes, edges = [], []
+    types = {'ingest', 'translate', 'normalize', 'execute', 'cache', 'fallback'}
+    statuses = {'pending', 'running', 'completed', 'failed', 'cached'}
+    modes = {'live', 'local', 'simulated'}
+    def enum_value(value, allowed):
+        return value if isinstance(value, str) and value in allowed else 'unknown'
+    for key, event in latest.items():
+        nodes.append({'id': aliases[key], 'type': enum_value(event.get('type'), types),
+                      'status': enum_value(event.get('status'), statuses),
+                      'mode': enum_value(event.get('mode'), modes),
+                      'duration_ms': _finite_number(event.get('duration_ms'))})
+        dependencies = event.get('dependencies')
+        if not isinstance(dependencies, list):
+            continue
+        if len(dependencies) > 64:
+            truncated = True
+        seen = set()
+        for dependency in dependencies[:64]:
+            if not isinstance(dependency, str):
+                continue
+            if dependency not in aliases:
+                truncated = True
+                continue
+            if dependency in seen:
+                continue
+            seen.add(dependency)
+            if len(edges) < 1000:
+                edges.append({'source': aliases[dependency], 'target': aliases[key]})
+            else:
+                truncated = True
+    return {'id': row['id'],
+            'status': row['status'] if row['status'] in RUN_STATUSES else 'unknown',
+            'graph_status': 'recorded' if nodes else 'unavailable',
+            'nodes': nodes, 'edges': edges, 'truncated': truncated,
+            'graph_note': 'Recorded topology only. Node identifiers are anonymous within this '
+                          'response. Missing traces and branch preservation/retirement decisions '
+                          'are unknown. Truncated topology may omit nodes and dependencies.'}

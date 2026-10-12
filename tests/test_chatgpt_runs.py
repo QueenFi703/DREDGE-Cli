@@ -15,7 +15,7 @@ RUNS_SCOPE = 'studio:runs:read'
 OWNER = 'github:fictional-owner'
 OTHER = 'github:fictional-other'
 OLD_TOOLS = {'get_dredge_access', 'get_studio_activity_report'}
-RUN_TOOLS = {'list_my_studio_runs', 'get_my_studio_run_result'}
+RUN_TOOLS = {'list_my_studio_runs', 'get_my_studio_run_result', 'get_my_studio_execution_graph'}
 META_KEYS = {'id', 'status', 'created', 'started', 'ended', 'mode'}
 
 
@@ -95,7 +95,8 @@ def test_run_tools_fail_closed_unless_config_is_exact_true(app, enabled):
     assert supported_scopes(app) == frozenset({BASE_SCOPE})
     assert {item['name'] for item in tool_definitions(app)} == OLD_TOOLS
     for name, arguments in [('list_my_studio_runs', {}),
-                            ('get_my_studio_run_result', {'run_id': run_id(1)})]:
+                            ('get_my_studio_run_result', {'run_id': run_id(1)}),
+                            ('get_my_studio_execution_graph', {'run_id': run_id(1)})]:
         with pytest.raises(PermissionError):
             call(app, name, arguments)
     assert call(app, 'get_dredge_access', scopes=frozenset({BASE_SCOPE}))
@@ -113,7 +114,8 @@ def test_run_tools_default_disabled_without_configuration(app):
                                    [BASE_SCOPE, RUNS_SCOPE], 'studio:read studio:runs:read'])
 def test_new_tools_require_verified_frozenset_and_both_scopes(app, scopes):
     for name, arguments in [('list_my_studio_runs', {}),
-                            ('get_my_studio_run_result', {'run_id': run_id(1)})]:
+                            ('get_my_studio_run_result', {'run_id': run_id(1)}),
+                            ('get_my_studio_execution_graph', {'run_id': run_id(1)})]:
         with pytest.raises(PermissionError):
             call(app, name, arguments, scopes=scopes)
 
