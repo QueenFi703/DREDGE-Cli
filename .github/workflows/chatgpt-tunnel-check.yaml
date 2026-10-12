@@ -4,7 +4,7 @@ name: Isolated ChatGPT Tunnel Checks
 # This workflow never receives service secrets, publishes images, or deploys.
 on:
   push:
-    branches: ['staging/chatgpt-tunnel-20261011']
+    branches: ['staging/chatgpt-tunnel-20261011', 'feat/chatgpt-investigation-read-tools']
     paths:
       - '.github/workflows/chatgpt-tunnel-check.yaml'
       - 'Dockerfile.chatgpt-tunnel'
