@@ -392,7 +392,13 @@ def register_chatgpt_oauth(app):
         response.headers['Referrer-Policy'] = 'no-referrer'
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'DENY'
-        response.headers['Content-Security-Policy'] = "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
+        # Browsers can apply form-action to the redirect after consent POST.
+        # Permit only our origin and the configured, validated OAuth callback.
+        callback = app.config['CHATGPT_REDIRECT_URI']
+        response.headers['Content-Security-Policy'] = (
+            f"default-src 'none'; form-action 'self' {callback}; "
+            "frame-ancestors 'none'; base-uri 'none'"
+        )
         return response
 
     @bp.get('/.well-known/oauth-authorization-server')

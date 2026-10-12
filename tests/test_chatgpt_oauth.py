@@ -91,6 +91,22 @@ def test_authorization_code_pkce_end_to_end(app):
     assert exchange(client, code).status_code == 400
 
 
+def test_consent_policy_permits_registered_callback_after_form_submission(app):
+    client = app.test_client()
+    sign_in(client)
+    response = client.get('/chatgpt/oauth/authorize', query_string=parameters(), base_url=ISSUER)
+    policy = response.headers['Content-Security-Policy']
+    assert f"form-action 'self' {REDIRECT};" in policy
+    assert "default-src 'none'" in policy
+    assert "frame-ancestors 'none'" in policy
+    fields = dict(re.findall(r'name="([^"]+)" value="([^"]*)"', response.get_data(as_text=True)))
+    approved = client.post('/chatgpt/oauth/authorize',
+                           data={**fields, 'decision': 'allow'}, base_url=ISSUER)
+    assert approved.status_code == 302
+    assert approved.location.startswith(REDIRECT + '?')
+    assert approved.headers['Content-Security-Policy'] == policy
+
+
 def test_discovery_reveals_only_supported_grant_and_pkce(app):
     data = app.test_client().get('/.well-known/oauth-authorization-server', base_url=ISSUER).get_json()
     assert data['issuer'] == ISSUER
