@@ -54,10 +54,14 @@ def configure_chatgpt(app):
     """Fail closed on partial or ambiguous configuration, with no network access."""
     flag = os.environ.get('DREDGE_CHATGPT_ENABLED', '').strip().lower()
     app.config['DREDGE_CHATGPT_ENABLED'] = False
+    app.config['DREDGE_CHATGPT_RUN_TOOLS_ENABLED'] = False
     if flag in {'', '0', 'false', 'off', 'no'}:
         return
     if flag != 'true':
         raise RuntimeError('DREDGE_CHATGPT_ENABLED must be true or false.')
+    runs_flag = os.environ.get('DREDGE_CHATGPT_RUN_TOOLS_ENABLED', '').strip().lower()
+    if runs_flag not in {'', '0', 'false', 'off', 'no', 'true'}:
+        raise RuntimeError('DREDGE_CHATGPT_RUN_TOOLS_ENABLED must be true or false.')
     keys = ('CHATGPT_ISSUER', 'CHATGPT_RESOURCE', 'CHATGPT_CLIENT_ID', 'CHATGPT_REDIRECT_URI')
     values = {key: os.environ.get(key, '').strip() for key in keys}
     if not all(values.values()):
@@ -90,7 +94,9 @@ def configure_chatgpt(app):
     if not os.path.isabs(os.environ.get('STUDIO_DB_PATH', '')):
         raise RuntimeError('ChatGPT requires an explicit absolute persistent STUDIO_DB_PATH.')
     app.config.update(values)
-    app.config.update(DREDGE_CHATGPT_ENABLED=True, SESSION_COOKIE_SECURE=True,
+    app.config.update(DREDGE_CHATGPT_ENABLED=True,
+                      DREDGE_CHATGPT_RUN_TOOLS_ENABLED=(runs_flag == 'true'),
+                      SESSION_COOKIE_SECURE=True,
                       SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax')
     from .chatgpt_oauth import register_chatgpt_oauth
     register_chatgpt_oauth(app)
@@ -125,7 +131,7 @@ def create_chatgpt_app(flask_app=None):
     from starlette.middleware.authentication import AuthenticationMiddleware
 
     from .auth import User
-    from .chatgpt_foundation import SCOPE, call_read_tool, tool_definitions
+    from .chatgpt_foundation import SCOPE, call_read_tool, supported_scopes, tool_definitions
     from .chatgpt_oauth import verify_access_token
 
     issuer = flask_app.config['CHATGPT_ISSUER']
@@ -145,7 +151,14 @@ def create_chatgpt_app(flask_app=None):
 
     @server.list_tools()
     async def list_tools():
-        return [Tool(**definition) for definition in tool_definitions()]
+        token = get_access_token()
+        record = (await to_thread.run_sync(verify_access_token, flask_app, token.token)
+                  if token else None)
+        if not record:
+            raise PermissionError('DREDGE authorization is no longer valid.')
+        granted = frozenset(record['scope'].split(' '))
+        return [Tool(**definition) for definition in tool_definitions(flask_app)
+                if frozenset(definition['securitySchemes'][0]['scopes']) <= granted]
 
     def invoke(name, arguments, token):
         # Recheck revocation/expiry at execution, not only at the HTTP gate.
@@ -181,7 +194,7 @@ def create_chatgpt_app(flask_app=None):
     routes = [Route('/chatgpt/mcp', endpoint=protected)]
     routes.extend(create_protected_resource_routes(
         resource_url=AnyHttpUrl(resource), authorization_servers=[TypeAdapter(Annotated[AnyHttpUrl, UrlConstraints(preserve_empty_path=True)]).validate_python(issuer)],
-        scopes_supported=[SCOPE], resource_name='DREDGE Studio'))
+        scopes_supported=sorted(supported_scopes(flask_app)), resource_name='DREDGE Studio'))
     routes.append(Mount('/', app=WSGIMiddleware(flask_app)))
 
     @asynccontextmanager

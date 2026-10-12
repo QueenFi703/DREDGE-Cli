@@ -41,6 +41,7 @@ CLOUDFLARED = "/usr/local/bin/cloudflared"
 # are unnecessary for this read-only service and must not enter its environment.
 APP_ENV_KEYS = frozenset({
     "CHATGPT_ISSUER", "CHATGPT_RESOURCE", "CHATGPT_CLIENT_ID", "CHATGPT_REDIRECT_URI",
+    "DREDGE_CHATGPT_RUN_TOOLS_ENABLED",
     "SECRET_KEY", "STUDIO_DB_PATH", "STUDIO_ROLES_JSON", "OAUTH_REDIRECT_BASE",
     "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET",
 })
@@ -82,6 +83,9 @@ def read_configuration(environ: Mapping[str, str]) -> Configuration:
     for flag in ("DREDGE_CHATGPT_TUNNEL_ENABLED", "DREDGE_CHATGPT_ENABLED"):
         if environ.get(flag, "").strip().lower() != "true":
             raise ConfigurationError("Both explicit ChatGPT opt-in flags must be true.")
+    runs_flag = environ.get("DREDGE_CHATGPT_RUN_TOOLS_ENABLED", "").strip().lower()
+    if runs_flag not in {"", "0", "false", "off", "no", "true"}:
+        raise ConfigurationError("DREDGE_CHATGPT_RUN_TOOLS_ENABLED must be true or false.")
     token = environ.get("TUNNEL_TOKEN", "")
     if not token or len(token) > 16384 or any(c.isspace() or ord(c) < 33 for c in token):
         raise ConfigurationError("A nonempty named-tunnel token is required.")
@@ -112,6 +116,9 @@ def read_configuration(environ: Mapping[str, str]) -> Configuration:
             or not db.is_relative_to(DATA_DIR) or str(db) != db_text):
         raise ConfigurationError("STUDIO_DB_PATH must be a file within /data/studio.")
     app_environment = {key: environ[key] for key in APP_ENV_KEYS if key in environ}
+    app_environment["DREDGE_CHATGPT_RUN_TOOLS_ENABLED"] = (
+        "true" if runs_flag == "true" else "false"
+    )
     # This origin is deliberately tied to ChatGPT's single canonical issuer.
     if app_environment.get("OAUTH_REDIRECT_BASE", issuer) != issuer:
         raise ConfigurationError("Provider callbacks must use the canonical ChatGPT origin.")

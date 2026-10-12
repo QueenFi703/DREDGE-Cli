@@ -83,6 +83,7 @@ jobs:
                 /checks/test_auth_logging.py /checks/test_chatgpt_tunnel.py \
                 /checks/test_chatgpt_tunnel_health.py /checks/test_chatgpt_tunnel_supervisor.py \
                 /checks/test_chatgpt_oauth.py /checks/test_chatgpt_transport.py \
+                /checks/test_chatgpt_runs.py /checks/test_chatgpt_run_scopes.py \
                 --junitxml=/tmp/tunnel-results.xml -q
               /opt/venv/bin/python -c '\''import xml.etree.ElementTree as ET; r=ET.parse("/tmp/tunnel-results.xml"); assert not r.findall(".//skipped"), "Socket checks must run, not skip"'\''
             '

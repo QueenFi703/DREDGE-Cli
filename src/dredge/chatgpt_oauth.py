@@ -22,7 +22,7 @@ from authlib.integrations.flask_oauth2 import AuthorizationServer
 from authlib.integrations.flask_oauth2.requests import FlaskOAuth2Request
 from authlib.oauth2 import OAuth2Error
 from authlib.oauth2.rfc6749 import AuthorizationCodeMixin, ClientMixin, OAuth2Request
-from authlib.oauth2.rfc6749.errors import InvalidGrantError, InvalidRequestError
+from authlib.oauth2.rfc6749.errors import InvalidGrantError, InvalidRequestError, InvalidScopeError
 from authlib.oauth2.rfc6749.grants import AuthorizationCodeGrant
 from authlib.oauth2.rfc6750 import BearerTokenGenerator
 from authlib.oauth2.rfc7009 import RevocationEndpoint
@@ -32,7 +32,7 @@ from flask import Blueprint, current_app, g, jsonify, redirect, render_template_
 from flask_login import current_user
 from werkzeug.wrappers import Request
 
-SCOPE = 'studio:read'
+from .chatgpt_foundation import RUNS_SCOPE, SCOPE, supported_scopes
 CODE_TTL = 300
 TOKEN_TTL = 3600
 CONSENT_TTL = 600
@@ -58,9 +58,15 @@ CONSENT_TEMPLATE = '''<!doctype html>
 <p>Signed in as {{ owner }}.</p>
 <p>Allow the registered client <strong>{{ client_id }}</strong> to read your DREDGE
 access configuration and aggregate activity for your own Studio runs.</p>
+{% if runs_requested %}
+<p>This additional permission allows ChatGPT to read run metadata for your own runs and
+stored result summaries for runs marked public_or_fictional. Summaries can include submitted text
+and are not automatically redacted. Only connect with this permission for public or fictional data.</p>
+{% endif %}
 <p>Scope: {{ scope }}. Resource: {{ resource }}.</p>
-<p>This access cannot execute runs, change your workspace, purchase anything, or read
-case records. Access expires after one hour. Your sign-in alone does not grant access.</p>
+<p>This access cannot execute runs, change your workspace, or purchase anything.
+{% if not runs_requested %}It cannot read case records. {% endif %}
+Access expires after one hour. Your sign-in alone does not grant access.</p>
 <form action="/chatgpt/oauth/authorize" method="post">
 <input type="hidden" name="transaction" value="{{ transaction }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -71,6 +77,22 @@ case records. Access expires after one hour. Your sign-in alone does not grant a
 
 def _digest(value):
     return hashlib.sha256(value.encode('utf-8')).hexdigest()
+
+
+def _canonical_scope(scope, app):
+    """Accept only explicit base/read expansion; persist one unambiguous scope set.
+
+    OAuth scope order is immaterial. Duplicate names, empty elements and other
+    whitespace are rejected instead of being silently normalized into a grant.
+    """
+    if not isinstance(scope, str):
+        return None
+    names = scope.split(' ')
+    scopes = frozenset(names)
+    if (not names or '' in scopes or len(scopes) != len(names)
+            or SCOPE not in scopes or not scopes <= supported_scopes(app)):
+        return None
+    return ' '.join(sorted(scopes))
 
 
 def _valid_owner(value):
@@ -114,6 +136,7 @@ class _Owner:
 
 class _Client(ClientMixin):
     def __init__(self, app):
+        self.app = app
         self.client_id = app.config['CHATGPT_CLIENT_ID']
         self.redirect_uri = app.config['CHATGPT_REDIRECT_URI']
 
@@ -124,7 +147,7 @@ class _Client(ClientMixin):
         return self.redirect_uri
 
     def get_allowed_scope(self, scope):
-        return SCOPE if scope == SCOPE else None
+        return _canonical_scope(scope, self.app)
 
     def check_redirect_uri(self, redirect_uri):
         return redirect_uri == self.redirect_uri
@@ -197,7 +220,7 @@ class _Grant(AuthorizationCodeGrant):
             VALUES(?,?,?,?,?,?,?,?,?,?,?)''', (
             _digest(code), current_app.config['CHATGPT_ISSUER'], data['resource'],
             oauth_request.user.get_id(), oauth_request.client.get_client_id(),
-            oauth_request.scope, oauth_request.payload.redirect_uri,
+            _canonical_scope(oauth_request.scope, current_app), oauth_request.payload.redirect_uri,
             data['code_challenge'], data['code_challenge_method'], now, now + CODE_TTL,
         ))
 
@@ -217,7 +240,8 @@ class _Grant(AuthorizationCodeGrant):
                 (int(time.time()), row['code_hash']),
             )
             return None
-        if row['expires_at'] <= time.time() or row['scope'] != SCOPE:
+        if (row['expires_at'] <= time.time()
+                or _canonical_scope(row['scope'], current_app) != row['scope']):
             return None
         return _AuthorizationCode(row)
 
@@ -237,6 +261,11 @@ class _Issuer(IssuerParameter):
 
 
 class _Server(AuthorizationServer):
+    def validate_requested_scope(self, scope):
+        # Evaluate the app's current policy, including during consent resumption.
+        if _canonical_scope(scope, current_app) is None:
+            raise InvalidScopeError()
+
     def create_oauth2_request(self, oauth_request=None):
         if isinstance(oauth_request, OAuth2Request):
             return oauth_request
@@ -346,6 +375,9 @@ def register_chatgpt_oauth(app):
     def save_token(token, oauth_request):
         code = oauth_request.authorization_code.row
         now = int(time.time())
+        if (_canonical_scope(token.get('scope'), app) != code['scope']
+                or token.get('scope') != code['scope']):
+            raise InvalidGrantError('The authorized scope is no longer valid.')
         consumed = g.chatgpt_oauth_db.execute('''
             UPDATE chatgpt_oauth_codes SET consumed_at=?
             WHERE code_hash=? AND consumed_at IS NULL AND expires_at>?''',
@@ -362,7 +394,7 @@ def register_chatgpt_oauth(app):
         ))
 
     server = _Server(app, query_client=query_client, save_token=save_token)
-    server.scopes_supported = [SCOPE]
+    server.scopes_supported = sorted(supported_scopes(app))
     server.register_token_generator('default', BearerTokenGenerator(
         lambda **kwargs: secrets.token_urlsafe(32), expires_generator=TOKEN_TTL,
     ))
@@ -409,7 +441,7 @@ def register_chatgpt_oauth(app):
             token_endpoint=issuer + '/chatgpt/oauth/token',
             revocation_endpoint=issuer + '/chatgpt/oauth/revoke',
             response_types_supported=['code'], grant_types_supported=['authorization_code'],
-            scopes_supported=[SCOPE], token_endpoint_auth_methods_supported=['none'],
+            scopes_supported=sorted(supported_scopes(app)), token_endpoint_auth_methods_supported=['none'],
             revocation_endpoint_auth_methods_supported=['none'],
             code_challenge_methods_supported=['S256'],
             authorization_response_iss_parameter_supported=True,
@@ -485,7 +517,9 @@ def register_chatgpt_oauth(app):
             if request.method == 'GET':
                 return render_template_string(
                     CONSENT_TEMPLATE, owner=owner, client_id=app.config['CHATGPT_CLIENT_ID'],
-                    resource=app.config['CHATGPT_RESOURCE'], scope=SCOPE,
+                    resource=app.config['CHATGPT_RESOURCE'],
+                    scope=_canonical_scope(oauth_request.scope, app),
+                    runs_requested=RUNS_SCOPE in oauth_request.scope.split(' '),
                     transaction=transaction_id, csrf_token=session['chatgpt_oauth_csrf'],
                 )
             db.execute('UPDATE chatgpt_oauth_consents SET consumed_at=? WHERE transaction_hash=?',
@@ -533,10 +567,11 @@ def verify_access_token(app, token):
     with app.extensions['studio_store'].connect() as db:
         row = db.execute('''SELECT owner,client_id,scope,expires_at,resource
             FROM chatgpt_oauth_tokens WHERE token_hash=? AND issuer=? AND resource=?
-              AND client_id=? AND scope=? AND revoked_at IS NULL AND expires_at>?''', (
+              AND client_id=? AND revoked_at IS NULL AND expires_at>?''', (
             _digest(token), app.config['CHATGPT_ISSUER'], app.config['CHATGPT_RESOURCE'],
-            app.config['CHATGPT_CLIENT_ID'], SCOPE, time.time(),
+            app.config['CHATGPT_CLIENT_ID'], time.time(),
         )).fetchone()
-    if row is None or not _valid_owner(row['owner']):
+    if (row is None or not _valid_owner(row['owner'])
+            or _canonical_scope(row['scope'], app) != row['scope']):
         return None
     return dict(row)
