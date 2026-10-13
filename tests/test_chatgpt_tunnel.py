@@ -37,6 +37,24 @@ def test_socket_discovery_and_only_readonly_surface(tunnel):
         assert '/advanced' not in login.text
 
 
+def test_static_subscription_information_only_is_served_on_plugin_origin(tunnel):
+    with TestClient(tunnel, base_url=ISSUER, client=None) as client:
+        page = client.get('/subscription-info', headers=headers())
+        assert page.status_code == 200
+        assert 'Subscription access' in page.text
+        for forbidden in ('/billing', '/checkout', '<form', '<script', 'paypal.com', 'stripe.com'):
+            assert forbidden not in page.text.lower()
+        assert client.head('/subscription-info', headers=headers()).status_code == 200
+        for method in ('POST', 'PUT', 'PATCH', 'DELETE'):
+            assert client.request(method, '/subscription-info', headers=headers()).status_code == 404
+        for path in ('/api/billing/status', '/api/billing/checkout', '/api/billing/paypal/checkout', '/billing'):
+            assert client.get(path, headers=headers()).status_code == 404
+            assert client.post(path, headers=headers()).status_code == 404
+        assert client.get('/subscription-info', headers=headers(Host='other.example.test')).status_code == 400
+    tcp = TestClient(tunnel, base_url=ISSUER, client=('127.0.0.1', 1234))
+    assert tcp.get('/subscription-info', headers=headers()).status_code == 403
+
+
 @pytest.mark.parametrize('bad', [None, '', 'http', 'https,http', 'HTTPS', ' https', 'https '])
 def test_bad_protocol_fails_closed(tunnel, bad):
     with TestClient(tunnel, base_url=ISSUER, client=None) as c:

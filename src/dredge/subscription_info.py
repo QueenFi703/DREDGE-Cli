@@ -11,7 +11,11 @@ _PAGE = Path(__file__).with_name('static') / 'subscription_info.html'
 
 def subscription_info_url():
     """Expose only the fixed informational path on the configured HTTPS origin."""
-    origin = current_app.config.get('BILLING_ORIGIN')
+    # The connected ChatGPT deployment can be separate from website billing.
+    # Its generic page is served on that deployment's validated issuer origin.
+    origin = (current_app.config.get('CHATGPT_ISSUER')
+              if current_app.config.get('DREDGE_CHATGPT_ENABLED') is True
+              else current_app.config.get('BILLING_ORIGIN'))
     if not isinstance(origin, str) or not origin:
         return None
     if any(ord(char) <= 32 or ord(char) == 127 or char in '\\%?#' for char in origin):

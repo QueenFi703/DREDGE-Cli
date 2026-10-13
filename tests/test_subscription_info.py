@@ -87,3 +87,17 @@ def test_invalid_origins_never_become_links(app, origin):
     app.config['BILLING_ORIGIN'] = origin
     with app.app_context():
         assert subscription_info_url() is None
+
+
+def test_connected_plugin_uses_its_deployment_not_production_billing(app):
+    app.config.update(DREDGE_CHATGPT_ENABLED=True,
+                      CHATGPT_ISSUER='https://chatgpt-staging.example.test',
+                      BILLING_ORIGIN='https://production.example.test')
+    with app.app_context():
+        assert subscription_info_url() == 'https://chatgpt-staging.example.test/subscription-info'
+    app.config['CHATGPT_ISSUER'] = ''
+    with app.app_context():
+        assert subscription_info_url() is None
+    app.config['CHATGPT_ISSUER'] = 'https://chatgpt-staging.example.test/billing'
+    with app.app_context():
+        assert subscription_info_url() is None

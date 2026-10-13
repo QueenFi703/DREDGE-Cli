@@ -27,7 +27,10 @@ protocol. The socket's filesystem boundary, not a header alone, authenticates th
 local ingress path.
 
 The dedicated surface includes only health, OAuth discovery/authorize/token/revoke,
-existing Google/GitHub login/callback handlers, and `/chatgpt/mcp`. Its small login
+existing Google/GitHub login/callback handlers, `/chatgpt/mcp`, and GET/HEAD of
+the generic static `/subscription-info` page. The informational page contains no
+account state, forms, checkout links or scripts and uses the configured ChatGPT
+issuer origin, which may differ from website billing. Its small login
 page contains no billing or execution links. Legacy Gateway `/mcp`, website APIs,
 billing, dashboards and execution routes are intentionally not served by this
 separate integration image. The original production image retains them.

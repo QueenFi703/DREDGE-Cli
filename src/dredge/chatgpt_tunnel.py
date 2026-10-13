@@ -14,6 +14,7 @@ from starlette.responses import JSONResponse
 
 SOCKET_PATH = '/run/dredge/gateway.sock'
 _READ_PATHS = frozenset({
+    '/subscription-info',
     '/health', '/auth/login', '/auth/github', '/auth/github/callback',
     '/auth/google', '/auth/google/callback',
     '/.well-known/oauth-authorization-server',
