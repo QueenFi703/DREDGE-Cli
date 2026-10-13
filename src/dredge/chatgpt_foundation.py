@@ -63,9 +63,13 @@ _RUN_TOOLS = tuple({
 
 def supported_scopes(app):
     """Expanded read access is opt-in; truthy strings/numbers never enable it."""
+    scopes = {SCOPE}
     if app.config.get('DREDGE_CHATGPT_RUN_TOOLS_ENABLED') is True:
-        return frozenset({SCOPE, RUNS_SCOPE})
-    return frozenset({SCOPE})
+        scopes.add(RUNS_SCOPE)
+    if app.config.get('DREDGE_CHATGPT_CONTROLS_ENABLED') is True:
+        from .chatgpt_controls import RESEARCH_SCOPE, BUDGET_SCOPE, BUDGET_READ_SCOPE
+        scopes.update({RESEARCH_SCOPE, BUDGET_SCOPE, BUDGET_READ_SCOPE, RUNS_SCOPE})
+    return frozenset(scopes)
 
 
 def tool_definitions(app=None):
@@ -73,8 +77,11 @@ def tool_definitions(app=None):
     if app is None and has_app_context():
         app = current_app
     tools = _TOOLS
-    if app is not None and RUNS_SCOPE in supported_scopes(app):
+    if app is not None and app.config.get('DREDGE_CHATGPT_RUN_TOOLS_ENABLED') is True:
         tools += _RUN_TOOLS
+    if app is not None and app.config.get('DREDGE_CHATGPT_CONTROLS_ENABLED') is True:
+        from .chatgpt_controls import tool_definitions as control_definitions
+        tools += tuple(control_definitions())
     return deepcopy(list(tools))
 
 
@@ -88,8 +95,11 @@ def call_read_tool(name, arguments, *, scopes):
         raise PermissionError('An authenticated DREDGE account is required.')
     if not isinstance(scopes, frozenset) or SCOPE not in scopes:
         raise PermissionError('The studio:read scope is required.')
+    from .chatgpt_controls import CONTROL_NAMES, call_control_tool
+    if name in CONTROL_NAMES:
+        return call_control_tool(name, arguments, scopes=scopes)
     if name in {'find_my_saved_research', 'list_my_studio_runs', 'get_my_studio_run_result', 'get_my_studio_execution_graph'}:
-        if RUNS_SCOPE not in supported_scopes(current_app):
+        if current_app.config.get('DREDGE_CHATGPT_RUN_TOOLS_ENABLED') is not True:
             raise PermissionError('The owner run read tools are disabled.')
         if RUNS_SCOPE not in scopes:
             raise PermissionError('The studio:runs:read scope is required.')

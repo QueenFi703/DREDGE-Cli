@@ -22,7 +22,7 @@ from urllib.parse import urlsplit
 from flask import Blueprint, current_app, jsonify, request, session, send_file
 from flask_login import current_user, login_required
 from .architecture import dredge_run_pipeline
-from .studio_provider import configured_model, run_live_pipeline, MAX_INPUT_CHARS, MAX_OUTPUT_TOKENS
+from .studio_provider import configured_model, run_live_pipeline, prepare_request, MAX_INPUT_CHARS, MAX_OUTPUT_TOKENS
 
 studio_bp = Blueprint('studio', __name__)
 ROLES = {'viewer', 'operator', 'reviewer', 'admin'}
@@ -280,6 +280,8 @@ def runs():
         with store().connect() as db:
             db.execute('INSERT INTO runs(id,owner,status,payload,created) VALUES(?,?,?,?,?)',
                        (run_id, current_user.get_id(), 'pending_approval', json.dumps(payload), time.time()))
+            from .studio_research_controls import capture_sources
+            capture_sources(db, current_user.get_id(), run_id, payload)
             store().audit(db, current_user.get_id(), 'run_proposed', run_id, {'pipeline_type': payload['pipeline_type'], 'execution_mode': payload['execution_mode'], 'model': payload.get('model'), 'data_scope': payload.get('data_scope'), 'consent': payload.get('consent', False)})
             run = db.execute('SELECT * FROM runs WHERE id=?', (run_id,)).fetchone()
         return jsonify(serialize_run(run, True)), 201
@@ -332,6 +334,7 @@ def execute_run(run_id):
     payment_guard = require_subscription()
     if payment_guard is not None:
         return payment_guard
+    prepared_request = None
     with store().connect() as db:
         db.execute('BEGIN IMMEDIATE')
         run = db.execute('SELECT * FROM runs WHERE id=?', (run_id,)).fetchone()
@@ -359,13 +362,21 @@ def execute_run(run_id):
                                      '24 hours. Review the original run; no new provider call was made.',
                                code='duplicate_live_run', existing_run_id=duplicate,
                                window_seconds=DEDUP_WINDOW_SECONDS), 409
+            from .studio_budgets import reserve_for_run, BudgetError
+            prepared_request = prepare_request(payload)
+            try:
+                reserve_for_run(db, current_user.get_id(), run_id, prepared_request)
+            except BudgetError as exc:
+                # Undo dedup insertion too: a budget rejection made no attempt.
+                db.rollback()
+                return jsonify(error=str(exc), code=exc.code, **exc.details), exc.status_code
         db.execute('UPDATE runs SET status=?,started=? WHERE id=?', ('running', time.time(), run_id))
         store().audit(db, current_user.get_id(), 'run_started', run_id)
     trace_store = store()
     try:
         callback = lambda event: trace_store.trace(run_id, event)
         if payload.get('execution_mode') == 'live':
-            result = asyncio.run(run_live_pipeline(payload, run_id, callback))
+            result = asyncio.run(run_live_pipeline(payload, run_id, callback, prepared_request=prepared_request))
         else:
             result = asyncio.run(dredge_run_pipeline({'query': payload['query'], 'mode':'standard'},
                          pipeline_type=payload['pipeline_type'], pipeline_id=run_id,
@@ -377,6 +388,12 @@ def execute_run(run_id):
         result = {'error': 'The pipeline failed. Check this run’s recorded trace. No automatic retry was made.'}
         state = 'failed'
     with trace_store.connect() as db:
+        db.execute('BEGIN IMMEDIATE')
+        if payload.get('execution_mode') == 'live':
+            from .studio_budgets import finish_reservation
+            budget = finish_reservation(db, current_user.get_id(), run_id, result)
+            if budget is not None:
+                result['budget'] = budget
         db.execute('UPDATE runs SET status=?,result=?,ended=? WHERE id=?', (state,json.dumps(result),time.time(),run_id))
         trace_store.audit(db, current_user.get_id(), 'run_'+state, run_id)
         run = db.execute('SELECT * FROM runs WHERE id=?', (run_id,)).fetchone()
@@ -505,3 +522,7 @@ def register_studio(app):
     app.config.setdefault('STUDIO_EXPLICIT_DB', bool(os.environ.get('STUDIO_DB_PATH')))
     app.extensions['studio_store'] = StudioStore(path)
     app.register_blueprint(studio_bp)
+    from .studio_budgets import register_studio_budgets
+    register_studio_budgets(app)
+    from .studio_research_controls import register
+    register(app)

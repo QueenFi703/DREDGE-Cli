@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Research and spending controls</title>
+<style>body{font:16px system-ui;max-width:760px;margin:3rem auto;padding:0 1rem;line-height:1.5}section{border:1px solid #bbb;padding:1rem;margin:1rem 0}label{display:block;margin:.6rem 0}input,button{font:inherit;padding:.4rem}pre{white-space:pre-wrap;overflow-wrap:anywhere}a{color:#1760ac}</style></head>
+<body><h1>Research and spending controls</h1><p><a href="/studio/public-source-checks">Check approved public websites and plan changed-section reviews</a></p><p><a href="/advanced">Back to Studio</a></p>
+<section><h2>My Studio spending limit</h2>
+<p>Choose a cumulative USD limit for subsequent protected, no-tool GPT-6 Astra Studio generation. This is not an account-wide provider spending limit. Previous and uncapped calls, Casework, infrastructure and taxes are excluded. No automatic reset.</p>
+<p>Each protected run temporarily reserves up to $26.34 (full context plus 1,200 output tokens, including reasoning). This deliberately conservative reservation is not an estimated charge. A limit below the required reservation blocks a run before contacting the provider. Complete matching usage receipts reduce the hold to a conservative usage-derived upper bound; unknown results keep the full hold. Actual billed cost is unavailable.</p>
+<form id="budget-form"><label><input id="budget-enabled" type="checkbox"> Protect subsequent Studio generation with my limit</label><label>Cumulative limit (USD) <input id="budget-limit" type="text" inputmode="decimal" value="30.00" required pattern="[0-9]+([.][0-9]{1,6})?"></label><button id="budget-save" disabled>Save my spending limit</button></form>
+<button id="budget-refresh" disabled>Refresh recorded usage</button><pre id="budget-status" role="status"></pre><p id="budget-message" role="status"></p>
+<p>Disabling the limit permits uncapped calls. It does not erase existing holds or recorded upper bounds. Pricing expires on October 20, 2026; protected runs then stop until pricing is revalidated.</p>
+</section><section><h2>Compare saved supplied sources</h2><p>Compare two of your saved proposals and inspect which cited paragraphs may need review. This labels changed supplied records; it does not show a line-by-line diff, rewrite text, or verify websites.</p>
+<p>Paragraph citations are provisional dependencies. Matching proposal metadata does not verify which instructions were used during execution. Every paragraph still needs human review, including uncited claims within cited paragraphs. No AI call is made.</p>
+<form id="compare-form"><label>Completed original run ID <input id="base-id" required></label><label>Newer proposal ID <input id="new-id" required></label><button id="compare-submit" disabled>Compare my saved inputs</button></form><pre id="compare-result" role="status"></pre></section>
+
+<script>
+'use strict';
+let csrf = '', generation = 0;
+const $ = id => document.getElementById(id);
+async function api(path, body) {
+  const response = await fetch(path, {method:body ? 'POST' : 'GET', credentials:'same-origin', headers:body ? {'Content-Type':'application/json','X-CSRF-Token':csrf} : {}, ...(body ? {body:JSON.stringify(body)} : {})});
+  const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Request failed.'); return data;
+}
+function invalidate() { generation++; $('compare-result').textContent = ''; }
+$('base-id').addEventListener('input', invalidate);
+$('new-id').addEventListener('input', invalidate);
+$('compare-form').addEventListener('submit', async event => {
+  event.preventDefault(); if (!csrf) return;
+  const request = ++generation;
+  const pair = {base_run_id:$('base-id').value.trim(),new_run_id:$('new-id').value.trim()};
+  $('compare-result').textContent = 'Comparing saved inputs…';
+  try { const data = await api('/api/studio/research/refresh-plan', pair);
+    if (request === generation) $('compare-result').textContent = JSON.stringify(data, null, 2);
+  } catch(error) { if (request === generation) $('compare-result').textContent = error.message; }
+});
+let budgetBusy = false, canEditBudget = false;
+function money(value) { return '$' + (value / 1000000).toFixed(6); }
+function drawBudget(data) {
+  $('budget-enabled').checked = data.enabled;
+  $('budget-limit').value = (data.limit_micro_usd / 1000000).toFixed(6);
+  $('budget-status').textContent = [data.enabled ? 'Protection enabled' : 'Protection disabled',
+    'Limit: ' + money(data.limit_micro_usd), 'Unknown/in-flight holds: ' + money(data.held_micro_usd),
+    'Usage-derived upper bounds: ' + money(data.committed_upper_micro_usd),
+    'Remaining room: ' + money(data.available_micro_usd), 'Pricing: ' + data.pricing.status,
+    data.halted ? 'HALTED: ' + data.halt_reason : '', 'Actual billed cost: unavailable'].filter(Boolean).join('\n');
+}
+function budgetLock(busy) { budgetBusy=busy; for(const id of ['budget-save','budget-enabled','budget-limit']) $(id).disabled=busy||!canEditBudget; $('budget-refresh').disabled=busy; }
+async function refreshBudget() { budgetLock(true); try { drawBudget(await api('/api/studio/budget')); } catch(error) { $('budget-message').textContent=error.message; } finally { budgetLock(false); } }
+$('budget-refresh').addEventListener('click',refreshBudget);
+$('budget-form').addEventListener('submit',async event=>{
+  event.preventDefault(); if(budgetBusy||!csrf||!canEditBudget)return;
+  const value=$('budget-limit').value.trim();
+  if(!/^[0-9]+(?:\.[0-9]{1,6})?$/.test(value)){ $('budget-message').textContent='Use USD with at most six decimal places.'; return; }
+  const parts=value.split('.'); const micros=Number(parts[0])*1000000+Number((parts[1]||'').padEnd(6,'0'));
+  if(!Number.isSafeInteger(micros)||micros>1000000000000){$('budget-message').textContent='Limit must be between $0 and $1,000,000.';return;}
+  const enabled=$('budget-enabled').checked; budgetLock(true); $('budget-message').textContent='Saving…';
+  try{drawBudget(await api('/api/studio/budget',{enabled,limit_micro_usd:micros}));$('budget-message').textContent='Spending settings saved.';}
+  catch(error){$('budget-message').textContent=error.message;}
+  finally{budgetLock(false);}
+});
+api('/api/studio/session').then(async data => {csrf=data.csrf_token; $('compare-submit').disabled = !csrf; canEditBudget=['operator','admin'].includes(data.role); await refreshBudget();})
+  .catch(error => {$('compare-result').textContent = error.message;});
+</script></body></html>

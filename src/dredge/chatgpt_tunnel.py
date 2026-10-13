@@ -93,10 +93,10 @@ def create_tunnel_app():
         response = flask_app.make_response(render_template_string('''<!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width">
 <title>Connect DREDGE</title><body><h1>Connect your DREDGE account</h1>
-<p>Sign in, then review the request for read-only Studio access.</p>
+<p>Sign in, then {% if controls_enabled %}review requested Studio permissions{% else %}review the request for read-only Studio access{% endif %}.</p>
 {% for provider in providers %}<p><a href="/auth/{{ provider }}">Continue with {{ provider|title }}</a></p>
 {% else %}<p>Sign-in is not configured for this staging service.</p>{% endfor %}
-<p>Return to ChatGPT to start or cancel the connection.</p></body></html>''', providers=providers))
+<p>Return to ChatGPT to start or cancel the connection.</p></body></html>''', providers=providers, controls_enabled=flask_app.config.get('DREDGE_CHATGPT_CONTROLS_ENABLED') is True))
         response.headers['Cache-Control'] = 'no-store'
         response.headers['Content-Security-Policy'] = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
         response.headers['Referrer-Policy'] = 'no-referrer'

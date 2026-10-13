@@ -33,6 +33,7 @@ from flask_login import current_user
 from werkzeug.wrappers import Request
 
 from .chatgpt_foundation import RUNS_SCOPE, SCOPE, supported_scopes
+from .chatgpt_controls import RESEARCH_SCOPE, BUDGET_SCOPE, BUDGET_READ_SCOPE
 CODE_TTL = 300
 TOKEN_TTL = 3600
 CONSENT_TTL = 600
@@ -64,14 +65,29 @@ stored result summaries for runs marked public_or_fictional, and anonymous execu
 for your own runs. Raw trace content is not included. Summaries can include submitted text
 and are not automatically redacted. Only connect with this permission for public or fictional data.</p>
 {% endif %}
+{% if budget_read_requested %}
+<p>Allow ChatGPT to read your own protected-generation USD budget limit, held reservations,
+committed upper bounds, available amount and budget status. Actual billing remains unknown.</p>
+{% endif %}
+{% if budget_requested %}
+<p>Allow ChatGPT to change your own cumulative protected-generation USD budget and enable or disable it.
+Disabling removes budget protection for subsequent generation. Existing reservations cannot be reset.
+This requires your existing operator or admin role and does not make payments or execute AI.</p>
+{% endif %}
+{% if research_requested %}
+<p>Allow ChatGPT to fetch selected approved public institutional catalog pages already cited by your own
+public_or_fictional runs and save source observations. Only version/hash metadata and section actions are returned,
+not source excerpts or answer paragraphs. This requires your existing operator or admin role.
+No answer is rewritten and no AI provider is called.</p>
+{% endif %}
 <p>Scope: {{ scope }}. Resource: {{ resource }}.</p>
-<p>This access cannot execute runs, change your workspace, or purchase anything.
+<p>This access cannot execute runs, change workspace roles, or purchase anything.
 {% if not runs_requested %}It cannot read case records. {% endif %}
 Access expires after one hour. Your sign-in alone does not grant access.</p>
 <form action="/chatgpt/oauth/authorize" method="post">
 <input type="hidden" name="transaction" value="{{ transaction }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-<button name="decision" value="allow" type="submit">Allow read-only access</button>
+<button name="decision" value="allow" type="submit">{% if budget_requested or research_requested %}Allow selected access{% else %}Allow read-only access{% endif %}</button>
 <button name="decision" value="deny" type="submit">Deny</button>
 </form></main></body></html>'''
 
@@ -521,6 +537,9 @@ def register_chatgpt_oauth(app):
                     resource=app.config['CHATGPT_RESOURCE'],
                     scope=_canonical_scope(oauth_request.scope, app),
                     runs_requested=RUNS_SCOPE in oauth_request.scope.split(' '),
+                    budget_read_requested=BUDGET_READ_SCOPE in oauth_request.scope.split(' '),
+                    budget_requested=BUDGET_SCOPE in oauth_request.scope.split(' '),
+                    research_requested=RESEARCH_SCOPE in oauth_request.scope.split(' '),
                     transaction=transaction_id, csrf_token=session['chatgpt_oauth_csrf'],
                 )
             db.execute('UPDATE chatgpt_oauth_consents SET consumed_at=? WHERE transaction_hash=?',

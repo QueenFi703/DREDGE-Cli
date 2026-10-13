@@ -82,3 +82,39 @@ demo labeling, and a real local OAuth/MCP request. No paid provider calls are
 needed. Local tests are not evidence that a connected plugin has been deployed
 or refreshed. Verify the deployed tool catalog and a safe owner-scoped call
 before describing this feature as live.
+
+## Follow-on candidate: runtime controls and public observations (2026-10-13)
+
+This follow-on implements a limited portion of the above requirements. The
+website `/studio/research-controls` exposes an opt-in, own-account cumulative USD
+limit for subsequent protected Studio generation. It reserves full context at
+verified worst-case Standard long-context cache-write/input and output rates,
+without contacting a token-count endpoint or estimating prompt tokenization.
+At 1,200 maximum output tokens, the reservation is $26.34; a $30 limit allows
+one pending request. Complete matching receipts reduce held funds to a
+usage-derived conservative upper bound. Neither figure is an invoice or a
+claim about actual cost. Unknown outcomes retain the full reservation across
+restarts. Pricing expires October 20, 2026 and then fails closed. Disabling the
+limit permits uncapped new calls without resetting existing ledger entries.
+Only the exact gpt-6-astra Standard no-tool request is supported. Prior/uncapped
+calls, Casework, other accounts, infrastructure and taxes are outside the limit.
+
+`/studio/public-source-checks` checks selected sources against five exact
+allowlisted Missouri/federal public URLs, without prompts, account cookies or
+credentials. Redirects and unsupported responses fail closed. DNS public-IP
+validation/pinning, hostname-verified TLS, byte limits and an absolute socket
+deadline protect retrieval. First observations establish a baseline; comparisons
+record whole returned-byte differences and provisional paragraph review actions.
+Cosmetic changes may trigger review. The saved answer is not rewritten, and
+unchanged bytes do not establish legal validity or correctness. Ten checks/hour
+per owner and at most three selected sources/check are enforced. Existing
+libc DNS operations are bounded to two worker slots; stalled resolvers may keep
+those slots busy until they return, while callers fail closed after three seconds.
+
+Official price references, checked 2026-10-13:
+- https://developers.openai.com/api/docs/models/gpt-6-astra
+- https://developers.openai.com/api/docs/pricing
+
+Still absent: exact pre-call token estimates, invoice reconciliation, automatic
+changed-section generation, comprehensive source coverage and measured savings.
+The optional plugin controls expose limited budget settings and public-source observations through separately consented scopes; existing read-only grants do not gain access. No paid inference or rewrite tool is added. See docs/STUDIO_RESEARCH_CONTROLS.md for the rollout boundary.

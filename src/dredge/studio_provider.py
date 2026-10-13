@@ -4,6 +4,7 @@ No retries, background requests, tool execution, URL fetching, or secret logging
 The existing deployment credential remains server-side. Billing is not inferred.
 """
 import json
+import copy
 import re
 
 import requests
@@ -55,6 +56,25 @@ def normalize_usage(value):
     return usage or None
 
 
+def invalid_usage(value):
+    """Preserve malformed receipt evidence without retaining arbitrary raw data."""
+    if value is None:
+        return False
+    if not isinstance(value, dict):
+        return True
+    for key in ('input_tokens', 'output_tokens', 'total_tokens'):
+        if key in value and (type(value[key]) is not int or value[key] < 0):
+            return True
+    for group, key in (('input_tokens_details', 'cached_tokens'),
+                       ('output_tokens_details', 'reasoning_tokens')):
+        if group in value:
+            detail = value[group]
+            if not isinstance(detail, dict) or (key in detail and
+                    (type(detail[key]) is not int or detail[key] < 0)):
+                return True
+    return False
+
+
 def safe_id(value):
     return value if isinstance(value, str) and re.fullmatch(r'[a-zA-Z0-9._:-]{1,200}', value) else None
 
@@ -63,7 +83,8 @@ def response_metadata(result, request_id=None):
     usage = normalize_usage(result.get('usage'))
     return dict(provider='OpenAI', provider_calls=1, response_id=safe_id(result.get('id')),
                 request_id=safe_id(request_id), model=safe_id(result.get('model')),
-                provider_status=safe_id(result.get('status')), usage=usage,
+                usage_invalid=invalid_usage(result.get('usage')),
+                provider_status=safe_id(result.get('status')), service_tier=safe_id(result.get('service_tier')), usage=usage,
                 token_usage=usage.get('total_tokens') if usage else None,
                 cost_usd=None, cost_status='billing_unavailable',
                 cost_note='Provider-reported tokens only. Actual billed cost is unavailable; failed or incomplete calls may still incur charges.')
@@ -91,6 +112,8 @@ def call_provider(payload):
     if not isinstance(result, dict):
         raise ProviderError('OpenAI returned an invalid response. Billing is unknown.')
     metadata = response_metadata(result, response.headers.get('x-request-id'))
+    from .studio_budgets import request_hash
+    metadata['request_hash'] = request_hash(payload)
     if result.get('status') != 'completed':
         raise ProviderError('OpenAI did not complete the response. No answer was accepted; reported usage is retained.', metadata)
     if not metadata['model'] or not metadata['response_id']:
@@ -113,8 +136,19 @@ def call_provider(payload):
     return dict(metadata, answer='\n\n'.join(blocks), mode='live', human_review_required=True)
 
 
-async def run_live_pipeline(payload, run_id, trace_callback):
+def prepare_request(payload):
+    """Freeze the complete no-tool wire request before reserving or dispatching."""
+    evidence = [{key: source[key] for key in ('id', 'title', 'url', 'excerpt')}
+                for source in payload['evidence']]
+    return dict(model=payload['model'], store=False, service_tier='default',
+                reasoning={'effort': 'low'}, truncation='disabled',
+                max_output_tokens=payload['max_output_tokens'], instructions=INSTRUCTIONS,
+                input=json.dumps({'question': payload['query'], 'evidence': evidence}, ensure_ascii=False))
+
+
+async def run_live_pipeline(payload, run_id, trace_callback, prepared_request=None):
     """Real input preparation → one provider call → grounded-reference inspection."""
+    frozen = copy.deepcopy(prepared_request if prepared_request is not None else prepare_request(payload))
     engine = DAGExecutionEngine()
     metadata = dict(provider_calls=0, token_usage=None, usage=None, cost_usd=None,
                     cost_status='billing_unavailable')
@@ -130,10 +164,7 @@ async def run_live_pipeline(payload, run_id, trace_callback):
     def infer(context):
         metadata['provider_calls'] = 1
         try:
-            output = call_provider(dict(model=payload['model'], store=False,
-                service_tier='default', reasoning={'effort': 'low'},
-                max_output_tokens=payload['max_output_tokens'], instructions=INSTRUCTIONS,
-                input=json.dumps(context.node_results['prepare_evidence'], ensure_ascii=False)))
+            output = call_provider(frozen)
         except ProviderError as exc:
             metadata.update(exc.metadata)
             raise

@@ -55,6 +55,7 @@ def configure_chatgpt(app):
     flag = os.environ.get('DREDGE_CHATGPT_ENABLED', '').strip().lower()
     app.config['DREDGE_CHATGPT_ENABLED'] = False
     app.config['DREDGE_CHATGPT_RUN_TOOLS_ENABLED'] = False
+    app.config['DREDGE_CHATGPT_CONTROLS_ENABLED'] = False
     if flag in {'', '0', 'false', 'off', 'no'}:
         return
     if flag != 'true':
@@ -62,6 +63,9 @@ def configure_chatgpt(app):
     runs_flag = os.environ.get('DREDGE_CHATGPT_RUN_TOOLS_ENABLED', '').strip().lower()
     if runs_flag not in {'', '0', 'false', 'off', 'no', 'true'}:
         raise RuntimeError('DREDGE_CHATGPT_RUN_TOOLS_ENABLED must be true or false.')
+    controls_flag = os.environ.get('DREDGE_CHATGPT_CONTROLS_ENABLED', '').strip().lower()
+    if controls_flag not in {'', '0', 'false', 'off', 'no', 'true'}:
+        raise RuntimeError('DREDGE_CHATGPT_CONTROLS_ENABLED must be true or false.')
     keys = ('CHATGPT_ISSUER', 'CHATGPT_RESOURCE', 'CHATGPT_CLIENT_ID', 'CHATGPT_REDIRECT_URI')
     values = {key: os.environ.get(key, '').strip() for key in keys}
     if not all(values.values()):
@@ -96,6 +100,7 @@ def configure_chatgpt(app):
     app.config.update(values)
     app.config.update(DREDGE_CHATGPT_ENABLED=True,
                       DREDGE_CHATGPT_RUN_TOOLS_ENABLED=(runs_flag == 'true'),
+                      DREDGE_CHATGPT_CONTROLS_ENABLED=(controls_flag == 'true'),
                       SESSION_COOKIE_SECURE=True,
                       SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE='Lax')
     from .chatgpt_oauth import register_chatgpt_oauth
@@ -135,6 +140,7 @@ def create_chatgpt_app(flask_app=None):
     from .chatgpt_oauth import verify_access_token
     from .chatgpt_runs import validate_run_arguments
     from .chatgpt_research import validate_research_arguments
+    from .chatgpt_controls import CONTROL_NAMES, validate_control_arguments
 
     issuer = flask_app.config['CHATGPT_ISSUER']
     resource = flask_app.config['CHATGPT_RESOURCE']
@@ -171,21 +177,24 @@ def create_chatgpt_app(flask_app=None):
         definition = next((tool for tool in tool_definitions(flask_app)
                            if tool['name'] == name), None)
         if definition is None:
-            raise ValueError('Unknown or disabled read-only tool.')
+            raise ValueError('Unknown or disabled tool.')
         required_scopes = definition['securitySchemes'][0]['scopes']
         if not frozenset(required_scopes) <= frozenset(record['scope'].split()):
             # Check semantic constraints too (e.g. timestamp ordering). Invalid
             # inputs must not prompt consent, and no run data may be read here.
-            if name == 'find_my_saved_research':
+            if name in CONTROL_NAMES:
+                validate_control_arguments(name, arguments)
+            elif name == 'find_my_saved_research':
                 validate_research_arguments(arguments)
             else:
                 validate_run_arguments(name, arguments)
+            permission = 'permission' if name in CONTROL_NAMES else 'read-only permission'
             challenge = (f'Bearer resource_metadata="{resource_metadata_url}", '
                          'error="insufficient_scope", '
-                         'error_description="This tool requires additional DREDGE read-only permission.", '
+                         f'error_description="This tool requires additional DREDGE {permission}.", '
                          f'scope="{" ".join(required_scopes)}"')
             return CallToolResult(isError=True, content=[TextContent(
-                type='text', text='Additional DREDGE read-only permission is required for this tool.')],
+                type='text', text=f'Additional DREDGE {permission} is required for this tool.')],
                 **{'_meta': {'mcp/www_authenticate': [challenge]}})
         # An isolated request context receives no browser cookies or request input.
         # login_user here only binds the verified principal for existing helpers;
@@ -202,9 +211,9 @@ def create_chatgpt_app(flask_app=None):
         try:
             return await to_thread.run_sync(invoke, name, arguments, token.token)
         except (PermissionError, ValueError):
-            return CallToolResult(isError=True, content=[TextContent(type='text', text='The read request is not authorized or is invalid.')])
+            return CallToolResult(isError=True, content=[TextContent(type='text', text='The request is not authorized or is invalid.')])
         except Exception:
-            flask_app.logger.warning('DREDGE ChatGPT read failed; no account data or tokens logged.')
+            flask_app.logger.warning('DREDGE ChatGPT request failed; no account data or tokens logged.')
             return CallToolResult(isError=True, content=[TextContent(type='text', text='DREDGE data is temporarily unavailable. Try again later.')])
 
     manager = StreamableHTTPSessionManager(
