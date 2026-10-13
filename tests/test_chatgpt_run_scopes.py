@@ -25,11 +25,12 @@ BASE_SCOPE = 'studio:read'
 RUN_SCOPE = 'studio:runs:read'
 EXPANDED_SCOPE = BASE_SCOPE + ' ' + RUN_SCOPE
 OLD_TOOLS = {'get_dredge_access', 'get_studio_activity_report'}
-NEW_TOOLS = {'list_my_studio_runs', 'get_my_studio_run_result', 'get_my_studio_execution_graph'}
+NEW_TOOLS = {'find_my_saved_research', 'list_my_studio_runs', 'get_my_studio_run_result', 'get_my_studio_execution_graph'}
 RUN_CALLS = [
     ('list_my_studio_runs', {}),
     ('get_my_studio_run_result', {'run_id': '00000000-0000-0000-0000-000000000001'}),
     ('get_my_studio_execution_graph', {'run_id': '00000000-0000-0000-0000-000000000001'}),
+    ('find_my_saved_research', {'query': 'public'}),
 ]
 
 
@@ -517,3 +518,24 @@ def test_supported_scope_sets_are_isolated_between_apps(make_app):
     rejected = signed_browser(disabled).get('/chatgpt/oauth/authorize', base_url=ISSUER,
                                            query_string=request_parameters(EXPANDED_SCOPE))
     assert rejected.status_code == 400
+
+
+def test_saved_research_over_real_oauth_and_mcp_is_owner_only(make_app):
+    from uuid import UUID
+    app = make_app('true')
+    now = time.time()
+    with app.extensions['studio_store'].connect() as db:
+        for number, owner in [(1, 'github:fictional-owner'), (2, 'github:foreign-owner')]:
+            db.execute('INSERT INTO runs(id,owner,status,payload,result,created,started,ended) '
+                       'VALUES(?,?,?,?,?,?,?,?)',
+                       (str(UUID(int=number)), owner, 'completed',
+                        json.dumps({'execution_mode': 'live', 'data_scope': 'public_or_fictional'}),
+                        json.dumps({'answer': 'Fictional orchard research.'}), now-20, now-19, now-10))
+    token = issue_token(app, EXPANDED_SCOPE)
+    with TestClient(create_chatgpt_app(app), base_url=ISSUER) as client:
+        response = call(client, token, 'find_my_saved_research', {'query': 'orchard'}).json()['result']
+        assert not response.get('isError')
+        result = json.loads(response['content'][0]['text'])
+        assert [c['id'] for c in result['candidates']] == [str(UUID(int=1))]
+        assert result['candidates'][0]['freshness_status'] == 'sources_not_revalidated'
+        assert result['new_research_executed'] is False

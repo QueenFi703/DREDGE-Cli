@@ -1,48 +1,49 @@
-# Approval-gated commerce design
+# Website billing and informational ChatGPT access
 
-**Preparation only. No commerce tool, purchase route, upgrade link, or runtime
-commerce enable switch is included in the ChatGPT integration.** Read-only access
-can be tested independently; permission to sell digital subscriptions must not be
-inferred from a working sign-in or tool review.
+This candidate keeps all subscription transactions on the DREDGE website. The
+ChatGPT integration remains read-only: no payment tool, purchase flow, upgrade
+prompt, pricing widget, transactional link, or dormant commerce enable switch.
 
-## Decisions already preserved
+## Preserved boundaries
 
-- Existing DREDGE website billing is the baseline: account-bound Stripe Checkout,
-  currently $19 USD/month, and server-derived subscription status.
-- Do not impose a new paid gate on the existing owner-only Studio activity report.
-- Do not grant workspace roles through billing or OAuth consent.
-- Do not claim PayPal availability: the current US Stripe account cannot enable
-  Stripe's native PayPal method. Stripe's merchant-hosted adapter preview requires
-  separate eligibility and recurring-subscription confirmation. A PayPal inquiry
-  is not approval or proof that renewals/cancellations/webhooks are compatible.
+- The website founding plan remains **$19 USD per month**, for one signed-in
+  account. Paid AI inference and public web research charges are excluded.
+- Stripe Checkout and its customer portal remain available according to existing
+  configuration. A separate PayPal Subscriptions adapter is disabled by default.
+  This is not Stripe's PayPal payment method or an eligibility claim.
+- The verified OAuth account identity selects entitlements. Tool arguments cannot
+  select another account or payment provider. Only current configured-live,
+  verified, active, unexpired subscription records indicate paid access.
+- Subscription payments do not grant operator, reviewer or administrator roles.
+  Existing owner-only report and stored-run reads retain their scope checks and
+  are not newly paywalled.
+- `get_dredge_access` provides the fixed `/subscription-info` URL. This generic
+  page contains no checkout controls, upgrade prompts, transactional links,
+  account state, forms, or scripts. It is separate from `/billing`.
 
-## Required gates before a separately reviewed sales implementation
+## Live release gates
 
-1. Written OpenAI category approval identifying the permitted DREDGE subscription
-   offering, approved sales surface, required review flow, and any restrictions.
-2. Processor confirmation for the exact payment flow. For PayPal, confirm US
-   merchant eligibility, recurring Checkout/Billing, renewals, cancellations,
-   failed payments, webhook accounting and fees. Do not force a payment-method
-   string or add an unverified adapter in anticipation.
-3. User authorization for actual live configuration, credentials, contractual
-   acceptance and deployment. Follow secure credential and approval workflows.
-4. Reviewed commerce specification covering product/price truth, recurring terms,
-   taxes and currency, cancellation/refund terms, explicit purchase confirmation,
-   account ownership, idempotency, webhook reconciliation, duplicate subscriptions,
-   race/replay safety and audit records.
-5. Separate security review and end-to-end sandbox validation, followed by the
-   approved OpenAI submission/review process and explicitly authorized release.
+Code deployment and payment activation are separate decisions. Do not claim
+provider verification merely because mocked tests or a browser return succeeded.
 
-## Proposed future boundary, not implemented
+1. Review the exact combined patch and run its regression/security checks.
+2. Release only to the specifically authorized existing environment. Do not create
+   Railway PR preview services or duplicate the ChatGPT tunnel credential.
+3. Verify the deployed commit and read-only plugin behavior without making a
+   purchase, granting new OAuth scopes, or exposing payment links in tool output.
+4. PayPal activation needs its own merchant eligibility review, secure credentials,
+   matching environment plan/webhook configuration, and approved provider sandbox
+   end-to-end tests (renewal, cancellation, failure, replay and second account).
+5. Live charging requires explicit authorization and review of currency, recurring
+   terms, taxes, refund restrictions and provider agreements. Do not auto-create
+   products, plans, credentials, webhooks, or payment permissions during deployment.
 
-An approved commerce adapter would derive the buyer from the same validated
-DREDGE identity, use server-selected pricing, and reuse the existing billing
-ownership/reconciliation logic. Purchase authorization would be separate from
-`studio:read`; a read token must never authorize a payment. A processor-authenticated
-webhook would establish entitlement, never a browser redirect or tool argument.
-Any sales tool would be registered only in a separately reviewed approved release.
-The read-only integration contains no dormant purchase handler and cannot bypass
-these gates.
+## References checked October 13, 2026
 
-The offering/review packet can be drafted while approval is requested, clearly
-labeling approval-dependent behavior as planned rather than currently available.
+- [OpenAI plugin guidelines](https://developers.openai.com/plugins/plugin-guidelines)
+- [Stripe webhooks](https://docs.stripe.com/webhooks)
+- [PayPal Subscriptions API](https://developer.paypal.com/docs/api/subscriptions/v1/)
+- [PayPal webhook verification](https://developer.paypal.com/docs/api/webhooks/v1/#verify-webhook-signature_post)
+
+Check current guidelines before public submission. A local implementation or
+staging release is not OpenAI review acceptance or permission to sell in ChatGPT.

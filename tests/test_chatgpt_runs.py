@@ -15,7 +15,7 @@ RUNS_SCOPE = 'studio:runs:read'
 OWNER = 'github:fictional-owner'
 OTHER = 'github:fictional-other'
 OLD_TOOLS = {'get_dredge_access', 'get_studio_activity_report'}
-RUN_TOOLS = {'list_my_studio_runs', 'get_my_studio_run_result', 'get_my_studio_execution_graph'}
+RUN_TOOLS = {'find_my_saved_research', 'list_my_studio_runs', 'get_my_studio_run_result', 'get_my_studio_execution_graph'}
 META_KEYS = {'id', 'status', 'created', 'started', 'ended', 'mode'}
 
 

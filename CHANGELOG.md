@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+
+
 ### Research execution evidence
 - Retain sanitized Responses IDs, actual model/status/usage and separate web-search receipts, including failed/incomplete attempts without accepting a draft.
 - Add owner-scoped research history and an atomic, fixed one-shot public connectivity test with explicit consent and no retries. Actual billed costs remain unavailable; reservations are planning allowances.
@@ -258,3 +260,13 @@ Apache License 2.0
 **Status: Production Ready ✅**
 
 All features tested, documented, and ready for deployment.
+# Unreleased — website subscription access
+
+- Add disabled-by-default, account-bound PayPal website subscriptions alongside
+  existing Stripe billing, with provider verification, replay protection, durable
+  checkout intent, owner reconciliation and cancellation.
+- Recognize verified live paid access through a provider-neutral entitlement seam,
+  without granting workspace roles or including paid AI usage.
+- Keep ChatGPT read-only, with a separate informational subscription-access page
+  and no transaction prompts or payment links.
+

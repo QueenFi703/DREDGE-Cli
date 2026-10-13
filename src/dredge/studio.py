@@ -39,6 +39,9 @@ class StudioStore:
                     id TEXT PRIMARY KEY, owner TEXT NOT NULL, status TEXT NOT NULL,
                     payload TEXT NOT NULL, result TEXT, created REAL NOT NULL,
                     started REAL, ended REAL, reviewer TEXT, review_note TEXT);
+                CREATE TABLE IF NOT EXISTS studio_live_dedup (
+                    owner TEXT NOT NULL, fingerprint TEXT NOT NULL, run_id TEXT NOT NULL,
+                    reserved_at REAL NOT NULL, PRIMARY KEY(owner,fingerprint));
                 CREATE TABLE IF NOT EXISTS trace_events (
                     seq INTEGER PRIMARY KEY AUTOINCREMENT, run_id TEXT NOT NULL,
                     recorded REAL NOT NULL, event TEXT NOT NULL);
@@ -347,6 +350,15 @@ def execute_run(run_id):
             attempts = db.execute("SELECT COUNT(*) FROM runs WHERE owner=? AND started>? AND json_extract(payload,'$.execution_mode')='live'", (current_user.get_id(), time.time()-86400)).fetchone()[0]
             if attempts >= 20:
                 return jsonify(error='Studio limit of 20 live attempts per account per rolling 24 hours reached.'), 429
+            from .studio_dedup import reserve_live_input, DEDUP_WINDOW_SECONDS
+            duplicate = reserve_live_input(db, current_user.get_id(), run_id, payload, time.time())
+            if duplicate:
+                store().audit(db, current_user.get_id(), 'duplicate_live_run_blocked', run_id,
+                              {'existing_run_id': duplicate, 'window_seconds': DEDUP_WINDOW_SECONDS})
+                return jsonify(error='An identical live Studio request was already reserved within '
+                                     '24 hours. Review the original run; no new provider call was made.',
+                               code='duplicate_live_run', existing_run_id=duplicate,
+                               window_seconds=DEDUP_WINDOW_SECONDS), 409
         db.execute('UPDATE runs SET status=?,started=? WHERE id=?', ('running', time.time(), run_id))
         store().audit(db, current_user.get_id(), 'run_started', run_id)
     trace_store = store()
@@ -437,6 +449,9 @@ def activity_report_for_owner(owner):
         raise ValueError('An authenticated owner ID is required.')
     with store().connect() as db:
         rows = db.execute('SELECT * FROM runs WHERE owner=?', (owner,)).fetchall()
+        duplicate_requests_blocked = db.execute(
+            "SELECT COUNT(*) FROM audit WHERE actor=? AND action='duplicate_live_run_blocked'",
+            (owner,)).fetchone()[0]
     completed = [row for row in rows if row['status']=='completed']
     failed = [row for row in rows if row['status']=='failed']
     measured = [row['ended']-row['started'] for row in completed if row['started'] and row['ended']]
@@ -445,6 +460,7 @@ def activity_report_for_owner(owner):
     calls = sum(row['provider_calls'] for row in summaries)
     metered = [row for row in summaries if row['provider_calls'] and row['token_usage'] is not None]
     return dict(scope='Your stored Studio runs, all time; Casework has separate usage limits', proposed_runs=len(rows),
+                   duplicate_requests_blocked=duplicate_requests_blocked, savings_status='not_measured',
                    completed_runs=len(completed), failed_runs=len(failed),
                    success_rate=(len(completed)/terminal if terminal else None),
                    average_duration_ms=(round(sum(measured)/len(measured)*1000,3) if measured else None),

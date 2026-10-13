@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="How DREDGE subscription access, workspace permissions, and stored information are kept separate.">
+  <title>Subscription access | DREDGE Studio</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; line-height: 1.65; }
+    body { margin: 0; background: #f4f4ef; color: #172620; }
+    main { max-width: 48rem; margin: 0 auto; padding: 3rem 1.5rem 4rem; }
+    .brand { margin: 0 0 2rem; font-weight: 700; letter-spacing: .08em; font-size: .8rem; }
+    h1 { margin: 0; font-size: clamp(2rem, 7vw, 3.25rem); line-height: 1.2; }
+    .intro { color: #455b50; font-size: 1.1rem; }
+    section { margin-top: 2rem; border-top: 1px solid #c7d0c9; padding-top: 1rem; }
+    h2 { margin: 0 0 .5rem; font-size: 1.25rem; }
+    p { margin: .5rem 0; }
+    footer { margin-top: 2.5rem; font-size: .85rem; color: #455b50; }
+    @media (prefers-color-scheme: dark) {
+      body { background: #172620; color: #f4f4ef; }
+      .intro, footer { color: #c7d0c9; }
+      section { border-color: #455b50; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="brand">DREDGE STUDIO</p>
+    <h1>Subscription access</h1>
+    <p class="intro">General information about account entitlements and the read-only ChatGPT integration.</p>
+    <section aria-labelledby="account-access">
+      <h2 id="account-access">Account access</h2>
+      <p>Paid access is recognized from a verified, active, unexpired live subscription associated with the signed-in DREDGE account. Sandbox subscription records are test records and do not grant paid access.</p>
+      <p>This page describes general access rules. It does not show any account's subscription status.</p>
+    </section>
+    <section aria-labelledby="workspace-roles">
+      <h2 id="workspace-roles">Workspace roles</h2>
+      <p>Workspace roles and permissions are assigned separately. A subscription does not grant or change operator, reviewer, or administrator permissions. Authorized workspace actions remain subject to their existing role and approval requirements.</p>
+    </section>
+    <section aria-labelledby="stored-reads">
+      <h2 id="stored-reads">Stored reads</h2>
+      <p>Existing owner-only stored reads remain available regardless of subscription status, with sign-in and the required authorization scopes. Optional run-reading tools must also be enabled and separately authorized.</p>
+      <p>The ChatGPT tools read account access, aggregate Studio activity, and authorized stored run information. They do not execute runs, modify records, or grant permissions.</p>
+    </section>
+    <section aria-labelledby="ai-usage">
+      <h2 id="ai-usage">AI usage</h2>
+      <p>Paid AI usage is not included. These read-only tools do not call AI providers. Separate provider configuration, permissions, and any applicable usage charges remain outside these subscription entitlements.</p>
+      <p>Missing recorded usage or cost remains unknown and must not be represented as zero.</p>
+    </section>
+    <footer>DREDGE Studio · Informational access overview</footer>
+  </main>
+</body>
+</html>

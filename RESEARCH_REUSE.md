@@ -1,0 +1,84 @@
+# Research reuse: bounded first release
+
+## Offering copy
+
+Find prior work before starting again. DREDGE's read-only plugin can search a
+bounded page of your own completed Studio answer summaries and show candidates
+within an age window you choose. Review the saved answer and its recorded usage
+before deciding whether it is useful for your next task. Source freshness and
+correctness still need checking; finding a candidate does not prove either.
+
+## Implemented in this candidate
+
+`find_my_saved_research` uses the existing optional run tools flag and both
+`studio:read` and `studio:runs:read` OAuth permissions. There is no new scope,
+provider request, paid execution, database mutation, or cross-account search.
+An account's admin/reviewer workspace privileges never widen this owner-only read.
+
+- Required `query`: 3–200 characters; case-insensitive literal match against only
+  the already-exposable first 2,000 characters of saved answer text.
+- `max_age_days`: integer 1–365; defaults to 7, measured from recorded completion.
+  A valid completion timestamp, completion status, and `public_or_fictional`
+  proposal label are required. This label is declarative, not automatic redaction.
+- `limit`: 1–20 scanned completed runs, default 10. `offset`: 0–1000.
+  The most recently created runs are checked first. A page can have no candidates
+  and still have `has_more=true`; follow `next_offset`. Offset pages are not a
+  stable snapshot during concurrent insertions. This is bounded discovery, not
+  an exhaustive full-text index or semantic similarity engine.
+- Answers remain untrusted data. Prompts, private evidence, raw traces, reviewer
+  notes, and malformed stored JSON are not exposed. Unknown/legacy labels are
+  excluded. Demo candidates stay labeled `demo`.
+- Age and historical token/cost records are shown without inventing missing data.
+  `freshness_status=sources_not_revalidated`, `savings_status=not_measured`, and
+  `new_research_executed=false` make the limits explicit.
+
+## Exact-input duplicate guard (existing Studio execution)
+
+Separately proposed live Studio jobs now reserve an owner-scoped exact-input
+fingerprint in the same SQLite write transaction that moves an approved run to
+running. Within 24 hours, an identical request returns HTTP 409 with the same
+owner's original run ID and makes no new provider call. Model, provider options,
+instructions, declared data scope, source content/order, and all substantive
+proposal fields are included. Only attachment bookkeeping timestamps are omitted.
+Unknown or failed provider outcomes keep their reservation for the entire window.
+A reviewer must still approve every distinct proposal; this does not bypass
+consent, CSRF, roles, subscription checks, or existing attempt limits.
+
+The guard covers reservations created after deployment, not historical runs,
+Casework jobs, semantic near-duplicates, different provider configurations, or
+other accounts. Demo execution is unchanged. After 24 hours a separately approved
+identical job may execute. Stored completed results are not silently substituted.
+
+The activity report exposes `duplicate_requests_blocked` (actual rejected
+execution requests recorded since deployment). This is not proof of completed
+provider calls, tokens, or money avoided. `savings_status=not_measured` remains
+explicit. Historical provider-reported tokens continue to be reported separately.
+
+## Requested capabilities still blocked / not implemented
+
+These are requirements for the broader offering, not capabilities of this release:
+
+1. **Freshness verification and changed-source-only refresh.** Studio does not
+   fetch source URLs. Casework retains bounded web-search receipts but no source
+   content snapshots, hashes, ETags, or claim-to-source refresh map. An age window
+   cannot replace source revalidation. Safe retrieval, provenance storage,
+   changed-section dependencies, failure handling, and tests are still needed.
+2. **Pre-run token/cost estimates and user-selected hard spending limits.** The
+   existing provider layer records usage when returned but reports cost as
+   `billing_unavailable`. A reliable versioned price source and conservative
+   enforceable maximum covering input, output, reasoning, and tool charges are
+   needed. An estimate must not be represented as a hard cap. Unknown-outcome
+   calls must retain budget reservations rather than silently release them.
+3. **Savings measurement.** Showing historical tokens is not measuring avoided
+   tokens or costs. A defined counterfactual, reuse decision/event accounting,
+   a defined mapping from blocked attempts to avoided work, and provider cost reconciliation are still required.
+   No token, dollar, energy, or carbon reduction is claimed.
+
+## Verification and rollout
+
+Offline tests exercise account isolation, existing text gates, malformed inputs,
+scopes/feature flag, bounded paging, age boundaries, unknown/future timestamps,
+demo labeling, and a real local OAuth/MCP request. No paid provider calls are
+needed. Local tests are not evidence that a connected plugin has been deployed
+or refreshed. Verify the deployed tool catalog and a safe owner-scoped call
+before describing this feature as live.

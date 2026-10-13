@@ -9,10 +9,13 @@ from copy import deepcopy
 from flask import current_app, has_app_context
 from flask_login import current_user
 
-from .billing import configured, has_subscription, mode
+from .billing import configured, mode, subscription_access
 from .studio import activity_report_for_owner, role
+from .subscription_info import subscription_info_url
 from .chatgpt_runs import (LIST_SCHEMA, RESULT_SCHEMA, list_runs_for_owner,
                           result_for_owner, graph_for_owner)
+
+from .chatgpt_research import RESEARCH_SCHEMA, find_saved_research_for_owner
 
 SCOPE = 'studio:read'
 RUNS_SCOPE = 'studio:runs:read'
@@ -37,6 +40,11 @@ _RUN_TOOLS = tuple({
                     'idempotentHint': True, 'openWorldHint': False},
     'securitySchemes': [{'type': 'oauth2', 'scopes': [SCOPE, RUNS_SCOPE]}],
 } for name, description, schema in (
+    ('find_my_saved_research',
+     'Find read-only reuse candidates in a bounded page of your completed stored answers. '
+     'Requires public_or_fictional labeling; searches only the exposed first 2,000 characters. '
+     'Caller-selected age window is not proof of current or correct research. No execution, '
+     'source revalidation, duplicate-run prevention, or measured savings.', RESEARCH_SCHEMA),
     ('list_my_studio_runs',
      'List a bounded page of the signed-in account’s own stored run metadata, newest first. '
      'No prompts, names, evidence, review notes, execution, or external calls.', LIST_SCHEMA),
@@ -80,11 +88,13 @@ def call_read_tool(name, arguments, *, scopes):
         raise PermissionError('An authenticated DREDGE account is required.')
     if not isinstance(scopes, frozenset) or SCOPE not in scopes:
         raise PermissionError('The studio:read scope is required.')
-    if name in {'list_my_studio_runs', 'get_my_studio_run_result', 'get_my_studio_execution_graph'}:
+    if name in {'find_my_saved_research', 'list_my_studio_runs', 'get_my_studio_run_result', 'get_my_studio_execution_graph'}:
         if RUNS_SCOPE not in supported_scopes(current_app):
             raise PermissionError('The owner run read tools are disabled.')
         if RUNS_SCOPE not in scopes:
             raise PermissionError('The studio:runs:read scope is required.')
+        if name == 'find_my_saved_research':
+            return find_saved_research_for_owner(current_user.get_id(), arguments)
         if name == 'list_my_studio_runs':
             return list_runs_for_owner(current_user.get_id(), arguments)
         if name == 'get_my_studio_execution_graph':
@@ -95,14 +105,26 @@ def call_read_tool(name, arguments, *, scopes):
     if name == 'get_studio_activity_report':
         return activity_report_for_owner(current_user.get_id())
     if name == 'get_dredge_access':
+        access = subscription_access(current_user.get_id())
         return {
             'workspace_role': role(),
             'studio_report_available': True,
-            'subscription_status': ('sandbox_only' if mode() != 'live' else
-                                    'active' if has_subscription(current_user.get_id()) else 'inactive'),
+            'subscription_status': access['subscription_status'],
+            'paid_access': access['paid_access'],
+            'paid_ai_included': False,
             'subscription_requirement_enabled': bool(current_app.config['BILLING_REQUIRE_SUBSCRIPTION']),
             'billing_configured': configured(),
             'billing_environment': mode(),
+            'subscription_info_url': subscription_info_url(),
+            'entitlement_notes': [
+                'Paid access requires a verified, active, unexpired live subscription for this account. '
+                'Sandbox records do not grant paid access.',
+                'Workspace roles and permissions are assigned separately; a subscription does not grant or change them.',
+                'Existing owner-only stored reads remain available with their required authorization scopes, '
+                'regardless of subscription status.',
+                'Paid AI usage is not included. These tools only read stored information and do not '
+                'execute runs or call AI providers.',
+            ],
         }
     raise ValueError('Unknown read-only tool.')
 

@@ -134,6 +134,7 @@ def create_chatgpt_app(flask_app=None):
     from .chatgpt_foundation import SCOPE, call_read_tool, supported_scopes, tool_definitions
     from .chatgpt_oauth import verify_access_token
     from .chatgpt_runs import validate_run_arguments
+    from .chatgpt_research import validate_research_arguments
 
     issuer = flask_app.config['CHATGPT_ISSUER']
     resource = flask_app.config['CHATGPT_RESOURCE']
@@ -175,7 +176,10 @@ def create_chatgpt_app(flask_app=None):
         if not frozenset(required_scopes) <= frozenset(record['scope'].split()):
             # Check semantic constraints too (e.g. timestamp ordering). Invalid
             # inputs must not prompt consent, and no run data may be read here.
-            validate_run_arguments(name, arguments)
+            if name == 'find_my_saved_research':
+                validate_research_arguments(arguments)
+            else:
+                validate_run_arguments(name, arguments)
             challenge = (f'Bearer resource_metadata="{resource_metadata_url}", '
                          'error="insufficient_scope", '
                          'error_description="This tool requires additional DREDGE read-only permission.", '
