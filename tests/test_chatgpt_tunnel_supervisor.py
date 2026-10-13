@@ -454,5 +454,49 @@ with patch.object(os, 'geteuid', return_value=0), \
                     process.wait()
 
 
+
+
+class ControlsEnvironmentTests(unittest.TestCase):
+    def test_controls_flag_is_validated_and_only_application_receives_it(self):
+        key = 'DREDGE_CHATGPT_CONTROLS_ENABLED'
+        for value in (None, '', 'false', '0', 'off', 'no', 'true', ' TRUE '):
+            with self.subTest(value=value):
+                source = dict(FIXTURE_ENV)
+                if value is not None:
+                    source[key] = value
+                app, connector, health = supervisor.child_specs(supervisor.read_configuration(source), 42)
+                self.assertEqual(app.environment[key], 'true' if value in ('true', ' TRUE ') else 'false')
+                self.assertNotIn(key, connector.environment)
+                self.assertNotIn(key, health.environment)
+        for value in ('1', 'yes', 'enabled', 'secret-value'):
+            with self.subTest(value=value):
+                with self.assertRaises(supervisor.ConfigurationError) as error:
+                    supervisor.read_configuration({**FIXTURE_ENV, key: value})
+                self.assertNotIn(value, str(error.exception))
+
+    def test_supervisor_worker_environment_reaches_real_configuration_and_discovery(self):
+        from flask import Flask
+        from dredge.chatgpt_transport import configure_chatgpt
+        from dredge.chatgpt_foundation import tool_definitions, supported_scopes
+        from dredge.chatgpt_controls import CONTROL_NAMES
+        key = 'DREDGE_CHATGPT_CONTROLS_ENABLED'
+        for flag in ('false', 'true'):
+            with self.subTest(flag=flag):
+                source = {**FIXTURE_ENV, key: flag, 'DREDGE_CHATGPT_RUN_TOOLS_ENABLED': 'true',
+                          'OPENAI_API_KEY': 'fictional-never-forward', 'STRIPE_RESTRICTED_KEY': 'fictional-never-forward'}
+                worker = supervisor.child_specs(supervisor.read_configuration(source), 42)[0]
+                app = Flask(__name__)
+                # No filesystem/network OAuth setup: exercise real env parsing and schemas.
+                with patch.dict(os.environ, worker.environment, clear=True), patch(
+                        'dredge.chatgpt_oauth.register_chatgpt_oauth'):
+                    configure_chatgpt(app)
+                names = {tool['name'] for tool in tool_definitions(app)}
+                self.assertEqual(len(names), 11 if flag == 'true' else 6)
+                self.assertEqual(bool(names & CONTROL_NAMES), flag == 'true')
+                self.assertEqual('studio:budget:write' in supported_scopes(app), flag == 'true')
+                self.assertNotIn('OPENAI_API_KEY', worker.environment)
+                self.assertNotIn('STRIPE_RESTRICTED_KEY', worker.environment)
+
+
 if __name__ == "__main__":
     unittest.main()

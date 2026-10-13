@@ -38,10 +38,10 @@ PYTHON = "/opt/venv/bin/python"
 CLOUDFLARED = "/usr/local/bin/cloudflared"
 
 # Exact allowlist, never a DREDGE_/OAUTH_ prefix wildcard. Live model/payment keys
-# are unnecessary for this read-only service and must not enter its environment.
+# are unnecessary for this no-inference service and must not enter its environment.
 APP_ENV_KEYS = frozenset({
     "CHATGPT_ISSUER", "CHATGPT_RESOURCE", "CHATGPT_CLIENT_ID", "CHATGPT_REDIRECT_URI",
-    "DREDGE_CHATGPT_RUN_TOOLS_ENABLED",
+    "DREDGE_CHATGPT_RUN_TOOLS_ENABLED", "DREDGE_CHATGPT_CONTROLS_ENABLED",
     "SECRET_KEY", "STUDIO_DB_PATH", "STUDIO_ROLES_JSON", "OAUTH_REDIRECT_BASE",
     "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET",
 })
@@ -86,6 +86,9 @@ def read_configuration(environ: Mapping[str, str]) -> Configuration:
     runs_flag = environ.get("DREDGE_CHATGPT_RUN_TOOLS_ENABLED", "").strip().lower()
     if runs_flag not in {"", "0", "false", "off", "no", "true"}:
         raise ConfigurationError("DREDGE_CHATGPT_RUN_TOOLS_ENABLED must be true or false.")
+    controls_flag = environ.get("DREDGE_CHATGPT_CONTROLS_ENABLED", "").strip().lower()
+    if controls_flag not in {"", "0", "false", "off", "no", "true"}:
+        raise ConfigurationError("DREDGE_CHATGPT_CONTROLS_ENABLED must be true or false.")
     token = environ.get("TUNNEL_TOKEN", "")
     if not token or len(token) > 16384 or any(c.isspace() or ord(c) < 33 for c in token):
         raise ConfigurationError("A nonempty named-tunnel token is required.")
@@ -118,6 +121,9 @@ def read_configuration(environ: Mapping[str, str]) -> Configuration:
     app_environment = {key: environ[key] for key in APP_ENV_KEYS if key in environ}
     app_environment["DREDGE_CHATGPT_RUN_TOOLS_ENABLED"] = (
         "true" if runs_flag == "true" else "false"
+    )
+    app_environment["DREDGE_CHATGPT_CONTROLS_ENABLED"] = (
+        "true" if controls_flag == "true" else "false"
     )
     # This origin is deliberately tied to ChatGPT's single canonical issuer.
     if app_environment.get("OAUTH_REDIRECT_BASE", issuer) != issuer:
