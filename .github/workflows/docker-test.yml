@@ -88,7 +88,7 @@ jobs:
         if: matrix.target == 'cpu-build'
         run: |
           echo "=== Testing CPU image (15s warmup cadence) ==="
-          docker run -d --name test-cpu -p 3001:3001 dredge-cli:test-${{ matrix.suffix }}
+          docker run -d --name test-cpu -p 3001:8001 dredge-cli:test-${{ matrix.suffix }}
           echo "Waiting for service initialization..."
           sleep 15
           echo "Testing health endpoint..."
@@ -100,12 +100,14 @@ jobs:
       - name: Test GPU image (without GPU)
         if: matrix.target == 'gpu-build'
         run: |
+          docker run --rm dredge-cli:test-${{ matrix.suffix }} python -c \
+            'import torch; assert torch.version.cuda == "12.8"; assert torch.ones(1).item() == 1'
           echo "=== Testing GPU image in CPU mode (20s warmup cadence) ==="
-          docker run -d --name test-gpu -p 3002:3002 -e DEVICE=cpu dredge-cli:test-${{ matrix.suffix }}
+          docker run -d --name test-gpu -p 3002:8001 -e DEVICE=cpu dredge-cli:test-${{ matrix.suffix }}
           echo "Waiting for CUDA libraries and service initialization..."
           sleep 20
-          echo "Testing root endpoint..."
-          curl -f http://localhost:3002/ || exit 1
+          echo "Testing health endpoint..."
+          curl -f http://localhost:3002/health || exit 1
           docker stop test-gpu
           docker rm test-gpu
           echo "✅ GPU image test passed (CPU mode)"

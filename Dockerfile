@@ -22,13 +22,15 @@ COPY requirements.txt ./
 RUN python -m venv /opt/venv \
     && . /opt/venv/bin/activate \
     && pip install --upgrade pip setuptools wheel \
-    && pip install -r requirements.txt
+    && pip install "torch>=2.8.0" --index-url https://download.pytorch.org/whl/cpu \
+    && pip install -r requirements.txt \
+    && python -c 'import torch; assert torch.version.cuda is None'
 
 
 # Now copy the actual source and install the dredge package itself
 COPY . .
 RUN . /opt/venv/bin/activate \
-    && pip install --no-cache-dir -e .
+    && pip install --no-cache-dir . && pip check
 
 # ---- Runtime stage ----
 FROM python:3.14-slim AS runtime
@@ -57,6 +59,9 @@ EXPOSE 8001
 
 CMD ["dredge-server", "--host", "0.0.0.0", "--port", "8001"]
 
+# Compatibility target used by Compose and the CI build matrix.
+FROM runtime AS cpu-build
+
 # ---- Dev stage (optional: docker build --target dev) ----
 FROM runtime AS dev
 RUN . /opt/venv/bin/activate \
@@ -64,29 +69,19 @@ RUN . /opt/venv/bin/activate \
 CMD ["dredge-server", "--host", "0.0.0.0", "--port", "8001"]
 
 # ---- GPU stage (optional: docker build --target gpu) ----
-FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04 AS gpu
-ENV DEBIAN_FRONTEND=noninteractive \
-    PYTHONPATH="/app/src:${PYTHONPATH}" \
-    PYTHONUNBUFFERED=1 \
-    PATH="/opt/venv/bin:$PATH" \
-    PORT=8001
+# Keep the interpreter/OS identical to the builder. PyTorch's CUDA wheels
+# include the CUDA runtime; copying this venv into Ubuntu's Python breaks it.
+# CUDA 11.8 has no wheels satisfying the project's torch>=2.8 requirement.
+FROM runtime AS gpu
+ENV NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility \
+    NVIDIA_REQUIRE_CUDA="cuda>=12.8"
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 \
-    python3-pip \
-    curl \
-    ffmpeg \ 
-    libsndfile1 \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-COPY --from=builder /opt/venv /opt/venv
-COPY --from=builder /build /app
-
-# Swap in the CUDA build of torch for the GPU inference
 RUN . /opt/venv/bin/activate \
-    && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cu118
+    && pip uninstall -y torch \
+    && pip install --no-cache-dir "torch>=2.8.0" --index-url https://download.pytorch.org/whl/cu128 \
+    && python -c 'import torch; assert torch.version.cuda == "12.8"; assert torch.ones(1).item() == 1' \
+    && pip check
 
-EXPOSE 8001
-CMD ["dredge-server", "--host", "0.0.0.0", "--port", "8001"]
-
+# Compatibility target used by Compose and the CI build matrix.
+FROM gpu AS gpu-build
