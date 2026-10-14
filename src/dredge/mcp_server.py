@@ -1,3 +1,6 @@
+# Copyright © 2026 Sophia Cole (doing business as COLEWORLD).
+# Scope and license information: see COPYRIGHT and LICENSE.
+
 """
 DREDGE MCP Server
 Model Context Protocol server for serving Quasimoto wave function models.

@@ -1,5 +1,6 @@
 include README.md
 include LICENSE
+include COPYRIGHT
 include PULL_REQUEST.md
 include DEPLOYMENT_SUMMARY.txt
 include DEPENDABOT_FIBOT_GUIDE.txt
