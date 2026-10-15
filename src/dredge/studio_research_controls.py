@@ -11,17 +11,21 @@ bp = Blueprint('studio_research_controls', __name__)
 VERSION = 'supplied-source-v1'
 
 
+def initialize_schema(db):
+    db.executescript('''
+        CREATE TABLE IF NOT EXISTS studio_source_context (
+            owner TEXT NOT NULL, run_id TEXT NOT NULL, signature TEXT NOT NULL,
+            PRIMARY KEY(owner,run_id));
+        CREATE TABLE IF NOT EXISTS studio_source_versions (
+            owner TEXT NOT NULL, run_id TEXT NOT NULL, source_id TEXT NOT NULL,
+            digest TEXT NOT NULL, version TEXT NOT NULL,
+            PRIMARY KEY(owner,run_id,source_id));
+    ''')
+
+
 def register(app):
     with app.extensions['studio_store'].connect() as db:
-        db.executescript('''
-            CREATE TABLE IF NOT EXISTS studio_source_context (
-                owner TEXT NOT NULL, run_id TEXT NOT NULL, signature TEXT NOT NULL,
-                PRIMARY KEY(owner,run_id));
-            CREATE TABLE IF NOT EXISTS studio_source_versions (
-                owner TEXT NOT NULL, run_id TEXT NOT NULL, source_id TEXT NOT NULL,
-                digest TEXT NOT NULL, version TEXT NOT NULL,
-                PRIMARY KEY(owner,run_id,source_id));
-        ''')
+        initialize_schema(db)
     app.register_blueprint(bp)
     from .public_source_revalidation import register as register_public_sources
     register_public_sources(app)

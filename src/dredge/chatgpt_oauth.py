@@ -112,7 +112,10 @@ def _canonical_scope(scope, app):
     return ' '.join(sorted(scopes))
 
 
-def _valid_owner(value):
+def _valid_owner(value, app=None):
+    from .reviewer_login import is_review_owner, active_review_owner
+    if is_review_owner(value):
+        return active_review_owner(app if app is not None else current_app, value)
     return isinstance(value, str) and OWNER_PATTERN.fullmatch(value) is not None
 
 
@@ -591,7 +594,7 @@ def verify_access_token(app, token):
             _digest(token), app.config['CHATGPT_ISSUER'], app.config['CHATGPT_RESOURCE'],
             app.config['CHATGPT_CLIENT_ID'], time.time(),
         )).fetchone()
-    if (row is None or not _valid_owner(row['owner'])
+    if (row is None or not _valid_owner(row['owner'], app)
             or _canonical_scope(row['scope'], app) != row['scope']):
         return None
     return dict(row)

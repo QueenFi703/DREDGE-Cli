@@ -119,6 +119,24 @@ def read_configuration(environ: Mapping[str, str]) -> Configuration:
             or not db.is_relative_to(DATA_DIR) or str(db) != db_text):
         raise ConfigurationError("STUDIO_DB_PATH must be a file within /data/studio.")
     app_environment = {key: environ[key] for key in APP_ENV_KEYS if key in environ}
+    reviewer_flag = environ.get("DREDGE_REVIEWER_LOGIN_ENABLED", "false")
+    if reviewer_flag not in {"false", "true"}:
+        raise ConfigurationError("DREDGE_REVIEWER_LOGIN_ENABLED must be true or false.")
+    if reviewer_flag == "true":
+        if issuer != "https://chatgpt-staging.dredgeoriongateway.com":
+            raise ConfigurationError("Reviewer login requires the dedicated staging origin.")
+        review_text = environ.get("DREDGE_REVIEWER_DB_PATH", "")
+        review_db = Path(review_text)
+        if (not review_db.is_absolute() or ".." in review_db.parts or review_db == DATA_DIR
+                or not review_db.is_relative_to(DATA_DIR) or str(review_db) != review_text
+                or review_db == db):
+            raise ConfigurationError("Reviewer DB must be a distinct file within /data/studio.")
+        # Only the application receives these approved inputs, never tunnel or health.
+        for key in ("DREDGE_REVIEWER_USERNAME", "DREDGE_REVIEWER_PASSWORD_HASH",
+                    "DREDGE_REVIEWER_GENERATION", "DREDGE_REVIEWER_EXPIRES_AT", "DREDGE_REVIEWER_DB_PATH"):
+            if key in environ:
+                app_environment[key] = environ[key]
+    app_environment["DREDGE_REVIEWER_LOGIN_ENABLED"] = reviewer_flag
     app_environment["DREDGE_CHATGPT_RUN_TOOLS_ENABLED"] = (
         "true" if runs_flag == "true" else "false"
     )

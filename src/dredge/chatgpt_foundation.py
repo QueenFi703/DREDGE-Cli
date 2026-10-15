@@ -116,6 +116,9 @@ def call_read_tool(name, arguments, *, scopes):
         return activity_report_for_owner(current_user.get_id())
     if name == 'get_dredge_access':
         from .paypal_billing import paypal_mode
+        from .reviewer_login import is_review_owner, review_access_summary
+        if is_review_owner(current_user.get_id()):
+            return review_access_summary(current_app, current_user.get_id())
         access = subscription_access(current_user.get_id())
         return {
             'workspace_role': role(),

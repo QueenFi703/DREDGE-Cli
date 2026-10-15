@@ -500,3 +500,31 @@ class ControlsEnvironmentTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_review_config_only_reaches_app_with_explicit_staging_flag():
+    origin = 'https://chatgpt-staging.dredgeoriongateway.com'
+    env = {**FIXTURE_ENV, 'CHATGPT_ISSUER':origin, 'CHATGPT_RESOURCE':origin+'/chatgpt/mcp',
+           'DREDGE_REVIEWER_LOGIN_ENABLED':'true', 'DREDGE_REVIEWER_DB_PATH':'/data/studio/reviewer.sqlite3',
+           'DREDGE_REVIEWER_PASSWORD_HASH':'fictional-hash-only', 'DREDGE_REVIEWER_USERNAME':'offline-reviewer',
+           'DREDGE_REVIEWER_GENERATION':'1','DREDGE_REVIEWER_EXPIRES_AT':'1900000000',
+           'DREDGE_REVIEWER_PASSWORD':'must-never-forward-plaintext'}
+    config = supervisor.read_configuration(env)
+    app, tunnel, health = supervisor.child_specs(config, 42)
+    assert app.environment['DREDGE_REVIEWER_PASSWORD_HASH'] == 'fictional-hash-only'
+    for spec in (tunnel, health):
+        assert not any(key.startswith('DREDGE_REVIEWER_') for key in spec.environment)
+    assert 'fictional-hash-only' not in repr(config)
+    assert 'DREDGE_REVIEWER_PASSWORD' not in app.environment
+    disabled = supervisor.read_configuration({**env,'DREDGE_REVIEWER_LOGIN_ENABLED':'false'})
+    assert 'DREDGE_REVIEWER_PASSWORD_HASH' not in disabled.app_environment
+    for overrides in ({'CHATGPT_ISSUER':FIXTURE_ENV['CHATGPT_ISSUER'], 'CHATGPT_RESOURCE':FIXTURE_ENV['CHATGPT_RESOURCE']},
+                      {'DREDGE_REVIEWER_DB_PATH':'/tmp/review.sqlite3'},
+                      {'DREDGE_REVIEWER_DB_PATH':FIXTURE_ENV['STUDIO_DB_PATH']},
+                      {'DREDGE_REVIEWER_LOGIN_ENABLED':'yes'}):
+        try:
+            supervisor.read_configuration({**env, **overrides})
+        except supervisor.ConfigurationError:
+            pass
+        else:
+            raise AssertionError('Invalid reviewer supervisor config accepted')

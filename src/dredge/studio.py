@@ -19,7 +19,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from flask import Blueprint, current_app, jsonify, request, session, send_file
+from flask import Blueprint, current_app, jsonify, request, session, send_file, has_request_context
 from flask_login import current_user, login_required
 from .architecture import dredge_run_pipeline
 from .studio_provider import configured_model, run_live_pipeline, prepare_request, MAX_INPUT_CHARS, MAX_OUTPUT_TOKENS
@@ -85,10 +85,20 @@ class StudioStore:
 
 
 def store():
+    from .reviewer_login import is_review_owner, active_review_owner
+    owner = current_user.get_id() if has_request_context() and current_user.is_authenticated else None
+    if is_review_owner(owner):
+        if not active_review_owner(current_app, owner):
+            raise PermissionError('Review access expired or revoked.')
+        return current_app.extensions['reviewer_store']
     return current_app.extensions['studio_store']
 
 
 def role():
+    from .reviewer_login import is_review_owner, active_review_owner
+    owner = current_user.get_id() if has_request_context() and current_user.is_authenticated else None
+    if is_review_owner(owner):
+        return 'operator' if active_review_owner(current_app, owner) else 'viewer'
     mapping = current_app.config.get('STUDIO_ROLES', {})
     assigned = mapping.get(current_user.get_id(), 'viewer')
     return assigned if assigned in ROLES else 'viewer'

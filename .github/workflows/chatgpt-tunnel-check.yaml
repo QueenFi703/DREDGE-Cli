@@ -4,7 +4,7 @@ name: Isolated ChatGPT Tunnel Checks
 # This workflow never receives service secrets, publishes images, or deploys.
 on:
   push:
-    branches: ['staging/chatgpt-tunnel-20261011', 'feat/chatgpt-investigation-read-tools']
+    branches: ['staging/chatgpt-tunnel-20261011', 'feat/chatgpt-investigation-read-tools', 'feat/isolated-reviewer-login-local']
     paths:
       - '.github/workflows/chatgpt-tunnel-check.yaml'
       - 'Dockerfile.chatgpt-tunnel'
@@ -19,6 +19,7 @@ on:
       - 'README.md'
       - 'LICENSE'
       - 'tests/test_auth_logging.py'
+      - 'tests/test_reviewer_login.py'
       - 'tests/test_chatgpt*.py'
       - 'tests/tunnel_container_check.py'
   workflow_dispatch:
@@ -84,7 +85,7 @@ jobs:
                 /checks/test_chatgpt_tunnel_health.py /checks/test_chatgpt_tunnel_supervisor.py \
                 /checks/test_chatgpt_oauth.py /checks/test_chatgpt_transport.py \
                 /checks/test_chatgpt_runs.py /checks/test_chatgpt_run_scopes.py \
-                /checks/test_chatgpt_graph.py \
+                /checks/test_chatgpt_graph.py /checks/test_reviewer_login.py \
                 --junitxml=/tmp/tunnel-results.xml -q
               /opt/venv/bin/python -c '\''import xml.etree.ElementTree as ET; r=ET.parse("/tmp/tunnel-results.xml"); assert not r.findall(".//skipped"), "Socket checks must run, not skip"'\''
             '

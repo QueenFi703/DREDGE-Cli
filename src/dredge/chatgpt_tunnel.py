@@ -22,6 +22,8 @@ _READ_PATHS = frozenset({
     '/.well-known/oauth-protected-resource/chatgpt/mcp',
 })
 _OAUTH_PATHS = {
+    '/auth/reviewer': {'GET', 'POST'},
+    '/auth/reviewer/logout': {'POST'},
     '/chatgpt/oauth/authorize': {'GET', 'POST'},
     '/chatgpt/oauth/token': {'POST'},
     '/chatgpt/oauth/revoke': {'POST'},
@@ -96,8 +98,9 @@ def create_tunnel_app():
 <title>Connect DREDGE</title><body><h1>Connect your DREDGE account</h1>
 <p>Sign in, then {% if controls_enabled %}review requested Studio permissions{% else %}review the request for read-only Studio access{% endif %}.</p>
 {% for provider in providers %}<p><a href="/auth/{{ provider }}">Continue with {{ provider|title }}</a></p>
-{% else %}<p>Sign-in is not configured for this staging service.</p>{% endfor %}
-<p>Return to ChatGPT to start or cancel the connection.</p></body></html>''', providers=providers, controls_enabled=flask_app.config.get('DREDGE_CHATGPT_CONTROLS_ENABLED') is True))
+{% else %}{% if not reviewer_enabled %}<p>Sign-in is not configured for this staging service.</p>{% endif %}{% endfor %}
+{% if reviewer_enabled %}<p><a href="/auth/reviewer">Reviewer sample account</a></p>{% endif %}
+<p>Return to ChatGPT to start or cancel the connection.</p></body></html>''', providers=providers, reviewer_enabled=flask_app.config.get('DREDGE_REVIEWER_LOGIN_ENABLED') is True, controls_enabled=flask_app.config.get('DREDGE_CHATGPT_CONTROLS_ENABLED') is True))
         response.headers['Cache-Control'] = 'no-store'
         response.headers['Content-Security-Policy'] = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"
         response.headers['Referrer-Policy'] = 'no-referrer'

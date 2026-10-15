@@ -94,6 +94,9 @@ def create_app():
     @login_manager.user_loader
     def load_user(user_id):
         from .auth import _users, User
+        from .reviewer_login import is_review_owner, active_review_owner
+        if is_review_owner(user_id):
+            return User(user_id, 'DREDGE review account', '', 'review') if active_review_owner(app, user_id) else None
         profile = session.get('studio_profile', {})
         if profile.get('id') == user_id:
             return User(user_id, profile['name'], profile['email'], profile['provider'], profile.get('avatar', ''))
@@ -109,6 +112,8 @@ def create_app():
     register_billing(app)
     from .chatgpt_foundation import register_chatgpt_foundation
     register_chatgpt_foundation(app)
+    from .reviewer_login import register_reviewer_login
+    register_reviewer_login(app)
     from .casework import register_casework
     register_casework(app)
     from .client_portal import register_clients

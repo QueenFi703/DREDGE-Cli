@@ -14,19 +14,23 @@ from .studio_research_controls import own_run, stored_payload
 bp = Blueprint('public_source_revalidation', __name__)
 
 
+def initialize_schema(db):
+    db.executescript('''
+        CREATE TABLE IF NOT EXISTS public_source_checks (
+            id TEXT PRIMARY KEY, owner TEXT NOT NULL, run_id TEXT NOT NULL,
+            created REAL NOT NULL, status TEXT NOT NULL, result TEXT);
+        CREATE INDEX IF NOT EXISTS public_source_checks_owner ON public_source_checks(owner,created);
+        CREATE TABLE IF NOT EXISTS public_source_observations (
+            id TEXT PRIMARY KEY, owner TEXT NOT NULL, run_id TEXT NOT NULL,
+            source_id TEXT NOT NULL, observed REAL NOT NULL, data TEXT NOT NULL);
+        CREATE INDEX IF NOT EXISTS public_source_observations_scope
+            ON public_source_observations(owner,run_id,source_id,observed);
+    ''')
+
+
 def register(app):
     with app.extensions['studio_store'].connect() as db:
-        db.executescript('''
-            CREATE TABLE IF NOT EXISTS public_source_checks (
-                id TEXT PRIMARY KEY, owner TEXT NOT NULL, run_id TEXT NOT NULL,
-                created REAL NOT NULL, status TEXT NOT NULL, result TEXT);
-            CREATE INDEX IF NOT EXISTS public_source_checks_owner ON public_source_checks(owner,created);
-            CREATE TABLE IF NOT EXISTS public_source_observations (
-                id TEXT PRIMARY KEY, owner TEXT NOT NULL, run_id TEXT NOT NULL,
-                source_id TEXT NOT NULL, observed REAL NOT NULL, data TEXT NOT NULL);
-            CREATE INDEX IF NOT EXISTS public_source_observations_scope
-                ON public_source_observations(owner,run_id,source_id,observed);
-        ''')
+        initialize_schema(db)
     app.register_blueprint(bp)
 
 
