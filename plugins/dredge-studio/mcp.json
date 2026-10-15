@@ -1,0 +1,26 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "dredge-studio": {
+      "type": "streamable-http",
+      "url": "https://chatgpt-staging.dredgeoriongateway.com/chatgpt/mcp",
+      "extensions": {
+        "com.openai": {
+          "auth": {
+            "type": "oauth",
+            "client": {
+              "mode": "provided",
+              "clientId": "dredge-chatgpt-staging-20261011",
+              "tokenEndpointAuthMethod": "none"
+            },
+            "authorizationUrl": "https://chatgpt-staging.dredgeoriongateway.com/chatgpt/oauth/authorize",
+            "tokenUrl": "https://chatgpt-staging.dredgeoriongateway.com/chatgpt/oauth/token",
+            "baseScopes": [
+              "studio:read"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

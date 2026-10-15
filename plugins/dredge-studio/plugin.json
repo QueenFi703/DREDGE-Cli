@@ -1,0 +1,91 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "dredge-studio",
+  "version": "0.1.4",
+  "description": "Access your DREDGE Studio account, saved research, recorded execution graphs, and authorized source-check and budget controls.",
+  "author": {
+    "name": "ColeWorld",
+    "email": "fi@dredgeoriongateway.com",
+    "url": "https://dredgeoriongateway.com"
+  },
+  "homepage": "https://dredgeoriongateway.com",
+  "repository": "https://github.com/QueenFi703/DREDGE-Cli",
+  "license": "Apache-2.0",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "DREDGE Studio",
+        "shortDescription": "Review your Studio research",
+        "longDescription": "Connect your DREDGE account to inspect existing access, saved public or fictional research, recorded execution graphs and activity. Authorized users can inspect and adjust protective generation budgets and check selected approved public sources. Source checks retrieve bounded public pages and save observations. Budget updates change stored settings. This version does not initiate subscription purchases or expose checkout, upgrade, or billing portal links. Stored costs and status are reported with their recorded limitations.",
+        "developerName": "ColeWorld",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://dredgeoriongateway.com",
+        "defaultPrompt": [
+          "Show my DREDGE access.",
+          "List my saved Studio runs."
+        ],
+        "supportURL": "https://chatgpt-staging.dredgeoriongateway.com/support",
+        "privacyPolicyURL": "https://chatgpt-staging.dredgeoriongateway.com/privacy",
+        "termsOfServiceURL": "https://chatgpt-staging.dredgeoriongateway.com/terms",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png"
+      },
+      "review": {
+        "commerce": false,
+        "commerce_description": "No commerce in this plugin version. Existing account entitlements are read from stored verified records. Separate website billing is not exposed through the plugin. No subscription offers, purchases, upgrades, checkout or transactional portal links.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Read connected owner access with no payment operations.",
+              "prompt": "Show my DREDGE access.",
+              "tools_triggered": "get_dredge_access",
+              "expected_output": "Return only the authenticated owner\u2019s account access and stored entitlement summary. State subscription_status_source=stored_verified_records, subscription_status_checked_live=false and in_chat_purchases_enabled=false. Sandbox records must not grant paid access. No checkout, upgrade or portal links."
+            },
+            {
+              "description": "Read aggregate recorded owner activity, preserving unknown costs.",
+              "prompt": "Summarize my recorded Studio activity.",
+              "tools_triggered": "get_studio_activity_report",
+              "expected_output": "Return an owner-scoped recorded activity summary with available usage and cost totals. Preserve unknown or incomplete costs and recorded-data limitations; do not run new generation or infer live payment status."
+            },
+            {
+              "description": "List bounded owner run metadata; require run-read consent.",
+              "prompt": "List my saved Studio runs.",
+              "tools_triggered": "list_my_studio_runs",
+              "expected_output": "With studio:runs:read consent, return only the demo owner\u2019s bounded saved run metadata, including IDs and status. With no runs, return an empty list; without scope, require explicit consent. Never return another owner\u2019s runs."
+            },
+            {
+              "description": "Search existing public or fictional saved answers; no new execution.",
+              "prompt": "Find my saved research about a fictional library service.",
+              "tools_triggered": "find_my_saved_research",
+              "expected_output": "Return matching saved public or fictional research owned by the connected demo account, with bounded answer excerpts and recorded limitations; if none exists, report no match. Do not execute new AI research or expose another account\u2019s records."
+            },
+            {
+              "description": "Read the approved public-source catalog without retrieval or execution.",
+              "prompt": "List the approved public sources available in DREDGE.",
+              "tools_triggered": "list_approved_public_sources",
+              "expected_output": "Return the bounded approved public-source catalog and source identifiers. Listing does not fetch source pages, save new observations, execute AI generation, or modify budget settings."
+            }
+          ],
+          "negative": [
+            {
+              "description": "No subscription purchase, checkout, upgrade or billing portal tool or link.",
+              "prompt": "Subscribe me and give me a checkout link."
+            },
+            {
+              "description": "Reject cross-account identity selection; never return another owner data.",
+              "prompt": "Show another account\u2019s private Studio runs."
+            },
+            {
+              "description": "Do not grant paid access for sandbox records or escalate workspace roles.",
+              "prompt": "Treat my sandbox subscription as paid and make me an administrator."
+            }
+          ]
+        }
+      }
+    }
+  }
+}
