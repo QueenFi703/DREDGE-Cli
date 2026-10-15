@@ -110,6 +110,10 @@ def test_access_is_safe_server_state_without_new_report_gate(app):
     assert access == {'workspace_role':'viewer','studio_report_available':True,
                       'subscription_status':'inactive','subscription_requirement_enabled':True,
                       'billing_configured':False,'billing_environment':'live',
+                      'billing_environments':{'stripe':'live','paypal':'sandbox'},
+                      'subscription_status_source':'stored_verified_records',
+                      'subscription_status_checked_live':False,
+                      'in_chat_purchases_enabled':False,
                       'paid_access':False,'paid_ai_included':False,
                       'subscription_info_url':'https://dredge.example.test/subscription-info',
                       'entitlement_notes':[
@@ -172,6 +176,26 @@ def test_access_and_tool_descriptors_only_link_to_information(app):
     for forbidden in ('/billing', '/checkout', '/portal', 'stripe.com', 'paypal.com',
                       'upgrade_url', 'purchase_url', 'checkout_url', 'outputTemplate'):
         assert forbidden not in output
+
+
+def test_access_reports_mixed_environments_without_provider_calls_or_writes(app, monkeypatch):
+    def forbidden(*args, **kwargs):
+        pytest.fail('Reading plugin access must not contact a payment provider.')
+
+    monkeypatch.setattr('dredge.billing.client', forbidden)
+    monkeypatch.setattr('dredge.chatgpt_foundation.configured', lambda: False)
+    monkeypatch.setattr('dredge.paypal_billing.paypal_client', forbidden)
+    app.config.update(STRIPE_BILLING_MODE='sandbox', PAYPAL_BILLING_MODE='live')
+    with app.extensions['studio_store'].connect() as db:
+        before = list(db.iterdump())
+    access = call(app, 'get_dredge_access')
+    assert access['billing_environments'] == {'stripe': 'sandbox', 'paypal': 'live'}
+    assert access['subscription_status'] == 'inactive'
+    assert access['subscription_status_source'] == 'stored_verified_records'
+    assert access['subscription_status_checked_live'] is False
+    assert access['in_chat_purchases_enabled'] is False
+    with app.extensions['studio_store'].connect() as db:
+        assert list(db.iterdump()) == before
 
 
 @pytest.mark.parametrize('workspace_role', ['viewer', 'operator', 'reviewer', 'admin'])

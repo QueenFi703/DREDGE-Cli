@@ -115,6 +115,7 @@ def call_read_tool(name, arguments, *, scopes):
     if name == 'get_studio_activity_report':
         return activity_report_for_owner(current_user.get_id())
     if name == 'get_dredge_access':
+        from .paypal_billing import paypal_mode
         access = subscription_access(current_user.get_id())
         return {
             'workspace_role': role(),
@@ -125,6 +126,11 @@ def call_read_tool(name, arguments, *, scopes):
             'subscription_requirement_enabled': bool(current_app.config['BILLING_REQUIRE_SUBSCRIPTION']),
             'billing_configured': configured(),
             'billing_environment': mode(),
+            # Keep the legacy Stripe field; providers can use different modes.
+            'billing_environments': {'stripe': mode(), 'paypal': paypal_mode()},
+            'subscription_status_source': 'stored_verified_records',
+            'subscription_status_checked_live': False,
+            'in_chat_purchases_enabled': False,
             'subscription_info_url': subscription_info_url(),
             'entitlement_notes': [
                 'Paid access requires a verified, active, unexpired live subscription for this account. '
