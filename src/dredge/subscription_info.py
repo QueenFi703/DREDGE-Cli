@@ -49,3 +49,32 @@ def subscription_info_page():
 def register_subscription_info(app):
     """Register a public, GET-only informational page with no account operations."""
     app.register_blueprint(subscription_info_bp)
+
+
+@subscription_info_bp.get('/privacy')
+def plugin_privacy():
+    return _public_notice('plugin_privacy.html')
+
+
+@subscription_info_bp.get('/terms')
+def plugin_terms():
+    return _public_notice('plugin_terms.html')
+
+
+@subscription_info_bp.get('/support')
+def plugin_support():
+    return _public_notice('plugin_support.html')
+
+
+def _public_notice(filename):
+    response = Response(_PAGE.with_name(filename).read_text(encoding='utf-8'), mimetype='text/html')
+    response.headers['Content-Security-Policy'] = "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['Referrer-Policy'] = 'no-referrer'
+    return response
+
+
+@subscription_info_bp.get('/.well-known/openai-apps-challenge')
+def plugin_domain_challenge():
+    # Public ownership proof for this submission, never an account credential.
+    return Response('hzKn4qMTN_vkhBDOmiSKusERBAOkGyAuYY6I2enYfBs', mimetype='text/plain')

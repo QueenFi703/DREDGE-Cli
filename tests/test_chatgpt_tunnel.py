@@ -182,3 +182,15 @@ def test_real_uvicorn_inherited_unix_socket(app, monkeypatch, tmp_path):
             try: process.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 process.kill(); process.wait(timeout=5)
+
+
+@pytest.mark.parametrize('path', ['/privacy', '/terms', '/support', '/.well-known/openai-apps-challenge'])
+def test_submission_public_paths_preserve_ingress_boundaries(tunnel, path):
+    with TestClient(tunnel, base_url=ISSUER, client=None) as client:
+        assert client.get(path, headers=headers()).status_code == 200
+        assert client.head(path, headers=headers()).status_code == 200
+        for method in ('POST', 'PUT', 'PATCH', 'DELETE'):
+            assert client.request(method, path, headers=headers()).status_code == 404
+        assert client.get(path, headers=headers(Host='other.example.test')).status_code == 400
+    tcp = TestClient(tunnel, base_url=ISSUER, client=('127.0.0.1', 1234))
+    assert tcp.get(path, headers=headers()).status_code == 403

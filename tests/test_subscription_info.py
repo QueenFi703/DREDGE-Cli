@@ -101,3 +101,25 @@ def test_connected_plugin_uses_its_deployment_not_production_billing(app):
     app.config['CHATGPT_ISSUER'] = 'https://chatgpt-staging.example.test/billing'
     with app.app_context():
         assert subscription_info_url() is None
+
+
+@pytest.mark.parametrize('path', ['/privacy', '/terms', '/support'])
+def test_plugin_notices_are_static_nontransactional_and_get_only(app, path):
+    client = app.test_client()
+    response = client.get(path)
+    assert response.status_code == 200
+    assert client.get(path + '?owner=PRIVATE-OWNER').data == response.data
+    assert client.head(path).status_code == 200
+    parsed = PageElements()
+    parsed.feed(response.get_data(as_text=True))
+    assert not set(parsed.tags) & {'script', 'form', 'input', 'iframe'}
+    assert parsed.destinations == []
+    assert "form-action 'none'" in response.headers['Content-Security-Policy']
+    for method in ('post', 'put', 'patch', 'delete'):
+        assert getattr(client, method)(path).status_code == 405
+
+
+def test_submission_ownership_proof_is_public_text(app):
+    response = app.test_client().get('/.well-known/openai-apps-challenge')
+    assert response.mimetype == 'text/plain'
+    assert response.text == 'hzKn4qMTN_vkhBDOmiSKusERBAOkGyAuYY6I2enYfBs'
