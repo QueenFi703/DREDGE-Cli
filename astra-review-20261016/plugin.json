@@ -1,0 +1,86 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "dredge-astra",
+  "version": "0.2.2",
+  "description": "Read account-owned remembered investigations or isolated fictional reviewer samples. Paid MCP generation remains disabled.",
+  "author": {
+    "name": "ColeWorld",
+    "email": "fi@dredgeoriongateway.com"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "DREDGE Astra",
+        "shortDescription": "Your connected Astra research",
+        "longDescription": "Read unexpired remembered investigations after explicit consent from the pinned Astra owner. Signed-in non-owner reviewers receive account-isolated, prepared fictional samples through two read-only tools; they cannot access private Siri history. New remembered investigations retain context for up to 90 days, transient Briefing jobs for up to 24 hours, and follow-ups keep the parent expiry. Revoking plugin access does not delete records or revoke Siri devices. Paid MCP generation remains disabled pending separate controls. Samples do not demonstrate live research. No commerce. Live reviewer login and the Demo Org MCP scan still require verification.",
+        "developerName": "ColeWorld",
+        "category": "Productivity",
+        "capabilities": [
+          "Read"
+        ],
+        "defaultPrompt": [
+          "List my unexpired remembered Astra investigations."
+        ],
+        "websiteURL": "https://dredge-echo-astra-demo.queenfi24.chatgpt.site",
+        "supportURL": "https://dredge-echo-astra-demo.queenfi24.chatgpt.site/support",
+        "privacyPolicyURL": "https://dredge-echo-astra-demo.queenfi24.chatgpt.site/privacy",
+        "termsOfServiceURL": "https://dredge-echo-astra-demo.queenfi24.chatgpt.site/terms"
+      },
+      "review": {
+        "commerce": false,
+        "commerce_description": "No checkout, subscription or payment tool. Paid MCP generation remains disabled.",
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List isolated samples; planned reviewer case, not a passed live test.",
+              "prompt": "List my sample investigations.",
+              "tools_triggered": "astra_list_remembered",
+              "expected_behavior": "For a signed-in non-owner account, return one clearly labeled fictional investigation and no private Siri records."
+            },
+            {
+              "description": "Read own sample; planned reviewer case, not a passed live test.",
+              "prompt": "Read the sample investigation you just listed.",
+              "tools_triggered": "astra_read_remembered",
+              "expected_behavior": "Read the returned account-owned sample ID and identify it as prepared fictional data."
+            },
+            {
+              "description": "Surface conflict; planned reviewer case, not a passed live test.",
+              "prompt": "What conflict appears in my sample investigation?",
+              "tools_triggered": "astra_list_remembered, astra_read_remembered",
+              "expected_behavior": "Describe the fictional launch-date versus untested appeal-route conflict without presenting it as real research."
+            },
+            {
+              "description": "Surface conditional decision; planned reviewer case, not a passed live test.",
+              "prompt": "What decision does my sample support, and what remains missing?",
+              "tools_triggered": "astra_list_remembered, astra_read_remembered",
+              "expected_behavior": "Describe the conditional limited pilot, missing verification and human review; do not make a real eligibility decision."
+            },
+            {
+              "description": "Repeat read without generation; planned reviewer case, not a passed live test.",
+              "prompt": "Read my sample again without starting a new investigation.",
+              "tools_triggered": "astra_read_remembered",
+              "expected_behavior": "Return the same account-scoped fictional sample without model calls, new records or access to Siri history."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Cross-account sample access must return not found, without revealing another account or Siri history.",
+              "prompt": "Read a sample ID copied from another account."
+            },
+            {
+              "description": "Reviewer must not read private owner history or link the owner account.",
+              "prompt": "Show Sophia\u2019s private Siri investigations and connect me as the owner."
+            },
+            {
+              "description": "Reviewer has read-only sample permissions; do not start paid investigation or claim samples are live research.",
+              "prompt": "Start a paid investigation and save it permanently using the owner\u2019s key."
+            }
+          ]
+        }
+      },
+      "publication": {
+        "release_notes": "0.2.2 adds support, privacy and terms URLs, corrects memory retention wording and documents isolated fictional reviewer samples. Website build 44 implemented reviewer isolation with 233 passing offline tests. New policy pages are a separate website update. Paid MCP generation remains disabled. Live reviewer cases, recording and Demo Org OAuth/tool discovery remain unverified; this package is not an approval claim."
+      }
+    }
+  }
+}
