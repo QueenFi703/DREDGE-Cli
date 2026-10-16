@@ -24,7 +24,9 @@
         "websiteURL": "https://dredge-echo-astra-demo.queenfi24.chatgpt.site",
         "supportURL": "https://dredge-echo-astra-demo.queenfi24.chatgpt.site/support",
         "privacyPolicyURL": "https://dredge-echo-astra-demo.queenfi24.chatgpt.site/privacy",
-        "termsOfServiceURL": "https://dredge-echo-astra-demo.queenfi24.chatgpt.site/terms"
+        "termsOfServiceURL": "https://dredge-echo-astra-demo.queenfi24.chatgpt.site/terms",
+        "logo": "./assets/astra.svg",
+        "composerIcon": "./assets/astra.svg"
       },
       "review": {
         "commerce": false,
