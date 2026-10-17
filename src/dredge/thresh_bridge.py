@@ -136,6 +136,13 @@ def register_thresh_bridge(app, *, store=None, subscription_check=None):
     def mcp_output(data, is_error=False):
         return {'content': [{'type': 'text', 'text': json.dumps(data, separators=(',', ':'))}], 'isError': is_error}
 
+    @bp.get('/.well-known/openai-apps-challenge')
+    def openai_apps_challenge():
+        token = os.environ.get('THRESH_OPENAI_DOMAIN_TOKEN', '')
+        if not re.fullmatch(r'[A-Za-z0-9_-]{32,128}', token):
+            return 'Domain verification is not configured.', 404
+        return token, 200, {'Content-Type': 'text/plain; charset=utf-8'}
+
     @bp.get('/.well-known/oauth-protected-resource/mcp')
     def oauth_resource_metadata():
         root = origin()
