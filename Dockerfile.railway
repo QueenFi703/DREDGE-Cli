@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY requirements.txt ./
 COPY pyproject.toml ./
+COPY README.md LICENSE COPYRIGHT AUTHORS.md ./
 COPY src/ ./src/
 
 RUN python -m venv /opt/venv && \
@@ -51,7 +52,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=builder /opt/venv /opt/venv
 COPY src/ ./src/
 COPY wsgi.py .
-COPY README.md LICENSE ./
+COPY README.md LICENSE COPYRIGHT AUTHORS.md ./
 COPY start.sh .
 COPY docker-entrypoint.sh .
 

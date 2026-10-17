@@ -2,6 +2,8 @@
 
 This directory contains all documentation files for the DREDGE project.
 
+Copyright © 2026 Sophia Cole (doing business as COLEWORLD), for copyrightable contributions owned by Sophia Cole. See [COPYRIGHT](../COPYRIGHT) and [LICENSE](../LICENSE); applicable third-party licenses and attributions remain unchanged.
+
 ## Contents
 
 - **ARCHITECTURE.txt** - System architecture overview
