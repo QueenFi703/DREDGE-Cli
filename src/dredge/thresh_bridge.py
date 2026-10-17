@@ -151,16 +151,24 @@ def register_thresh_bridge(app, *, store=None, subscription_check=None):
         return jsonify(resource=root+'/mcp', authorization_servers=[root],
                        scopes_supported=['thresh:use'], bearer_methods_supported=['header'])
 
-    @bp.get('/.well-known/oauth-authorization-server')
-    def oauth_server_metadata():
+    def authorization_server_metadata():
         root = origin()
         if not root:
+            return None
+        return dict(issuer=root, authorization_endpoint=root+'/oauth/authorize',
+                    token_endpoint=root+'/oauth/token', registration_endpoint=root+'/oauth/register',
+                    response_types_supported=['code'], response_modes_supported=['query'],
+                    grant_types_supported=['authorization_code'],
+                    code_challenge_methods_supported=['S256'], token_endpoint_auth_methods_supported=['none'],
+                    scopes_supported=['thresh:use'])
+
+    @bp.get('/.well-known/oauth-authorization-server')
+    @bp.get('/.well-known/openid-configuration')
+    def oauth_server_metadata():
+        metadata = authorization_server_metadata()
+        if metadata is None:
             return jsonify(error='OAuth origin is unavailable.'), 503
-        return jsonify(issuer=root, authorization_endpoint=root+'/oauth/authorize',
-                       token_endpoint=root+'/oauth/token', registration_endpoint=root+'/oauth/register',
-                       response_types_supported=['code'], grant_types_supported=['authorization_code'],
-                       code_challenge_methods_supported=['S256'], token_endpoint_auth_methods_supported=['none'],
-                       scopes_supported=['thresh:use'])
+        return jsonify(metadata)
 
     @bp.post('/oauth/register')
     def oauth_register():
