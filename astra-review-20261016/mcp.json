@@ -1,0 +1,9 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "dredge-astra": {
+      "type": "streamable-http",
+      "url": "https://dredge-echo-astra-demo.queenfi24.chatgpt.site/mcp"
+    }
+  }
+}
