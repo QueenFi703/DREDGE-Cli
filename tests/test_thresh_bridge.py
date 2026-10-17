@@ -244,6 +244,14 @@ def test_oauth_rejects_unsafe_redirect_and_mcp_requires_bearer(bridge):
     response=client.post('/mcp',json=call)
     assert response.status_code==401 and 'resource_metadata=' in response.headers['WWW-Authenticate']
 
+def test_openai_domain_challenge_is_explicit_and_fail_closed(bridge, monkeypatch):
+    app,_,_=bridge; client=app.test_client()
+    monkeypatch.delenv('THRESH_OPENAI_DOMAIN_TOKEN',raising=False)
+    assert client.get('/.well-known/openai-apps-challenge').status_code==404
+    monkeypatch.setenv('THRESH_OPENAI_DOMAIN_TOKEN','synthetic_openai_domain_token_123456789')
+    response=client.get('/.well-known/openai-apps-challenge')
+    assert response.status_code==200 and response.get_data(as_text=True)=='synthetic_openai_domain_token_123456789'
+
 def test_oauth_login_returns_only_to_fixed_resume_route():
     from dredge.auth import studio_return_path
     app=Flask(__name__); app.secret_key='synthetic-cookie'
