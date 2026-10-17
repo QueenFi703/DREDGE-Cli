@@ -1,4 +1,7 @@
 """Synthetic account linking; no production credentials, payments, or network calls."""
+import base64
+import hashlib
+import json
 import sqlite3
 import time
 from contextlib import contextmanager
@@ -202,3 +205,48 @@ def test_pending_link_returns_only_to_the_fixed_local_confirmation_route():
     with app.test_request_context('/'):
         session['thresh_pending_link']='https://attacker.invalid/'
         assert studio_return_path()=='/thresh/link'
+
+def test_oauth_metadata_registration_pkce_reviewer_grant_and_mcp(bridge, monkeypatch):
+    app,_,_=bridge
+    reviewer_code='synthetic-reviewer-code-12345'
+    monkeypatch.setenv('THRESH_REVIEWER_CODE_HASH',hashlib.sha256(reviewer_code.encode()).hexdigest())
+    monkeypatch.setenv('THRESH_REVIEWER_EXPIRES',str(int(time.time())+3600))
+    client=client_for(app,'owner-b')
+    metadata=client.get('/.well-known/oauth-authorization-server').json
+    assert metadata['code_challenge_methods_supported']==['S256']
+    redirect_uri='https://chatgpt.com/connector/oauth/callback'
+    registered=client.post('/oauth/register',json={'redirect_uris':[redirect_uri]})
+    assert registered.status_code==201
+    client_id=registered.json['client_id']
+    verifier='v'*43
+    code_challenge=base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b'=').decode()
+    query={'client_id':client_id,'redirect_uri':redirect_uri,'response_type':'code','state':'state-1',
+           'code_challenge':code_challenge,'code_challenge_method':'S256','scope':'thresh:use'}
+    consent=client.get('/oauth/authorize',query_string=query)
+    assert consent.status_code==200 and b'Reviewer access code' in consent.data
+    with client.session_transaction() as saved: csrf=saved['thresh_oauth_csrf']
+    allowed=client.post('/oauth/authorize',data={'csrf':csrf,'decision':'allow','reviewer_code':reviewer_code})
+    assert allowed.status_code==302
+    code=parse_qs(urlsplit(allowed.location).query)['code'][0]
+    token=client.post('/oauth/token',data={'grant_type':'authorization_code','client_id':client_id,
+        'redirect_uri':redirect_uri,'code':code,'code_verifier':verifier})
+    assert token.status_code==200 and token.json['token_type']=='Bearer'
+    workflow={'workflows':[{'path':'.github/workflows/ci.yml','content':'runs-on: windows-latest'}]}
+    call={'jsonrpc':'2.0','id':1,'method':'tools/call','params':{'name':'thresh_review_workflows','arguments':workflow}}
+    result=client.post('/mcp',json=call,headers={'Authorization':'Bearer '+token.json['access_token']})
+    output=json.loads(result.json['result']['content'][0]['text'])
+    assert result.status_code==200 and len(output['findings'])==2 and output['writes_performed']==0
+
+def test_oauth_rejects_unsafe_redirect_and_mcp_requires_bearer(bridge):
+    app,_,_=bridge; client=app.test_client()
+    assert client.post('/oauth/register',json={'redirect_uris':['http://attacker.invalid/callback']}).status_code==400
+    call={'jsonrpc':'2.0','id':1,'method':'tools/call','params':{'name':'thresh_review_workflows','arguments':{'workflows':[{'path':'.github/workflows/ci.yml','content':'jobs: {}'}]}}}
+    response=client.post('/mcp',json=call)
+    assert response.status_code==401 and 'resource_metadata=' in response.headers['WWW-Authenticate']
+
+def test_oauth_login_returns_only_to_fixed_resume_route():
+    from dredge.auth import studio_return_path
+    app=Flask(__name__); app.secret_key='synthetic-cookie'
+    with app.test_request_context('/'):
+        session['thresh_oauth_pending']={'redirect_uri':'https://attacker.invalid'}
+        assert studio_return_path()=='/oauth/authorize/resume'
