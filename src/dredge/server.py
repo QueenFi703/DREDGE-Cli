@@ -107,6 +107,8 @@ def create_app():
     register_studio(app)
     from .billing import register_billing
     register_billing(app)
+    from .thresh_bridge import register_thresh_bridge
+    register_thresh_bridge(app)
     from .casework import register_casework
     register_casework(app)
     from .client_portal import register_clients

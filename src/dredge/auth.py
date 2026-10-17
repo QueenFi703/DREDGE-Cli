@@ -161,6 +161,8 @@ def login():
 
 def studio_return_path():
     """Restore only a canonical Studio run ID, never an arbitrary redirect URL."""
+    if session.get('thresh_pending_link'):
+        return '/thresh/link'
     value = session.pop('studio_return_run', None)
     try:
         run_id = str(UUID(value))
