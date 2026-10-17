@@ -5,6 +5,7 @@ create charges, assign Studio roles, or expose investigation data.
 """
 import hashlib
 import hmac
+import json
 import os
 import re
 import secrets
@@ -39,6 +40,10 @@ def register_thresh_bridge(app, *, store=None, subscription_check=None):
           PRIMARY KEY(site_id,subject),UNIQUE(site_id,owner));
         CREATE TABLE IF NOT EXISTS thresh_link_challenges(hash TEXT PRIMARY KEY,site_id TEXT,subject TEXT,expires INTEGER,
           UNIQUE(site_id,subject));
+        CREATE TABLE IF NOT EXISTS thresh_repair_requests(
+          request_id TEXT PRIMARY KEY,site_id TEXT NOT NULL,subject TEXT NOT NULL,owner TEXT NOT NULL,
+          repository TEXT NOT NULL,base_sha TEXT NOT NULL,summary TEXT NOT NULL,status TEXT NOT NULL,
+          created INTEGER NOT NULL,request_hash TEXT NOT NULL UNIQUE);
         ''')
     bp = Blueprint('thresh_bridge', __name__)
 
@@ -61,6 +66,33 @@ def register_thresh_bridge(app, *, store=None, subscription_check=None):
                 or '\x00' in body['subject']):
             return None
         return body['subject']
+
+    def repair_request():
+        if request.content_length is None or request.content_length > 16384:
+            return None
+        authorization = request.headers.get('Authorization', '')
+        if not authorization.isascii() or not hmac.compare_digest(authorization, 'Bearer '+key):
+            return None
+        body = request.get_json(silent=True)
+        expected = {'site_id', 'subject', 'entitlement', 'repository', 'base_sha', 'approval', 'findings'}
+        if (not isinstance(body, dict) or set(body) != expected or body.get('site_id') != SITE_ID
+                or body.get('entitlement') != 'thresh:use' or body.get('approval') != 'SUBMIT_REPAIR_REQUEST'
+                or not isinstance(body.get('subject'), str) or not 1 <= len(body['subject']) <= 256
+                or '\x00' in body['subject'] or not isinstance(body.get('repository'), str)
+                or not re.fullmatch(r'[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?/[A-Za-z0-9][A-Za-z0-9_.-]{0,99}', body['repository'])
+                or '..' in body['repository']
+                or not isinstance(body.get('base_sha'), str) or not re.fullmatch(r'[0-9a-fA-F]{40}', body['base_sha'])
+                or not isinstance(body.get('findings'), list) or not 1 <= len(body['findings']) <= 40):
+            return None
+        allowed_checks = {'windows-runner-compatibility', 'explicit-permissions'}
+        for finding in body['findings']:
+            if (not isinstance(finding, dict) or set(finding) != {'path', 'check'}
+                    or finding.get('check') not in allowed_checks
+                    or not isinstance(finding.get('path'), str)
+                    or not re.fullmatch(r'\.github/workflows/[A-Za-z0-9][A-Za-z0-9_.-]*\.ya?ml', finding['path'])):
+                return None
+        body['base_sha'] = body['base_sha'].lower()
+        return body
 
     def csrf_ok():
         origin = request.headers.get('Origin')
@@ -156,6 +188,35 @@ def register_thresh_bridge(app, *, store=None, subscription_check=None):
         active = bool(link and not link['revoked'] and subscription_check(link['owner']))
         return jsonify(site_id=SITE_ID, subject=subject, entitlement='thresh:use', active=active,
                        billing_mode='live' if active else 'unverified', expires_at=int(time.time())+60)
+
+    @bp.post('/api/thresh/repair-requests')
+    def create_repair_request():
+        body = repair_request()
+        if body is None:
+            return jsonify(error='Authorized, bounded Thresh repair request required.'), 401
+        with store.connect() as db:
+            link = db.execute('SELECT owner,revoked FROM thresh_links WHERE site_id=? AND subject=?',
+                              (SITE_ID, body['subject'])).fetchone()
+            if not link or link['revoked'] or not subscription_check(link['owner']):
+                return jsonify(error='A linked, active DREDGE subscription is required.'), 403
+            summary = json.dumps(body['findings'], sort_keys=True, separators=(',', ':'))
+            digest = hashlib.sha256(json.dumps({
+                'site_id': SITE_ID, 'subject': body['subject'], 'repository': body['repository'],
+                'base_sha': body['base_sha'], 'findings': body['findings']
+            }, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+            existing = db.execute('SELECT request_id,status,created FROM thresh_repair_requests WHERE request_hash=?',
+                                  (digest,)).fetchone()
+            if existing:
+                return jsonify(request_id=existing['request_id'], status=existing['status'],
+                               created_at=existing['created'], deduplicated=True,
+                               repository=body['repository'], base_sha=body['base_sha'])
+            request_id = 'trr_'+secrets.token_hex(12)
+            created = int(time.time())
+            db.execute('INSERT INTO thresh_repair_requests VALUES(?,?,?,?,?,?,?,?,?,?)',
+                       (request_id, SITE_ID, body['subject'], link['owner'], body['repository'],
+                        body['base_sha'], summary, 'pending-maintainer-review', created, digest))
+        return jsonify(request_id=request_id, status='pending-maintainer-review', created_at=created,
+                       deduplicated=False, repository=body['repository'], base_sha=body['base_sha']), 201
 
     app.register_blueprint(bp)
     return True

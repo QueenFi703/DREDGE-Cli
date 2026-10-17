@@ -54,6 +54,11 @@ def confirm(client, token, headers=ORIGIN):
 def status(app, subject='site-alice'):
     return app.test_client().post('/api/thresh/entitlement',json=identity(subject),headers=HEADERS)
 
+def repair(app, subject='site-alice', **changes):
+    body={**identity(subject),'repository':'QueenFi703/example','base_sha':'a'*40,
+          'approval':'SUBMIT_REPAIR_REQUEST','findings':[{'path':'.github/workflows/ci.yml','check':'explicit-permissions'}],**changes}
+    return app.test_client().post('/api/thresh/repair-requests',json=body,headers=HEADERS)
+
 def test_disabled_by_default_creates_no_routes_or_tables(monkeypatch):
     monkeypatch.delenv('THRESH_BRIDGE_KEY',raising=False)
     app=Flask(__name__)
@@ -107,6 +112,33 @@ def test_entitlement_rechecks_subscription_state(bridge):
     assert status(app).json['active'] is True
     eligible['owner-a']=False
     assert status(app).json['active'] is False
+
+def test_repair_request_requires_a_linked_paid_owner_and_stores_no_source(bridge):
+    app,store,_=bridge
+    assert repair(app).status_code==403
+    assert confirm(client_for(app,'owner-a'),challenge(app)).status_code==200
+    response=repair(app)
+    assert response.status_code==201 and response.json['status']=='pending-maintainer-review'
+    with store.connect() as db:
+        row=db.execute('SELECT * FROM thresh_repair_requests').fetchone()
+    assert row['owner']=='owner-a' and 'content' not in row.keys() and 'name: CI' not in row['summary']
+
+def test_repair_request_is_idempotent_and_does_not_mutate_a_repository(bridge):
+    app,_,_=bridge
+    assert confirm(client_for(app,'owner-a'),challenge(app)).status_code==200
+    first=repair(app); second=repair(app)
+    assert first.status_code==201 and second.status_code==200
+    assert first.json['request_id']==second.json['request_id'] and second.json['deduplicated'] is True
+
+def test_repair_request_rechecks_subscription_and_rejects_unbounded_payloads(bridge):
+    app,_,eligible=bridge
+    assert confirm(client_for(app,'owner-a'),challenge(app)).status_code==200
+    eligible['owner-a']=False
+    assert repair(app).status_code==403
+    eligible['owner-a']=True
+    assert repair(app,approval='YES').status_code==401
+    assert repair(app,repository='../private').status_code==401
+    assert repair(app,findings=[{'path':'secrets.txt','check':'explicit-permissions'}]).status_code==401
 
 def test_one_use_and_expired_challenges(bridge):
     app,store,_=bridge; token=challenge(app); client=client_for(app,'owner-a')
