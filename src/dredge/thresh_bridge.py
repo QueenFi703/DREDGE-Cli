@@ -163,7 +163,6 @@ def register_thresh_bridge(app, *, store=None, subscription_check=None):
                     scopes_supported=['thresh:use'])
 
     @bp.get('/.well-known/oauth-authorization-server')
-    @bp.get('/.well-known/openid-configuration')
     def oauth_server_metadata():
         metadata = authorization_server_metadata()
         if metadata is None:

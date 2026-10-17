@@ -215,7 +215,7 @@ def test_oauth_metadata_registration_pkce_reviewer_grant_and_mcp(bridge, monkeyp
     metadata=client.get('/.well-known/oauth-authorization-server').json
     assert metadata['code_challenge_methods_supported']==['S256']
     assert metadata['response_modes_supported']==['query']
-    assert client.get('/.well-known/openid-configuration').json==metadata
+    assert client.get('/.well-known/openid-configuration').status_code==404
     redirect_uri='https://chatgpt.com/connector/oauth/callback'
     registered=client.post('/oauth/register',json={'redirect_uris':[redirect_uri]})
     assert registered.status_code==201
