@@ -195,6 +195,7 @@ def register_thresh_bridge(app, *, store=None, subscription_check=None):
         if body is None:
             return jsonify(error='Authorized, bounded Thresh repair request required.'), 401
         with store.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
             link = db.execute('SELECT owner,revoked FROM thresh_links WHERE site_id=? AND subject=?',
                               (SITE_ID, body['subject'])).fetchone()
             if not link or link['revoked'] or not subscription_check(link['owner']):

@@ -2,6 +2,7 @@
 import sqlite3
 import time
 from contextlib import contextmanager
+from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlsplit, parse_qs
 import pytest
 from flask import Flask, session
@@ -129,6 +130,16 @@ def test_repair_request_is_idempotent_and_does_not_mutate_a_repository(bridge):
     first=repair(app); second=repair(app)
     assert first.status_code==201 and second.status_code==200
     assert first.json['request_id']==second.json['request_id'] and second.json['deduplicated'] is True
+
+def test_concurrent_identical_repair_requests_create_one_record(bridge):
+    app,store,_=bridge
+    assert confirm(client_for(app,'owner-a'),challenge(app)).status_code==200
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        responses=list(pool.map(lambda _: repair(app), range(2)))
+    assert sorted(r.status_code for r in responses)==[200,201]
+    assert len({r.json['request_id'] for r in responses})==1
+    with store.connect() as db:
+        assert db.execute('SELECT COUNT(*) FROM thresh_repair_requests').fetchone()[0]==1
 
 def test_repair_request_rechecks_subscription_and_rejects_unbounded_payloads(bridge):
     app,_,eligible=bridge
