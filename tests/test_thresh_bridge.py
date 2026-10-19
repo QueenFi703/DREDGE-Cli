@@ -246,6 +246,29 @@ def test_oauth_rejects_unsafe_redirect_and_mcp_requires_bearer(bridge):
     response=client.post('/mcp',json=call)
     assert response.status_code==401 and 'resource_metadata=' in response.headers['WWW-Authenticate']
 
+@pytest.mark.parametrize('decision', ['allow', 'deny'])
+def test_oauth_consent_csp_allows_only_validated_callback_origin(bridge, decision):
+    app,_,_=bridge
+    client=client_for(app,'owner-a')
+    callback='https://chatgpt.com/connector/oauth/callback'
+    registered=client.post('/oauth/register',json={'redirect_uris':[callback]})
+    query={'client_id':registered.json['client_id'],'redirect_uri':callback,
+           'response_type':'code','state':'synthetic-state','code_challenge':'v'*43,
+           'code_challenge_method':'S256','scope':'thresh:use'}
+    consent=client.get('/oauth/authorize',query_string=query)
+    assert "form-action 'self' https://chatgpt.com;" in consent.headers['Content-Security-Policy']
+    assert "default-src 'none';" in consent.headers['Content-Security-Policy']
+    with client.session_transaction() as saved: csrf=saved['thresh_oauth_csrf']
+    response=client.post('/oauth/authorize',data={'csrf':csrf,'decision':decision})
+    assert response.status_code==302
+    assert "form-action 'self' https://chatgpt.com;" in response.headers['Content-Security-Policy']
+    metadata=client.get('/.well-known/oauth-authorization-server')
+    assert "form-action 'self';" in metadata.headers['Content-Security-Policy']
+    query['redirect_uri']='https://unregistered.invalid/callback'
+    rejected=client.get('/oauth/authorize',query_string=query)
+    assert rejected.status_code==400
+    assert 'unregistered.invalid' not in rejected.headers['Content-Security-Policy']
+
 def test_openai_domain_challenge_is_explicit_and_fail_closed(bridge, monkeypatch):
     app,_,_=bridge; client=app.test_client()
     monkeypatch.delenv('THRESH_OPENAI_DOMAIN_TOKEN',raising=False)
