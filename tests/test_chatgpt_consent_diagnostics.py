@@ -222,7 +222,8 @@ def test_no_credentials_private_data_or_hashes_in_diagnostics(app, caplog):
         assert value not in caplog.text
         assert hashlib.sha256(value.encode()).hexdigest() not in caplog.text
     allowed = {'schema', 'event', 'request_id', 'method', 'outcome', 'commit_phase',
-               'transaction_stage', 'age_seconds', 'status'}
+               'transaction_stage', 'age_seconds', 'status', 'response_kind',
+               'callback_origin_matches', 'callback_path_matches'}
     assert events(caplog)
     assert all(set(item) <= allowed for item in events(caplog))
 
@@ -340,3 +341,232 @@ def test_stream_failure_does_not_print_exception_or_break_auth(app, capsys, monk
     fields = begin(client)
     assert submit(client, fields).status_code == 302
     assert 'CANARY' not in capsys.readouterr().err
+
+
+@pytest.mark.parametrize('decision,kind', [('allow', 'code_present'), ('deny', 'error_present')])
+def test_prepared_redirect_classifies_presence_without_claiming_delivery(app, caplog, decision, kind):
+    client = app.test_client()
+    sign_in(client)
+    fields = begin(client, state='CANARY-redirect-state')
+    caplog.clear()
+    response = submit(client, fields, decision=decision)
+    recorded = events(caplog)
+    assert response.status_code == 302
+    assert all('response_kind' not in item for item in recorded[:-1])
+    assert recorded[-1]['response_kind'] == kind
+    assert recorded[-1]['callback_origin_matches'] is True
+    assert recorded[-1]['callback_path_matches'] is True
+    assert 'CANARY' not in caplog.text and response.location not in caplog.text
+
+
+def test_allow_decision_can_produce_error_redirect_and_is_not_mislabeled(app, caplog, monkeypatch):
+    client = app.test_client()
+    sign_in(client)
+    fields = begin(client)
+    callback = app.config['CHATGPT_REDIRECT_URI']
+    prepared = app.response_class('CANARY-private-body', status=302,
+        headers={'Location': callback + '?error=CANARY-error&state=CANARY-state',
+                 'X-Private': 'CANARY-private-header'})
+    monkeypatch.setattr(app.extensions['chatgpt_oauth_server'],
+                        'create_authorization_response', lambda *a, **k: prepared)
+    caplog.clear()
+    response = submit(client, fields)
+    assert response.status_code == 302
+    assert response.data == b'CANARY-private-body'
+    assert response.headers['X-Private'] == 'CANARY-private-header'
+    assert response.location == prepared.location
+    assert events(caplog)[-1]['outcome'] == 'allow_response'
+    assert events(caplog)[-1]['response_kind'] == 'error_present'
+    assert database_state(app)[0] is not None
+    assert 'CANARY' not in caplog.text
+
+
+@pytest.mark.parametrize('suffix,kind', [
+    ('?code=CANARY-code&state=CANARY-state&iss=CANARY-issuer', 'code_present'),
+    ('?error=CANARY-error&error_description=CANARY-detail', 'error_present'),
+    ('?code=CANARY-code&error=CANARY-error', 'code_and_error'),
+    ('?state=CANARY-state', 'neither'),
+    ('', 'neither'),
+    ('?code=', 'code_present'),
+    ('?%63ode=CANARY-code', 'code_present'),
+    ('?code=CANARY-one&code=CANARY-two', 'unclassified'),
+    ('?%ZZ=CANARY-invalid', 'unclassified'),
+    ('?%FF=CANARY-invalid', 'unclassified'),
+    ('?=CANARY-invalid', 'unclassified'),
+    ('?code=CANARY-code#CANARY-fragment', 'unclassified'),
+    ('?code=CANARY-code ' , 'unclassified'),
+    ('?code=' + 'CANARY-oversized' * 1000, 'unclassified'),
+    ('?' + '&'.join('x%d=CANARY-value' % i for i in range(33)), 'unclassified'),
+])
+def test_bounded_redirect_shape_parser_never_emits_values(app, caplog, suffix, kind):
+    callback = app.config['CHATGPT_REDIRECT_URI']
+    response = app.response_class('CANARY-body', status=302,
+                                  headers={'Location': callback + suffix})
+    before = (response.status_code, response.data, list(response.headers))
+    with app.test_request_context(oauth.AUTHORIZE_PATH, method='POST', base_url=ISSUER):
+        oauth._consent_start()
+        oauth._consent_classify_response(response)
+        oauth._consent_emit('http_response_prepared', status=response.status_code)
+    assert events(caplog)[-1]['response_kind'] == kind
+    assert 'CANARY' not in caplog.text
+    assert callback not in caplog.text
+    assert before == (response.status_code, response.data, list(response.headers))
+    if kind == 'unclassified':
+        assert 'callback_origin_matches' not in events(caplog)[-1]
+        assert 'callback_path_matches' not in events(caplog)[-1]
+
+
+@pytest.mark.parametrize('location,origin,path', [
+    ('https://other.example.test/connector/callback?code=CANARY-code', False, True),
+    ('https://chatgpt.example.test/different?error=CANARY-error', True, False),
+    ('https://other.example.test/different?code=CANARY-code', False, False),
+    ('https://chatgpt.example.test:443/connector/callback?code=CANARY-code', False, True),
+    ('https://chatgpt.example.test/connector/%63allback?code=CANARY-code', True, False),
+])
+def test_origin_and_path_comparisons_are_exact_and_independent(app, caplog, location, origin, path):
+    response = app.response_class(status=302, headers={'Location': location})
+    with app.test_request_context(oauth.AUTHORIZE_PATH, method='POST', base_url=ISSUER):
+        oauth._consent_start()
+        oauth._consent_classify_response(response)
+        oauth._consent_emit('http_response_prepared', status=302)
+    last = events(caplog)[-1]
+    assert last['callback_origin_matches'] is origin
+    assert last['callback_path_matches'] is path
+    assert 'CANARY' not in caplog.text and location not in caplog.text
+
+
+@pytest.mark.parametrize('locations,kind', [
+    ([], 'no_location'),
+    ([''], 'unclassified'),
+    (['/CANARY-relative?code=CANARY-code'], 'unclassified'),
+    (['http://chatgpt.example.test/connector/callback?code=CANARY-code'], 'unclassified'),
+    (['https://CANARY-user:CANARY-password@chatgpt.example.test/connector/callback'], 'unclassified'),
+    (['https://chatgpt.example.test:bad/connector/callback'], 'unclassified'),
+    (['https://chatgpt.example.test:99999/connector/callback'], 'unclassified'),
+    (['https://[CANARY-broken/connector/callback'], 'unclassified'),
+    (['https://chatgpt.example.test/one', 'https://chatgpt.example.test/two'], 'unclassified'),
+])
+def test_missing_malformed_and_duplicate_locations_are_safe(app, caplog, locations, kind):
+    response = app.response_class('CANARY-body', status=302)
+    for location in locations:
+        response.headers.add('Location', location)
+    before = list(response.headers)
+    with app.test_request_context(oauth.AUTHORIZE_PATH, method='POST', base_url=ISSUER):
+        oauth._consent_start()
+        oauth._consent_classify_response(response)
+        oauth._consent_emit('http_response_prepared', status=302)
+    assert events(caplog)[-1]['response_kind'] == kind
+    assert 'callback_origin_matches' not in events(caplog)[-1]
+    assert 'CANARY' not in caplog.text
+    assert list(response.headers) == before
+
+
+@pytest.mark.parametrize('failure', ['parser', 'header_access', 'configuration'])
+def test_classifier_failure_is_silent_and_response_untouched(app, caplog, monkeypatch, failure):
+    def fail(*args, **kwargs):
+        raise RuntimeError('CANARY-parser-private-exception')
+    response = app.response_class('CANARY-body', status=302,
+        headers={'Location': app.config['CHATGPT_REDIRECT_URI'] + '?code=CANARY-code'})
+    before = (response.status_code, response.data, list(response.headers))
+    if failure == 'parser':
+        monkeypatch.setattr(oauth, 'urlsplit', fail)
+    elif failure == 'header_access':
+        monkeypatch.setattr(response.headers, 'getlist', fail)
+    else:
+        monkeypatch.setitem(app.config, 'CHATGPT_REDIRECT_URI', object())
+    with app.test_request_context(oauth.AUTHORIZE_PATH, method='POST', base_url=ISSUER):
+        oauth._consent_start()
+        oauth._consent_classify_response(response)
+        oauth._consent_emit('http_response_prepared', status=302)
+    assert events(caplog)[-1]['response_kind'] == 'unclassified'
+    assert 'CANARY' not in caplog.text
+    assert before == (response.status_code, response.data, list(response.headers))
+
+
+def test_new_fields_are_allowlisted_and_type_checked(app, caplog):
+    with app.test_request_context(oauth.AUTHORIZE_PATH, method='POST', base_url=ISSUER):
+        oauth._consent_start()
+        g.chatgpt_consent_diagnostic.update({
+            'response_kind': 'CANARY-unknown-kind',
+            'callback_origin_matches': 'CANARY-not-bool',
+            'callback_path_matches': 1,
+        })
+        oauth._consent_emit('http_response_prepared', status=302)
+    last = events(caplog)[-1]
+    assert not {'response_kind', 'callback_origin_matches', 'callback_path_matches'} & set(last)
+    assert 'CANARY' not in caplog.text
+
+
+@pytest.mark.parametrize('decision', ['allow', 'deny'])
+def test_redirect_parser_failure_cannot_break_live_handler_semantics(app, caplog, monkeypatch, decision):
+    def fail(*args, **kwargs):
+        raise RuntimeError('CANARY-classifier-exception')
+    client = app.test_client()
+    sign_in(client)
+    fields = begin(client)
+    monkeypatch.setattr(oauth, 'unquote_plus', fail)
+    caplog.clear()
+    response = submit(client, fields, decision=decision)
+    assert response.status_code == 302
+    params = parse_qs(urlsplit(response.location).query)
+    assert events(caplog)[-1]['response_kind'] == 'unclassified'
+    if decision == 'allow':
+        assert exchange(client, params['code'][0]).status_code == 200
+    else:
+        assert params['error'] == ['access_denied'] and 'code' not in params
+    assert 'CANARY' not in caplog.text
+    assert submit(client, fields).status_code == 403
+
+
+@pytest.mark.parametrize('count,kind', [(32, 'neither'), (33, 'unclassified')])
+def test_query_field_limit_is_explicit(app, caplog, count, kind):
+    location = app.config['CHATGPT_REDIRECT_URI'] + '?' + '&'.join(
+        'x%d=CANARY-value' % i for i in range(count))
+    response = app.response_class(status=302, headers={'Location': location})
+    with app.test_request_context(oauth.AUTHORIZE_PATH, method='POST', base_url=ISSUER):
+        oauth._consent_start()
+        oauth._consent_classify_response(response)
+        oauth._consent_emit('http_response_prepared', status=302)
+    assert events(caplog)[-1]['response_kind'] == kind
+    assert 'CANARY' not in caplog.text
+
+
+@pytest.mark.parametrize('suffix,kind', [
+    ('?code=CANARY-CACHE-code&state=CANARY-CACHE-state', 'code_present'),
+    ('?error=CANARY-CACHE-error&error_description=CANARY-CACHE-detail', 'error_present'),
+    ('?%ZZ=CANARY-CACHE-malformed', 'unclassified'),
+])
+def test_oauth_query_values_never_enter_stdlib_parser_cache(app, caplog, monkeypatch, suffix, kind):
+    original = oauth.urlsplit
+    parsed_inputs = []
+    def capture(value, *args, **kwargs):
+        parsed_inputs.append(value)
+        return original(value, *args, **kwargs)
+    response = app.response_class(status=302,
+        headers={'Location': app.config['CHATGPT_REDIRECT_URI'] + suffix})
+    with app.test_request_context(oauth.AUTHORIZE_PATH, method='POST', base_url=ISSUER):
+        monkeypatch.setattr(oauth, 'urlsplit', capture)
+        oauth._consent_start()
+        oauth._consent_classify_response(response)
+        oauth._consent_emit('http_response_prepared', status=302)
+    assert parsed_inputs
+    assert all('?' not in value and 'CANARY' not in value for value in parsed_inputs)
+    assert events(caplog)[-1]['response_kind'] == kind
+    assert 'CANARY' not in caplog.text
+
+
+@pytest.mark.parametrize('location', [
+    'https://CANARY-user:CANARY-password@chatgpt.example.test/callback?code=CANARY-code',
+    'https://chatgpt.example.test/callback?code=CANARY-code#CANARY-fragment',
+])
+def test_userinfo_and_fragment_rejected_before_cached_parser(app, caplog, monkeypatch, location):
+    def forbidden(*args, **kwargs):
+        pytest.fail('Unsupported credential-bearing or fragment URI reached URL parser')
+    response = app.response_class(status=302, headers={'Location': location})
+    with app.test_request_context(oauth.AUTHORIZE_PATH, method='POST', base_url=ISSUER):
+        monkeypatch.setattr(oauth, 'urlsplit', forbidden)
+        oauth._consent_start()
+        oauth._consent_classify_response(response)
+        oauth._consent_emit('http_response_prepared', status=302)
+    assert events(caplog)[-1]['response_kind'] == 'unclassified'
+    assert 'CANARY' not in caplog.text

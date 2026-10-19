@@ -18,7 +18,7 @@ import time
 import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass
-from urllib.parse import urlsplit
+from urllib.parse import unquote_plus, urlsplit
 
 from authlib.integrations.flask_oauth2 import AuthorizationServer
 from authlib.integrations.flask_oauth2.requests import FlaskOAuth2Request
@@ -68,6 +68,12 @@ _CONSENT_OUTCOMES = frozenset({
     'login_required', 'owner_changed', 'configuration_changed', 'consent_shown',
     'allow_requested', 'deny_requested', 'allow_response', 'deny_response',
 })
+_RESPONSE_KINDS = frozenset({
+    'code_present', 'error_present', 'code_and_error', 'neither',
+    'no_location', 'unclassified',
+})
+_DIAGNOSTIC_LOCATION_LIMIT = 8192
+_DIAGNOSTIC_QUERY_FIELD_LIMIT = 32
 
 
 class _ConsentLogHandler(logging.StreamHandler):
@@ -145,8 +151,82 @@ def _consent_emit(event, *, status=None):
             payload['age_seconds'] = age
         if type(status) is int and 100 <= status <= 599:
             payload['status'] = status
+        if event == 'http_response_prepared':
+            kind = diagnostic.get('response_kind')
+            if kind in _RESPONSE_KINDS:
+                payload['response_kind'] = kind
+            for key in ('callback_origin_matches', 'callback_path_matches'):
+                if type(diagnostic.get(key)) is bool:
+                    payload[key] = diagnostic[key]
         _CONSENT_LOG.info(json.dumps(payload, sort_keys=True, separators=(',', ':')))
     except Exception:
+        pass
+
+
+def _consent_classify_response(response):
+    """Observe bounded shape; no URL values enter diagnostic state or logs.
+
+    Presence of a code key is not proof of code validity, delivery or exchange.
+    This is diagnostic parsing only and must not affect the original response.
+    """
+    try:
+        diagnostic = g.get('chatgpt_consent_diagnostic')
+        if not diagnostic or diagnostic.get('method') != 'POST':
+            return
+        diagnostic['response_kind'] = 'unclassified'
+        for key in ('callback_origin_matches', 'callback_path_matches'):
+            diagnostic.pop(key, None)
+        locations = response.headers.getlist('Location')
+        if not locations:
+            diagnostic['response_kind'] = 'no_location'
+            return
+        if len(locations) != 1:
+            return
+        location = locations[0]
+        callback = current_app.config.get('CHATGPT_REDIRECT_URI')
+        for value in (location, callback):
+            if (not isinstance(value, str) or not value
+                    or len(value) > _DIAGNOSTIC_LOCATION_LIMIT
+                    or any(ord(char) <= 32 or ord(char) == 127 for char in value)):
+                return
+        # urllib caches parsed inputs on supported Python versions. Strip the
+        # entire query before parsing so diagnostics never add OAuth query
+        # values to that cache. Reject userinfo/fragments before parsing too.
+        target_base, _, query = location.partition('?')
+        registered_base, registered_query, _ = callback.partition('?')
+        if ('#' in location or '#' in callback or '@' in target_base
+                or '@' in registered_base or registered_query):
+            return
+        target, registered = urlsplit(target_base), urlsplit(registered_base)
+        for parsed in (target, registered):
+            if (parsed.scheme != 'https' or not parsed.netloc or parsed.fragment
+                    or parsed.username is not None or parsed.password is not None):
+                return
+            # Accessing port rejects malformed/out-of-range port syntax.
+            parsed.port
+        if query.count('&') >= _DIAGNOSTIC_QUERY_FIELD_LIMIT:
+            return
+        names = set()
+        for field in query.split('&') if query else ():
+            encoded_name = field.partition('=')[0]
+            if (not encoded_name or len(encoded_name) > 64
+                    or re.search(r'%(?![0-9A-Fa-f]{2})', encoded_name)):
+                return
+            name = unquote_plus(encoded_name, encoding='utf-8', errors='strict')
+            if name in names:
+                return
+            names.add(name)
+        kind = ('code_and_error' if {'code', 'error'} <= names else
+                'code_present' if 'code' in names else
+                'error_present' if 'error' in names else 'neither')
+        diagnostic.update({
+            'response_kind': kind,
+            'callback_origin_matches': (target.scheme, target.netloc) ==
+                                       (registered.scheme, registered.netloc),
+            'callback_path_matches': target.path == registered.path,
+        })
+    except Exception:
+        # No exception text, header values or URL values may reach any logger.
         pass
 
 
@@ -661,6 +741,7 @@ def register_chatgpt_oauth(app):
             f"default-src 'none'; form-action 'self' {callback}; "
             "frame-ancestors 'none'; base-uri 'none'"
         )
+        _consent_classify_response(response)
         _consent_emit('http_response_prepared', status=response.status_code)
         return response
 
