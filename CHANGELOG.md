@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### ChatGPT connection renewal
+- Replace repeated manual reconnects with rotating refresh tokens bounded to the original 30-day grant. Access tokens still expire after one hour; replay and disconnect revoke the whole connection, and current owner/client/resource/scope checks remain enforced. Existing connections require one fresh authorization after rollout. Website login sessions are unchanged.
 
 
 ### Research execution evidence

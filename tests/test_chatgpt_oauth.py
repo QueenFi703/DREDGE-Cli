@@ -83,7 +83,7 @@ def test_authorization_code_pkce_end_to_end(app):
     assert response.status_code == 200, response.get_json()
     token = response.get_json()
     assert token['scope'] == 'studio:read'
-    assert 'refresh_token' not in token
+    assert token['refresh_token']
     verified = verify_access_token(app, token['access_token'])
     assert verified['owner'] == 'github:fictional-owner'
     assert verified['client_id'] == 'fictional-chatgpt'
@@ -110,7 +110,7 @@ def test_consent_policy_permits_registered_callback_after_form_submission(app):
 def test_discovery_reveals_only_supported_grant_and_pkce(app):
     data = app.test_client().get('/.well-known/oauth-authorization-server', base_url=ISSUER).get_json()
     assert data['issuer'] == ISSUER
-    assert data['grant_types_supported'] == ['authorization_code']
+    assert data['grant_types_supported'] == ['authorization_code', 'refresh_token']
     assert data['code_challenge_methods_supported'] == ['S256']
     assert data['token_endpoint_auth_methods_supported'] == ['none']
     assert 'registration_endpoint' not in data
@@ -474,7 +474,6 @@ def test_concurrent_consent_submissions_issue_one_code(app):
 
 @pytest.mark.parametrize('data', [
     {'client_id':'fictional-chatgpt'},
-    {'client_id':'fictional-chatgpt','token':'fictional','token_type_hint':'refresh_token'},
     {'client_id':'fictional-chatgpt','token':'fictional','scope':'studio:read'},
 ])
 def test_invalid_revocation_payload_fails_harmlessly(app, data):

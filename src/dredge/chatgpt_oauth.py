@@ -3,7 +3,8 @@
 Authlib owns OAuth grant, PKCE and revocation protocol handling. These adapters
 supply exact client registration, account-bound consent and durable SQLite state.
 Bearer credentials and authorization codes are stored only as SHA-256 digests.
-No refresh tokens, dynamic registration, outbound requests or deployment steps.
+Rotating refresh credentials retain the original grant's absolute expiry.
+No dynamic registration or outbound requests.
 """
 from __future__ import annotations
 
@@ -23,7 +24,7 @@ from authlib.integrations.flask_oauth2.requests import FlaskOAuth2Request
 from authlib.oauth2 import OAuth2Error
 from authlib.oauth2.rfc6749 import AuthorizationCodeMixin, ClientMixin, OAuth2Request
 from authlib.oauth2.rfc6749.errors import InvalidGrantError, InvalidRequestError, InvalidScopeError
-from authlib.oauth2.rfc6749.grants import AuthorizationCodeGrant
+from authlib.oauth2.rfc6749.grants import AuthorizationCodeGrant, RefreshTokenGrant
 from authlib.oauth2.rfc6750 import BearerTokenGenerator
 from authlib.oauth2.rfc7009 import RevocationEndpoint
 from authlib.oauth2.rfc7636 import CodeChallenge
@@ -36,6 +37,7 @@ from .chatgpt_foundation import RUNS_SCOPE, SCOPE, supported_scopes
 from .chatgpt_controls import RESEARCH_SCOPE, BUDGET_SCOPE, BUDGET_READ_SCOPE
 CODE_TTL = 300
 TOKEN_TTL = 3600
+REFRESH_TTL = 30 * 86400
 CONSENT_TTL = 600
 AUTHORIZE_PATH = '/chatgpt/oauth/authorize'
 OWNER_PATTERN = re.compile(r'(?:github|google):[A-Za-z0-9_-]{1,255}\Z')
@@ -51,6 +53,7 @@ AUTHORIZATION_FIELDS = frozenset({
 TOKEN_FIELDS = frozenset({
     'grant_type', 'client_id', 'code', 'redirect_uri', 'resource', 'code_verifier',
 })
+REFRESH_FIELDS = frozenset({'grant_type', 'client_id', 'refresh_token', 'resource', 'scope'})
 
 CONSENT_TEMPLATE = '''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
@@ -83,7 +86,9 @@ No answer is rewritten and no AI provider is called.</p>
 <p>Scope: {{ scope }}. Resource: {{ resource }}.</p>
 <p>This access cannot execute runs, change workspace roles, or purchase anything.
 {% if not runs_requested %}It cannot read case records. {% endif %}
-Access expires after one hour. Your sign-in alone does not grant access.</p>
+Access tokens expire after one hour. ChatGPT can renew the same permissions for up to
+30 days using rotating credentials, without another browser sign-in. Disconnecting
+revokes the connection. Your sign-in alone does not grant access.</p>
 <form action="/chatgpt/oauth/authorize" method="post">
 <input type="hidden" name="transaction" value="{{ transaction }}">
 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
@@ -182,7 +187,7 @@ class _Client(ClientMixin):
         return response_type == 'code'
 
     def check_grant_type(self, grant_type):
-        return grant_type == 'authorization_code'
+        return grant_type in {'authorization_code', 'refresh_token'}
 
 
 class _AuthorizationCode(AuthorizationCodeMixin):
@@ -255,10 +260,7 @@ class _Grant(AuthorizationCodeGrant):
             return None
         if row['consumed_at'] is not None:
             # RFC 6749 recommends invalidating credentials derived from a replayed code.
-            g.chatgpt_oauth_db.execute(
-                'UPDATE chatgpt_oauth_tokens SET revoked_at=? WHERE code_hash=? AND revoked_at IS NULL',
-                (int(time.time()), row['code_hash']),
-            )
+            _revoke_family(row['code_hash'])
             return None
         if (row['expires_at'] <= time.time()
                 or _canonical_scope(row['scope'], current_app) != row['scope']):
@@ -292,9 +294,54 @@ class _Server(AuthorizationServer):
         return super().create_oauth2_request(oauth_request)
 
 
+def _revoke_family(code_hash):
+    now = int(time.time())
+    for table in ('chatgpt_oauth_tokens', 'chatgpt_oauth_refresh_tokens'):
+        g.chatgpt_oauth_db.execute(
+            f'UPDATE {table} SET revoked_at=? WHERE code_hash=? AND revoked_at IS NULL',
+            (now, code_hash),
+        )
+
+
+class _RefreshGrant(RefreshTokenGrant):
+    TOKEN_ENDPOINT_AUTH_METHODS = ['none']
+    INCLUDE_NEW_REFRESH_TOKEN = True
+
+    def authenticate_refresh_token(self, refresh_token):
+        if not OPAQUE_PATTERN.fullmatch(refresh_token):
+            return None
+        row = g.chatgpt_oauth_db.execute('''
+            SELECT * FROM chatgpt_oauth_refresh_tokens
+            WHERE refresh_hash=? AND issuer=? AND resource=? AND client_id=?''', (
+            _digest(refresh_token), current_app.config['CHATGPT_ISSUER'],
+            current_app.config['CHATGPT_RESOURCE'], self.request.client.get_client_id(),
+        )).fetchone()
+        if row is None or row['revoked_at'] is not None:
+            return None
+        if row['consumed_at'] is not None:
+            # A reused single-use credential invalidates all descendants.
+            _revoke_family(row['code_hash'])
+            return None
+        if (row['expires_at'] <= time.time()
+                or _canonical_scope(row['scope'], current_app) != row['scope']
+                or not _valid_owner(row['owner'])):
+            return None
+        return _Token(row)
+
+    def authenticate_user(self, credential):
+        return _Owner(credential.row['owner'])
+
+    def revoke_old_credential(self, credential):
+        # save_token consumes the refresh credential atomically with its replacement.
+        g.chatgpt_oauth_db.execute(
+            'UPDATE chatgpt_oauth_tokens SET revoked_at=? WHERE token_hash=?',
+            (int(time.time()), credential.row['access_hash']),
+        )
+
+
 class _Revocation(RevocationEndpoint):
     CLIENT_AUTH_METHODS = ['none']
-    SUPPORTED_TOKEN_TYPES = ('access_token',)
+    SUPPORTED_TOKEN_TYPES = ('access_token', 'refresh_token')
 
     def query_token(self, token_string, token_type_hint):
         row = g.chatgpt_oauth_db.execute('''
@@ -302,13 +349,17 @@ class _Revocation(RevocationEndpoint):
             (_digest(token_string), current_app.config['CHATGPT_ISSUER'],
              current_app.config['CHATGPT_RESOURCE']),
         ).fetchone()
+        if row is None:
+            row = g.chatgpt_oauth_db.execute('''
+                SELECT * FROM chatgpt_oauth_refresh_tokens
+                WHERE refresh_hash=? AND issuer=? AND resource=?''',
+                (_digest(token_string), current_app.config['CHATGPT_ISSUER'],
+                 current_app.config['CHATGPT_RESOURCE']),
+            ).fetchone()
         return _Token(row) if row else None
 
     def revoke_token(self, token, oauth_request):
-        g.chatgpt_oauth_db.execute(
-            'UPDATE chatgpt_oauth_tokens SET revoked_at=? WHERE token_hash=?',
-            (int(time.time()), token.row['token_hash']),
-        )
+        _revoke_family(token.row['code_hash'])
 
 
 class _Token:
@@ -317,6 +368,9 @@ class _Token:
 
     def check_client(self, client):
         return self.row['client_id'] == client.get_client_id()
+
+    def get_scope(self):
+        return self.row['scope']
 
 
 class _HideTokenDebug(logging.Filter):
@@ -386,6 +440,14 @@ def register_chatgpt_oauth(app):
                 expires_at INTEGER NOT NULL, revoked_at INTEGER);
             CREATE INDEX IF NOT EXISTS chatgpt_oauth_tokens_code
                 ON chatgpt_oauth_tokens(code_hash);
+            CREATE TABLE IF NOT EXISTS chatgpt_oauth_refresh_tokens (
+                refresh_hash TEXT PRIMARY KEY, access_hash TEXT NOT NULL,
+                code_hash TEXT NOT NULL, issuer TEXT NOT NULL, resource TEXT NOT NULL,
+                owner TEXT NOT NULL, client_id TEXT NOT NULL, scope TEXT NOT NULL,
+                created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,
+                consumed_at INTEGER, revoked_at INTEGER);
+            CREATE INDEX IF NOT EXISTS chatgpt_oauth_refresh_code
+                ON chatgpt_oauth_refresh_tokens(code_hash);
         ''')
 
     def query_client(client_id):
@@ -393,18 +455,35 @@ def register_chatgpt_oauth(app):
         return client if client_id == client.client_id else None
 
     def save_token(token, oauth_request):
-        code = oauth_request.authorization_code.row
         now = int(time.time())
-        if (_canonical_scope(token.get('scope'), app) != code['scope']
-                or token.get('scope') != code['scope']):
+        if oauth_request.payload.grant_type == 'refresh_token':
+            code = oauth_request.refresh_token.row
+            scope = _canonical_scope(token.get('scope'), app)
+            if scope is None or scope != token.get('scope') or not set(scope.split()) <= set(code['scope'].split()):
+                raise InvalidGrantError('The authorized scope is no longer valid.')
+            consumed = g.chatgpt_oauth_db.execute('''
+                UPDATE chatgpt_oauth_refresh_tokens SET consumed_at=?
+                WHERE refresh_hash=? AND consumed_at IS NULL AND revoked_at IS NULL AND expires_at>?''',
+                (now, code['refresh_hash'], now),
+            )
+            if consumed.rowcount != 1:
+                raise InvalidGrantError('The refresh credential is no longer valid.')
+            refresh_expiry = code['expires_at']
+        else:
+            code = oauth_request.authorization_code.row
+            refresh_expiry = now + REFRESH_TTL
+        if (_canonical_scope(token.get('scope'), app) is None):
             raise InvalidGrantError('The authorized scope is no longer valid.')
-        consumed = g.chatgpt_oauth_db.execute('''
-            UPDATE chatgpt_oauth_codes SET consumed_at=?
-            WHERE code_hash=? AND consumed_at IS NULL AND expires_at>?''',
-            (now, code['code_hash'], now),
-        )
-        if consumed.rowcount != 1:
-            raise InvalidGrantError('The authorization code is no longer valid.')
+        if oauth_request.payload.grant_type != 'refresh_token':
+            if token.get('scope') != code['scope']:
+                raise InvalidGrantError('The authorized scope is no longer valid.')
+            consumed = g.chatgpt_oauth_db.execute('''
+                UPDATE chatgpt_oauth_codes SET consumed_at=?
+                WHERE code_hash=? AND consumed_at IS NULL AND expires_at>?''',
+                (now, code['code_hash'], now),
+            )
+            if consumed.rowcount != 1:
+                raise InvalidGrantError('The authorization code is no longer valid.')
         g.chatgpt_oauth_db.execute('''
             INSERT INTO chatgpt_oauth_tokens
             (token_hash,code_hash,issuer,resource,owner,client_id,scope,created_at,expires_at)
@@ -412,19 +491,32 @@ def register_chatgpt_oauth(app):
             _digest(token['access_token']), code['code_hash'], code['issuer'], code['resource'],
             code['owner'], code['client_id'], token['scope'], now, now + token['expires_in'],
         ))
+        g.chatgpt_oauth_db.execute('''
+            INSERT INTO chatgpt_oauth_refresh_tokens
+            (refresh_hash,access_hash,code_hash,issuer,resource,owner,client_id,scope,created_at,expires_at)
+            VALUES(?,?,?,?,?,?,?,?,?,?)''', (
+            _digest(token['refresh_token']), _digest(token['access_token']), code['code_hash'],
+            code['issuer'], code['resource'], code['owner'], code['client_id'], token['scope'],
+            now, refresh_expiry,
+        ))
 
     server = _Server(app, query_client=query_client, save_token=save_token)
     server.scopes_supported = sorted(supported_scopes(app))
     server.register_token_generator('default', BearerTokenGenerator(
         lambda **kwargs: secrets.token_urlsafe(32), expires_generator=TOKEN_TTL,
+        refresh_token_generator=lambda **kwargs: secrets.token_urlsafe(32),
     ))
     server.register_grant(_Grant, [_S256Challenge(required=True)])
+    server.register_grant(_RefreshGrant)
     server.register_endpoint(_Revocation)
     server.register_extension(_Issuer())
     app.extensions['chatgpt_oauth_server'] = server
     log = logging.getLogger('authlib.oauth2.rfc6749.grants.authorization_code')
     if not any(isinstance(f, _HideTokenDebug) for f in log.filters):
         log.addFilter(_HideTokenDebug())
+    refresh_log = logging.getLogger('authlib.oauth2.rfc6749.grants.refresh_token')
+    if not any(isinstance(f, _HideTokenDebug) for f in refresh_log.filters):
+        refresh_log.addFilter(_HideTokenDebug())
     bp = Blueprint('chatgpt_oauth', __name__)
 
     @bp.before_request
@@ -460,7 +552,7 @@ def register_chatgpt_oauth(app):
             issuer=issuer, authorization_endpoint=issuer + AUTHORIZE_PATH,
             token_endpoint=issuer + '/chatgpt/oauth/token',
             revocation_endpoint=issuer + '/chatgpt/oauth/revoke',
-            response_types_supported=['code'], grant_types_supported=['authorization_code'],
+            response_types_supported=['code'], grant_types_supported=['authorization_code', 'refresh_token'],
             scopes_supported=sorted(supported_scopes(app)), token_endpoint_auth_methods_supported=['none'],
             revocation_endpoint_auth_methods_supported=['none'],
             code_challenge_methods_supported=['S256'],
@@ -554,12 +646,13 @@ def register_chatgpt_oauth(app):
 
     @bp.post('/chatgpt/oauth/token')
     def token():
+        grant_type = request.form.get('grant_type')
         if (request.args or request.mimetype != 'application/x-www-form-urlencoded'
-                or not _single_fields(request.form, TOKEN_FIELDS)
+                or not _single_fields(request.form, REFRESH_FIELDS if grant_type == 'refresh_token' else TOKEN_FIELDS)
                 or request.headers.get('Authorization')):
             return _error()
-        if request.form.get('grant_type') != 'authorization_code':
-            return _error('unsupported_grant_type', 'Only authorization_code is supported.')
+        if grant_type not in {'authorization_code', 'refresh_token'}:
+            return _error('unsupported_grant_type', 'Unsupported grant type.')
         if request.form.get('resource') != app.config['CHATGPT_RESOURCE']:
             return _error('invalid_target', 'The configured resource is required.')
         with _transaction():
