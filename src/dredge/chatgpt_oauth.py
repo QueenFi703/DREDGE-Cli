@@ -15,6 +15,7 @@ import logging
 import re
 import secrets
 import time
+import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass
 from urllib.parse import urlsplit
@@ -54,6 +55,122 @@ TOKEN_FIELDS = frozenset({
     'grant_type', 'client_id', 'code', 'redirect_uri', 'resource', 'code_verifier',
 })
 REFRESH_FIELDS = frozenset({'grant_type', 'client_id', 'refresh_token', 'resource', 'scope'})
+
+_CONSENT_LOG = logging.getLogger('dredge.oauth.consent')
+_CONSENT_EVENTS = frozenset({
+    'consent_marked_used', 'response_created', 'transaction_committed',
+    'transaction_failed', 'http_response_prepared',
+})
+_CONSENT_OUTCOMES = frozenset({
+    'pending', 'invalid_request', 'unsupported_response_type', 'initial_request_rejected',
+    'unsupported_owner', 'missing_binding', 'csrf_mismatch', 'invalid_decision',
+    'missing_consent', 'expired', 'already_consumed', 'binding_mismatch',
+    'login_required', 'owner_changed', 'configuration_changed', 'consent_shown',
+    'allow_requested', 'deny_requested', 'allow_response', 'deny_response',
+})
+
+
+class _ConsentLogHandler(logging.StreamHandler):
+    def handleError(self, record):
+        # Never print logger exceptions or record representations to stderr.
+        pass
+
+
+def _configure_consent_logging():
+    """A JSON-only sink works under Uvicorn without enabling broader access logs."""
+    try:
+        if not any(isinstance(handler, _ConsentLogHandler) for handler in _CONSENT_LOG.handlers):
+            handler = _ConsentLogHandler()
+            handler.setLevel(logging.INFO)
+            handler.setFormatter(logging.Formatter('%(message)s'))
+            _CONSENT_LOG.addHandler(handler)
+        _CONSENT_LOG.setLevel(logging.INFO)
+        _CONSENT_LOG.propagate = False
+    except Exception:
+        pass
+
+
+def _consent_start():
+    """Diagnostics are best-effort and never use an OAuth value as a correlation ID."""
+    try:
+        g.chatgpt_consent_diagnostic = {
+            'request_id': uuid.uuid4().hex, 'method': request.method,
+            'outcome': 'pending', 'commit_phase': 'none', 'transaction_stage': 'none',
+        }
+    except Exception:
+        pass
+
+
+def _consent_note(*, outcome=None, age_seconds=None, commit_phase=None, transaction_stage=None):
+    try:
+        diagnostic = g.get('chatgpt_consent_diagnostic')
+        if diagnostic is None:
+            return
+        if outcome in _CONSENT_OUTCOMES:
+            diagnostic['outcome'] = outcome
+        if type(age_seconds) is int:
+            diagnostic['age_seconds'] = max(0, min(age_seconds, 86400))
+        if commit_phase in {'none', 'pending', 'committed', 'failed'}:
+            diagnostic['commit_phase'] = commit_phase
+        if transaction_stage in {'none', 'creation', 'resolution'}:
+            diagnostic['transaction_stage'] = transaction_stage
+    except Exception:
+        pass
+
+
+def _consent_emit(event, *, status=None):
+    """Only this explicit schema reaches logs, never requests, rows or exceptions.
+
+    A prepared response is not evidence of delivery or callback completion.
+    Logging failures must not prevent authorization or change transaction handling.
+    """
+    try:
+        diagnostic = g.get('chatgpt_consent_diagnostic')
+        if not diagnostic or event not in _CONSENT_EVENTS:
+            return
+        request_id = diagnostic.get('request_id')
+        if not isinstance(request_id, str) or not re.fullmatch('[0-9a-f]{32}', request_id):
+            return
+        payload = {'schema': 'dredge.oauth.consent.v1', 'event': event, 'request_id': request_id}
+        for key, allowed in (
+            ('method', {'GET', 'POST', 'HEAD'}),
+            ('outcome', _CONSENT_OUTCOMES),
+            ('commit_phase', {'none', 'pending', 'committed', 'failed'}),
+            ('transaction_stage', {'none', 'creation', 'resolution'}),
+        ):
+            if diagnostic.get(key) in allowed:
+                payload[key] = diagnostic[key]
+        age = diagnostic.get('age_seconds')
+        if type(age) is int and 0 <= age <= 86400:
+            payload['age_seconds'] = age
+        if type(status) is int and 100 <= status <= 599:
+            payload['status'] = status
+        _CONSENT_LOG.info(json.dumps(payload, sort_keys=True, separators=(',', ':')))
+    except Exception:
+        pass
+
+
+def _consent_age(expires_at):
+    try:
+        _consent_note(age_seconds=int(time.time() - (expires_at - CONSENT_TTL)))
+    except Exception:
+        pass
+
+
+@contextmanager
+def _consent_transaction(stage):
+    """Observe the existing transaction; committed is emitted only after DB exit."""
+    _consent_note(commit_phase='pending', transaction_stage=stage)
+    try:
+        with _transaction() as db:
+            yield db
+    except Exception:
+        _consent_note(commit_phase='failed')
+        _consent_emit('transaction_failed')
+        raise
+    else:
+        _consent_note(commit_phase='committed')
+        _consent_emit('transaction_committed')
 
 CONSENT_TEMPLATE = '''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
@@ -419,6 +536,7 @@ def register_chatgpt_oauth(app):
     if app.config.get('DREDGE_CHATGPT_ENABLED') is not True:
         return
     _validate_configuration(app)
+    _configure_consent_logging()
     app.config.update(SESSION_COOKIE_SECURE=True, SESSION_COOKIE_HTTPONLY=True,
                       SESSION_COOKIE_SAMESITE='Lax')
     with app.extensions['studio_store'].connect() as db:
@@ -543,6 +661,7 @@ def register_chatgpt_oauth(app):
             f"default-src 'none'; form-action 'self' {callback}; "
             "frame-ancestors 'none'; base-uri 'none'"
         )
+        _consent_emit('http_response_prepared', status=response.status_code)
         return response
 
     @bp.get('/.well-known/oauth-authorization-server')
@@ -561,15 +680,19 @@ def register_chatgpt_oauth(app):
 
     @bp.route(AUTHORIZE_PATH, methods=['GET', 'POST'])
     def authorize():
+        _consent_start()
         if request.method == 'GET' and 'transaction' not in request.args:
             if not _single_fields(request.args, AUTHORIZATION_FIELDS):
+                _consent_note(outcome='invalid_request')
                 return _error()
             if request.args.get('response_type') != 'code':
+                _consent_note(outcome='unsupported_response_type')
                 return _error('unsupported_response_type', 'Only code responses are supported.')
             try:
                 server.get_consent_grant()
             except OAuth2Error as error:
                 # Invalid initial requests never redirect, even for a supplied URI.
+                _consent_note(outcome='initial_request_rejected')
                 return _error(error.error, 'The authorization request is not valid.')
             binding = session.setdefault('chatgpt_oauth_binding', secrets.token_urlsafe(32))
             session.setdefault('chatgpt_oauth_csrf', secrets.token_urlsafe(32))
@@ -577,8 +700,9 @@ def register_chatgpt_oauth(app):
             params = json.dumps(request.args.to_dict(), sort_keys=True)
             owner = current_user.get_id() if current_user.is_authenticated else None
             if owner is not None and not _valid_owner(owner):
+                _consent_note(outcome='unsupported_owner')
                 return _error('access_denied', 'Sign in with a supported DREDGE account.', 403)
-            with _transaction() as db:
+            with _consent_transaction('creation') as db:
                 db.execute('''INSERT INTO chatgpt_oauth_consents
                     (transaction_hash,binding_hash,owner,parameters,expires_at)
                     VALUES(?,?,?,?,?)''', (_digest(transaction_id), _digest(binding), owner,
@@ -589,34 +713,51 @@ def register_chatgpt_oauth(app):
             if (not _single_fields(values, allowed)
                     or (request.method == 'POST' and request.args)
                     or not OPAQUE_PATTERN.fullmatch(values.get('transaction', ''))):
+                _consent_note(outcome='invalid_request')
                 return _error()
             transaction_id = values['transaction']
 
         binding = session.get('chatgpt_oauth_binding', '')
         if not binding:
+            _consent_note(outcome='missing_binding')
             return _error('access_denied', 'Restart the connection in this browser.', 403)
         if request.method == 'POST':
             expected = session.get('chatgpt_oauth_csrf', '')
             supplied = request.form.get('csrf_token', '')
             if (not expected or not OPAQUE_PATTERN.fullmatch(supplied)
                     or not hmac.compare_digest(expected, supplied)):
+                _consent_note(outcome='csrf_mismatch')
                 return _error('access_denied', 'Refresh the consent page before continuing.', 403)
             if request.form.get('decision') not in {'allow', 'deny'}:
+                _consent_note(outcome='invalid_decision')
                 return _error()
 
-        with _transaction() as db:
+        with _consent_transaction('resolution') as db:
             row = db.execute('SELECT * FROM chatgpt_oauth_consents WHERE transaction_hash=?',
                              (_digest(transaction_id),)).fetchone()
-            if (not row or row['expires_at'] <= time.time() or row['consumed_at'] is not None
-                    or not hmac.compare_digest(row['binding_hash'], _digest(binding))):
+            rejection = None
+            if not row:
+                rejection = 'missing_consent'
+            elif row['expires_at'] <= time.time():
+                rejection = 'expired'
+            elif row['consumed_at'] is not None:
+                rejection = 'already_consumed'
+            elif not hmac.compare_digest(row['binding_hash'], _digest(binding)):
+                rejection = 'binding_mismatch'
+            if row:
+                _consent_age(row['expires_at'])
+            if rejection:
+                _consent_note(outcome=rejection)
                 return _error('access_denied', 'This consent request expired or is no longer valid.', 403)
             if not current_user.is_authenticated:
+                _consent_note(outcome='login_required')
                 if request.method == 'POST':
                     return _error('access_denied', 'Sign in again before granting access.', 401)
                 session['chatgpt_return_to'] = AUTHORIZE_PATH + '?transaction=' + transaction_id
                 return redirect('/auth/login')
             owner = current_user.get_id()
             if not _valid_owner(owner) or (row['owner'] is not None and row['owner'] != owner):
+                _consent_note(outcome='owner_changed')
                 return _error('access_denied', 'The signed-in account changed. Restart the connection.', 403)
             if row['owner'] is None:
                 db.execute('UPDATE chatgpt_oauth_consents SET owner=? WHERE transaction_hash=?',
@@ -625,8 +766,10 @@ def register_chatgpt_oauth(app):
             try:
                 grant = server.get_consent_grant(oauth_request, end_user=_Owner(owner))
             except OAuth2Error:
+                _consent_note(outcome='configuration_changed')
                 return _error('access_denied', 'The connection configuration changed. Restart it.', 403)
             if request.method == 'GET':
+                _consent_note(outcome='consent_shown')
                 return render_template_string(
                     CONSENT_TEMPLATE, owner=owner, client_id=app.config['CHATGPT_CLIENT_ID'],
                     resource=app.config['CHATGPT_RESOURCE'],
@@ -637,12 +780,18 @@ def register_chatgpt_oauth(app):
                     research_requested=RESEARCH_SCOPE in oauth_request.scope.split(' '),
                     transaction=transaction_id, csrf_token=session['chatgpt_oauth_csrf'],
                 )
+            allowing = request.form['decision'] == 'allow'
+            _consent_note(outcome='allow_requested' if allowing else 'deny_requested')
             db.execute('UPDATE chatgpt_oauth_consents SET consumed_at=? WHERE transaction_hash=?',
                        (int(time.time()), _digest(transaction_id)))
-            return server.create_authorization_response(
-                oauth_request, grant_user=_Owner(owner) if request.form['decision'] == 'allow' else None,
+            _consent_emit('consent_marked_used')
+            response = server.create_authorization_response(
+                oauth_request, grant_user=_Owner(owner) if allowing else None,
                 grant=grant,
             )
+            _consent_note(outcome='allow_response' if allowing else 'deny_response')
+            _consent_emit('response_created', status=response.status_code)
+            return response
 
     @bp.post('/chatgpt/oauth/token')
     def token():
