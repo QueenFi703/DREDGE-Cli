@@ -12,7 +12,7 @@ import re
 import secrets
 import time
 from urllib.parse import urlencode, urlsplit
-from flask import Blueprint, current_app, jsonify, redirect, render_template_string, request, session, url_for
+from flask import Blueprint, current_app, g, jsonify, redirect, render_template_string, request, session, url_for
 from flask_login import current_user
 
 SITE_ID = 'appgprj_6ad3aae39c5481919a40c791221631ac'
@@ -60,8 +60,10 @@ def register_thresh_bridge(app, *, store=None, subscription_check=None):
 
     @bp.after_request
     def private_response(response):
+        callback_origin = getattr(g, 'thresh_oauth_callback_origin', '')
+        form_action = "'self'" + (' '+callback_origin if callback_origin else '')
         response.headers.update({'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer',
-                                 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"})
+                                 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'; form-action "+form_action+"; frame-ancestors 'none'; base-uri 'none'"})
         return response
 
     def identity():
@@ -214,6 +216,13 @@ def register_thresh_bridge(app, *, store=None, subscription_check=None):
         values = pending_authorization()
         if values is None:
             return jsonify(error='invalid_request'), 400
+        # Chromium also applies form-action to the redirect after the consent POST.
+        # Permit only this client's already validated callback origin, never a
+        # wildcard or unvalidated input that could inject another CSP directive.
+        callback = urlsplit(values['redirect_uri'])
+        if not re.fullmatch(r'[A-Za-z0-9.\-:\[\]]+', callback.netloc):
+            return jsonify(error='invalid_request'), 400
+        g.thresh_oauth_callback_origin = 'https://'+callback.netloc
         if not current_user.is_authenticated:
             session['thresh_oauth_pending'] = values
             return redirect(url_for('auth.login'))
