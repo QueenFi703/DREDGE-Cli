@@ -84,8 +84,16 @@ These are deployment inputs, **not permission to set live credentials or grants*
 
 ## Operational bounds
 
-Access tokens expire after one hour; the user reconnects when needed. Refresh-token
-rotation/offline access is deliberately not implemented. Codes expire after five
+Access tokens expire after one hour. New connections receive single-use rotating
+refresh credentials, stored only as digests, with a fixed 30-day expiry from the
+initial grant. Renewal does not extend that deadline or expand permissions.
+Reusing a consumed refresh credential revokes its whole connection family;
+disconnect/revocation of either token type does the same. Each refresh transaction
+is serialized with SQLite, retaining state across process restarts. No browser
+session is needed for renewal. The website's own session timeout is unchanged.
+Existing access-only connections need one fresh authorization after rollout;
+already issued credentials cannot acquire renewal authority retrospectively.
+Codes expire after five
 minutes and consent transactions after ten. Expired records should be cleaned up
 by a reviewed retention job before sustained production use; no background job or
 new external monitoring was installed. Back up the database and restrict filesystem
