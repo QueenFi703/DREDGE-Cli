@@ -22,18 +22,18 @@ python-dotenv>=1.0.0
 # PyTorch - Platform-specific installations:
 # 
 # For CUDA (Linux with NVIDIA GPU):
-#   pip install torch>=2.8.0 --index-url https://download.pytorch.org/whl/cu118
+#   pip install torch>=2.14.1 --index-url https://download.pytorch.org/whl/cu118
 # 
 # For MPS (macOS with Apple Silicon M1/M2/M3):
-#   pip install torch>=2.8.0
+#   pip install torch>=2.14.1
 #   Note: MPS support requires macOS 12.3+ and is included in standard PyTorch wheels
 #   Verify MPS availability: python -c "import torch; print(torch.backends.mps.is_available())"
 # 
 # For CPU-only (any platform):
-#   pip install torch>=2.8.0
+#   pip install torch>=2.14.1
 # 
 # Default installation (auto-detects platform):
-torch>=2.8.0
+torch>=2.14.1
 
 numpy>=1.24.0
 matplotlib>=3.9.4
