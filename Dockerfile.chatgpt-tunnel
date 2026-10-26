@@ -18,18 +18,18 @@ RUN python -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-deps .
 
 # Official release and SHA256s verified from:
-# https://github.com/cloudflare/cloudflared/releases/tag/2026.10.0
+# https://github.com/cloudflare/cloudflared/releases/tag/2026.10.3
 # Both supported architectures fail closed on a checksum mismatch.
 RUN set -eu; \
     case "$(dpkg --print-architecture)" in \
-      amd64) arch=amd64; sha=d33ff2d14475178d2012c2c56beba87389ac5ded27649519f198a7d3134a99db ;; \
-      arm64) arch=arm64; sha=e6422b9d4f72d3194bc5a38676f13667c06666523217b842a877d72a80b5ac08 ;; \
+      amd64) arch=amd64; sha=053b80b0a23031a038fdbf3c073f59f82b8f1f152aa67971d7383ffafc0dbab0 ;; \
+      arm64) arch=arm64; sha=89297ebfb9e8c99c0dc013a1140601453cf3798d8306c5591651f4a3f5210be8 ;; \
       *) echo 'Unsupported cloudflared architecture' >&2; exit 1 ;; \
     esac; \
     curl --fail --location --proto '=https' --tlsv1.2 \
       --retry 3 --retry-all-errors --retry-max-time 300 \
       --connect-timeout 30 --max-time 120 \
-      "https://github.com/cloudflare/cloudflared/releases/download/2026.10.0/cloudflared-linux-${arch}" \
+      "https://github.com/cloudflare/cloudflared/releases/download/2026.10.3/cloudflared-linux-${arch}" \
       --output /tmp/cloudflared; \
     printf '%s  /tmp/cloudflared\n' "$sha" | sha256sum --check --strict; \
     install -o root -g root -m 0555 /tmp/cloudflared /usr/local/bin/cloudflared
