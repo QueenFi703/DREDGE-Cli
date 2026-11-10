@@ -1,3 +1,6 @@
+# Copyright © 2026 Sophia Cole (doing business as COLEWORLD).
+# Scope and license information: see COPYRIGHT and LICENSE.
+
 """
 DREDGE x Dolly Server
 A lightweight web server for the DREDGE x Dolly integration.

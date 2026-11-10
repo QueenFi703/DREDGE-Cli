@@ -1,4 +1,21 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const {JSDOM}=require('jsdom');
+test('copyright footer remains available in compact and short viewport layouts',()=>{
+  const dom=new JSDOM(fs.readFileSync('src/dredge/static/studio_pilot.html','utf8'));
+  const footer=dom.window.document.querySelector('.public-footer');
+  assert.match(footer.textContent,/© 2026 Sophia Cole \(doing business as COLEWORLD\)/);
+  const style=dom.window.document.createElement('style');
+  style.textContent=fs.readFileSync('src/dredge/static/studio_pilot.css','utf8');
+  dom.window.document.head.appendChild(style);
+  function check(rules){for(const rule of rules){
+    if(rule.cssRules) check(rule.cssRules);
+    if(rule.selectorText && footer.matches(rule.selectorText)){
+      assert.notEqual(rule.style.display,'none',rule.cssText);
+      assert.notEqual(rule.style.visibility,'hidden',rule.cssText);
+    }
+  }}
+  check(style.sheet.cssRules);
+  dom.window.close();
+});
 function setup(autoPause=true){const d=new JSDOM(fs.readFileSync('src/dredge/static/studio_pilot.html','utf8'),{url:'https://example.test/pilot-demo',runScripts:'outside-only',pretendToBeVisual:true});const w=d.window;let now=0;let timer=null;w.performance.now=()=>now;w.setInterval=fn=>{assert.equal(timer,null,'only one playback timer');timer=fn;return 1;};w.clearInterval=()=>{timer=null;};w.fetch=()=>{throw Error('No network calls allowed');};w.eval(fs.readFileSync('src/dredge/static/studio_pilot.js','utf8'));if(autoPause)w.document.getElementById('play').click();return {d,w,click:id=>w.document.getElementById(id).click(),tick:ms=>{now+=ms;if(timer)timer();},running:()=>timer!==null};}
 test('ten fictional scenes, no forms, prepared states and captions',()=>{const s=setup(),doc=s.w.document;assert.equal(doc.querySelectorAll('#scene-list button').length,10);assert.equal(doc.querySelectorAll('form').length,0);assert.match(doc.body.textContent,/Fictional training/);s.click('next');assert.equal(doc.activeElement.id,'scene-title');assert.match(doc.querySelector('#stage').textContent,/\$900/);assert.match(doc.querySelector('#stage').textContent,/\$950/);for(let i=0;i<5;i++)s.click('next');assert.match(doc.querySelector('#stage').textContent,/Pending independent review/);s.d.window.close();});
 test('play pause resume restart and navigation clear timers',()=>{const s=setup();s.click('play');assert.ok(s.running());s.tick(3000);s.click('play');assert.equal(s.running(),false);const caption=s.w.document.getElementById('caption').textContent;s.tick(100000);assert.equal(s.w.document.getElementById('caption').textContent,caption);s.click('play');s.click('next');assert.equal(s.running(),false);s.click('restart');assert.match(s.w.document.getElementById('scene-title').textContent,/Welcome/);s.d.window.close();});

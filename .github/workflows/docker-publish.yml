@@ -246,13 +246,13 @@ jobs:
         include:
           - target: cpu-build
             suffix: cpu
-            port_map: 3001:3001
+            port_map: 3001:8001
             health_url: http://localhost:3001/health
 
           - target: gpu-build
             suffix: gpu
-            port_map: 3002:3002
-            health_url: http://localhost:3002/
+            port_map: 3002:8001
+            health_url: http://localhost:3002/health
 
     steps:
       ####################################################################

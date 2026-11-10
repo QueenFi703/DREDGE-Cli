@@ -1,3 +1,6 @@
+# Copyright © 2026 Sophia Cole (doing business as COLEWORLD).
+# Scope and license information: see COPYRIGHT and LICENSE.
+
 """Studio observability and review: real local traces, explicit simulated steps.
 
 SQLite lives on STUDIO_DB_PATH; mount persistent storage for deployment durability.

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Copyright notices
+- Add a scoped Sophia Cole / COLEWORLD copyright notice, source and documentation credits, and visible Studio footer credits without changing existing licenses or third-party attributions.
+- Include the copyright notice with Python source and wheel distributions.
+
 ### Research execution evidence
 - Retain sanitized Responses IDs, actual model/status/usage and separate web-search receipts, including failed/incomplete attempts without accepting a draft.
 - Add owner-scoped research history and an atomic, fixed one-shot public connectivity test with explicit consent and no retries. Actual billed costs remain unavailable; reservations are planning allowances.

@@ -1,3 +1,6 @@
+// Copyright © 2026 Sophia Cole (doing business as COLEWORLD).
+// Scope and license information: see COPYRIGHT and LICENSE.
+
 'use strict';
 (() => {
   let csrf = '', selected = null, config = null, caseLoad = 0, caseLoading = false;

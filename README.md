@@ -299,6 +299,8 @@ To connect to real GitHub Dependabot alerts:
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
+Copyright © 2026 Sophia Cole (doing business as COLEWORLD), for copyrightable contributions owned by Sophia Cole. See [COPYRIGHT](COPYRIGHT) for the scope of this notice. Existing license permissions and third-party attributions remain unchanged.
+
 ## 👥 Authors
 
 - **DREDGE Team** - *Initial work and maintenance*

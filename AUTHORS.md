@@ -1,5 +1,7 @@
 # Authors and Contributors
 
+Copyright © 2026 Sophia Cole (doing business as COLEWORLD), for copyrightable contributions owned by Sophia Cole. The scope is described in [COPYRIGHT](COPYRIGHT); existing license permissions and contributor credits remain unchanged.
+
 ## Creator and Lead Developer
 **QueenFi703 (Fi)**
 - Quasimoto Wave Function Architecture design
