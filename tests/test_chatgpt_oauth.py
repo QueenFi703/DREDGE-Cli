@@ -2,6 +2,7 @@
 import base64
 import hashlib
 import re
+from html import unescape
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
@@ -105,6 +106,38 @@ def test_consent_policy_permits_registered_callback_after_form_submission(app):
     assert approved.status_code == 302
     assert approved.location.startswith(REDIRECT + '?')
     assert approved.headers['Content-Security-Policy'] == policy
+
+
+@pytest.mark.parametrize('decision', ['allow', 'deny'])
+def test_browser_consent_finishes_via_document_navigation(app, decision):
+    client = app.test_client()
+    sign_in(client)
+    fields = begin(client, state='fictional&state')
+    form = {**fields, 'decision': decision}
+    headers = {'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'}
+    response = client.post('/chatgpt/oauth/authorize', data=form, headers=headers, base_url=ISSUER)
+
+    assert response.status_code == 200
+    assert 'Location' not in response.headers
+    assert response.headers['Cache-Control'] == 'no-store'
+    assert response.headers['Referrer-Policy'] == 'no-referrer'
+    assert "form-action 'none'" in response.headers['Content-Security-Policy']
+    page = response.get_data(as_text=True)
+    callback = unescape(re.search(r'<a href="([^"]+)"[^>]*>Continue to ChatGPT</a>', page)[1])
+    refresh = unescape(re.search(r'<meta http-equiv="refresh" content="0; url=([^"]+)">', page)[1])
+    assert refresh == callback
+    assert callback.partition('?')[0] == REDIRECT
+    params = parse_qs(urlsplit(callback).query)
+    assert params['state'] == ['fictional&state']
+    assert params['iss'] == [ISSUER]
+    assert client.post('/chatgpt/oauth/authorize', data=form, headers=headers,
+                       base_url=ISSUER).status_code == 403
+    if decision == 'allow':
+        assert exchange(client, params['code'][0]).status_code == 200
+        assert exchange(client, params['code'][0]).status_code == 400
+    else:
+        assert params['error'] == ['access_denied']
+        assert 'code' not in params
 
 
 def test_discovery_reveals_only_supported_grant_and_pkce(app):

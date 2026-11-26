@@ -193,7 +193,7 @@ def check_cloudflared(supervisor, connector):
         )
         require(result.returncode == 0, "Official cloudflared CLI inspection failed")
         output.append(result.stdout + result.stderr)
-    require("2026.10.0" in output[0], "Unexpected cloudflared version")
+    require("2026.10.3" in output[0], "Unexpected cloudflared version")
     require("--token-file" in output[1], "cloudflared run has no token-file flag")
     help_text = "\n".join(output[1:])
     for flag in ("--no-autoupdate", "--metrics", "--management-diagnostics", "--grace-period"):
