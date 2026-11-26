@@ -293,6 +293,14 @@ revokes the connection. Your sign-in alone does not grant access.</p>
 <button name="decision" value="deny" type="submit">Deny</button>
 </form></main></body></html>'''
 
+CONSENT_CONTINUE_TEMPLATE = '''<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<meta http-equiv="refresh" content="0; url={{ callback }}">
+<title>Return to ChatGPT</title></head><body><main>
+<h1>Return to ChatGPT</h1>
+<p><a href="{{ callback }}" rel="noreferrer">Continue to ChatGPT</a></p>
+</main></body></html>'''
+
 
 def _digest(value):
     return hashlib.sha256(value.encode('utf-8')).hexdigest()
@@ -729,19 +737,29 @@ def register_chatgpt_oauth(app):
 
     @bp.after_request
     def security_headers(response):
+        _consent_classify_response(response)
+        callback = app.config['CHATGPT_REDIRECT_URI']
+        form_action = f"'self' {callback}"
+        if (request.endpoint == 'chatgpt_oauth.authorize' and request.method == 'POST'
+                and response.status_code == 302
+                and request.accept_mimetypes.best_match(('application/json', 'text/html')) == 'text/html'
+                and response.headers.getlist('Location') == [response.location]
+                and response.location and response.location.partition('?')[0] == callback):
+            # Finish the form POST on this origin. Document navigation then
+            # sends the validated OAuth response without resubmitting the form.
+            response.set_data(render_template_string(CONSENT_CONTINUE_TEMPLATE, callback=response.location))
+            response.headers.pop('Location')
+            response.status_code = 200
+            form_action = "'none'"
         response.headers['Cache-Control'] = 'no-store'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Referrer-Policy'] = 'no-referrer'
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'DENY'
-        # Browsers can apply form-action to the redirect after consent POST.
-        # Permit only our origin and the configured, validated OAuth callback.
-        callback = app.config['CHATGPT_REDIRECT_URI']
         response.headers['Content-Security-Policy'] = (
-            f"default-src 'none'; form-action 'self' {callback}; "
+            f"default-src 'none'; form-action {form_action}; "
             "frame-ancestors 'none'; base-uri 'none'"
         )
-        _consent_classify_response(response)
         _consent_emit('http_response_prepared', status=response.status_code)
         return response
 
