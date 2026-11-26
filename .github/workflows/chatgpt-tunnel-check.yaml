@@ -3,6 +3,8 @@ name: Isolated ChatGPT Tunnel Checks
 # .yaml intentionally avoids the repository's *.yml auto-instrumentation bot.
 # This workflow never receives service secrets, publishes images, or deploys.
 on:
+  pull_request:
+    branches: ['staging/chatgpt-tunnel-20261011']
   push:
     branches: ['staging/chatgpt-tunnel-20261011', 'feat/chatgpt-investigation-read-tools', 'feat/isolated-reviewer-login-local']
     paths:
