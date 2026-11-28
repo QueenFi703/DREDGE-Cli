@@ -56,6 +56,20 @@ def test_public_preview_does_not_touch_account_or_storage(app):
         assert db.execute('SELECT COUNT(*) FROM runs').fetchone()[0] == 0
 
 
+def test_login_leads_with_research_not_casework_pilot(app):
+    client = app.test_client()
+    login = client.get('/auth/login').get_data(as_text=True)
+    assert 'Follow the evidence.' in login
+    assert 'SOURCES / 01' in login and 'TRACE / 03' in login
+    assert 'child-support' not in login.lower()
+    assert 'href="/preview"' in login and 'Sign in to continue' in login
+
+    architecture = client.get('/architecture').get_data(as_text=True)
+    assert 'child-support evidence pilot' in architecture
+    assert 'From source record to reviewed casework' in architecture
+    assert 'Follow the evidence.' not in architecture
+
+
 def test_unauthenticated_private_api_never_returns_login_html(app):
     client = app.test_client()
     for path in ['/api/studio/runs','/api/studio/status','/api/studio/report','/api/advanced/models/list','/api/dependabot/alerts']:
