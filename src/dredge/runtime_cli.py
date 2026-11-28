@@ -1,3 +1,6 @@
+# Copyright © 2026 Sophia Cole (doing business as COLEWORLD).
+# Scope and license information: see COPYRIGHT and LICENSE.
+
 """Compatibility commands restored from the pre-pipeline DREDGE runtime CLI.
 
 Kept separate so the newer Click pipeline interface remains available.

@@ -79,6 +79,7 @@ dredge-advanced = "dredge.server:run"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
+license-files = ["LICENSE", "COPYRIGHT", "AUTHORS.md"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

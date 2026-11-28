@@ -309,3 +309,34 @@ Note: GPU images are amd64-only due to NVIDIA CUDA requirements.
 - [Docker build-push-action](https://github.com/docker/build-push-action)
 - [Trivy vulnerability scanner](https://github.com/aquasecurity/trivy)
 - [Docker best practices](https://docs.docker.com/develop/dev-best-practices/)
+
+
+### Runtime compatibility and smoke checks
+
+All image targets use the same Python 3.14 runtime. `cpu-build` aliases the CPU
+runtime, `gpu-build` aliases the CUDA-enabled `gpu` target, and `dev` includes
+the development tools. The CPU image installs the official CPU-only PyTorch
+wheel. The GPU image installs the official CUDA 12.8 PyTorch wheel, whose
+bundled libraries replace the former, incompatible CUDA 11.8/Python 3.10 base.
+CUDA 11.8 wheels cannot satisfy this project's `torch>=2.8.0` requirement.
+
+The GPU image requires an NVIDIA Container Toolkit host with a CUDA 12.8-capable
+driver for GPU execution. The image conservatively enforces
+`NVIDIA_REQUIRE_CUDA=cuda>=12.8`; older-driver CUDA minor-compatibility paths
+have not been validated. NVIDIA lists Linux driver 570.26 for CUDA 12.8 GA and
+570.124.06 for CUDA 12.8 Update 1 in its
+[release notes](https://docs.nvidia.com/cuda/archive/12.8.1/cuda-toolkit-release-notes/index.html).
+Use a maintained driver advertising CUDA 12.8 or newer on the target host.
+Run it with `--gpus all`. CI checks the CUDA wheel's
+import/version and CPU fallback, then the HTTP `/health` endpoint; standard
+GitHub runners do not verify execution on a physical GPU. On a GPU host, verify
+that separately with:
+
+```sh
+docker run --rm --gpus all dredge-cli:gpu python -c \
+  'import torch; assert torch.cuda.is_available(); print(torch.ones(1, device="cuda"))'
+```
+
+Every target serves HTTP on container port 8001. The CI smoke checks map host
+ports 3001 (CPU) and 3002 (GPU) to that port and query the public `/health`
+endpoint rather than a login redirect.
